@@ -1,3 +1,5 @@
+"""Setup configuration for PySlyde package."""
+
 from setuptools import setup, find_packages
 
 setup(
@@ -16,6 +18,9 @@ setup(
         "huggingface_hub",
         "lmdb",
         "matplotlib",
+        "numpy",
+        "opencv-python",
+        "openslide-python",
         "pandas",
         "rocksdb",
         "scipy",
@@ -23,13 +28,39 @@ setup(
         "scikit-image",
         "tensorflow",
         "timm",
+        "torch",
         "webdataset"
     ],
+    extras_require={
+        "dev": [
+            "pytest",
+            "pytest-cov",
+            "black",
+            "flake8",
+            "mypy",
+            "pre-commit"
+        ]
+    },
     classifiers=[
-        "Programming Language :: Python :: 3",
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Science/Research",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Topic :: Scientific/Engineering :: Image Processing",
+        "Topic :: Scientific/Engineering :: Medical Science Apps.",
     ],
-    python_requires=">=3.12",
+    python_requires=">=3.8",
+    keywords="pathology, whole-slide-image, medical-imaging, computer-vision",
+    project_urls={
+        "Bug Reports": "https://github.com/gregoryverghese/PySlide/issues",
+        "Source": "https://github.com/gregoryverghese/PySlide",
+        "Documentation": "https://github.com/gregoryverghese/PySlide#readme",
+    },
 )
 

@@ -25,9 +25,9 @@ from torchvision import transforms as T
 from pyslyde.encoders.ctran import ctranspath
 #from pyslyde.encoders.HistoSSLscaling.rl_benchmarks.models import iBOTViT 
 #from HIPT_4K.hipt_model_utils import get_vit256, get_vit4k
-from pyslyde.encoders.HIPT.HIPT_4K.hipt_model_utils import eval_transforms
-from pyslyde.encoders.HIPT.HIPT_4K import vision_transformer as vits
-from pyslyde.encoders.HIPT.HIPT_4K.hipt_4k import HIPT_4K
+#from pyslyde.encoders.HIPT.HIPT_4K.hipt_model_utils import eval_transforms
+#from pyslyde.encoders.HIPT.HIPT_4K import vision_transformer as vits
+#from pyslyde.encoders.HIPT.HIPT_4K.hipt_4k import HIPT_4K
 #from lmdb_data import LMDBRead, LMDBWrite
 
 from timm.data import resolve_data_config

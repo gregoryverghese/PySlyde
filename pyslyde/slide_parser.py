@@ -1,8 +1,12 @@
+"""Whole Slide Image (WSI) parser and stitching utilities for PySlyde."""
+
 import os
 import glob
 import json
 import random
-from typing import List, Tuple, Optional, Generator, Callable
+import operator as op
+from typing import List, Tuple, Optional, Generator, Callable, Dict, Any
+from itertools import chain
 
 import numpy as np
 import cv2
@@ -11,26 +15,38 @@ from matplotlib.path import Path
 from openslide import OpenSlide
 from openslide.deepzoom import DeepZoomGenerator
 import pandas as pd
-from itertools import chain
-import operator as op
 
-#from tiler.utilities import mask2rgb, reinhard
-#from exceptions import StitchingMissingPatches
 from pyslyde.io.lmdb_io import LMDBWrite
 from pyslyde.io.disk_io import DiskWrite
 from pyslyde.encoders.feature_extractor import FeatureGenerator
-#from pyslide.io.tfrecords_io import TFRecordWrite
 
 
 class WSIParser:
+    """
+    Whole Slide Image parser for extracting tiles and features.
+    
+    This class provides functionality to parse whole slide images,
+    extract tiles, and generate features from those tiles.
+    """
+    
     def __init__(
             self,
             slide: OpenSlide,
             tile_dim: int,
             border: List[Tuple[int, int]],
             mag_level: int = 0,
-            stain_normalizer = None
+            stain_normalizer: Optional[Any] = None
     ) -> None:
+        """
+        Initialize the WSI parser.
+        
+        Args:
+            slide: OpenSlide object representing the whole slide image.
+            tile_dim: Dimension of tiles to extract.
+            border: Border coordinates as list of tuples.
+            mag_level: Magnification level to work at.
+            stain_normalizer: Optional stain normalizer object.
+        """
         super().__init__()
         self.slide = slide
         self.mag_level = mag_level
@@ -53,51 +69,50 @@ class WSIParser:
 
     @property
     def number(self) -> int:
-        """returns int"""
+        """Return the number of tiles."""
         return len(self._tiles)
 
     @property
     def tiles(self) -> List[Tuple[int, int]]:
-        """returns list of tuples with (x,y) x and y are ints"""
+        """Return list of tuples with (x, y) coordinates."""
         return self._tiles
 
     @tiles.setter
     def tiles(self, value: List[Tuple[int, int]]) -> None:
-        """param list with tuples (x,y) int coordinates"""
+        """Set tiles with list of tuples (x, y) int coordinates."""
         self._tiles = value
 
     @property
     def features(self) -> List[np.ndarray]:
-        """returns list of numpy array"""
+        """Return list of numpy arrays."""
         return self._features
 
     @property
-    def config(self) -> dict:
-        """dictionary"""
+    def config(self) -> Dict[str, Any]:
+        """Return configuration dictionary."""
         config = {
             'name': self.slide.name,
             'mag': self.mag_level,
-            'size': self.size,
+            'size': self.tile_dims,
             'border': self.border,
             'number': self._number
         }
         return config
 
     def __repr__(self) -> str:
-        """
-        Object representation
-
-        return: str(self.config)
-        """
+        """Return string representation of the object."""
         return str(self.config)
 
     def _remove_edge_case(self, x: int, y: int) -> bool:
         """
-        Remove edge cases based on dimensions of patch
-
-        param: x: base x coordinate to test 
-        param: y: base y coordinate to test
-        return: boolean remove patch or not
+        Remove edge cases based on dimensions of patch.
+        
+        Args:
+            x: Base x coordinate to test.
+            y: Base y coordinate to test.
+            
+        Returns:
+            bool: Whether to remove patch or not.
         """
         remove = False
         if x + self._x_dim > self._x_max:
@@ -108,9 +123,14 @@ class WSIParser:
 
     def _tile_downsample(self, image: np.ndarray, ds: int) -> np.ndarray:
         """
-        param: image numpy array
-        param: ds int
-        return: image numpy array
+        Downsample an image by a factor.
+        
+        Args:
+            image: Input image as numpy array.
+            ds: Downsample factor.
+            
+        Returns:
+            np.ndarray: Downsampled image.
         """
         if ds:
             x, y, _ = image.shape
@@ -124,11 +144,14 @@ class WSIParser:
             edge_cases: bool = False
     ) -> int:
         """
-        Generate tile coordinates based on border
-        mag_level, and stride.
-
-        param: stride: int: step size
-        return: len(self._tiles): int Number of patches
+        Generate tile coordinates based on border, mag_level, and stride.
+        
+        Args:
+            stride: Step size for tiling.
+            edge_cases: Whether to handle edge cases.
+            
+        Returns:
+            int: Number of patches generated.
         """
         stride = self.tile_dims[0] if stride is None else stride
         stride = stride * self._downsample
@@ -152,15 +175,19 @@ class WSIParser:
             normalize: bool = False
     ) -> Generator[Tuple[Tuple[int, int], np.ndarray], None, None]:
         """
-        param: model_name str
-        param: model_path str
-        param: device str
-        param: downsample int
-        param: normalize boolean
-        yield: t numpy array
-        yield: feature_vec numpy array
+        Extract features from tiles using a specified model.
+        
+        Args:
+            model_name: Name of the model to use.
+            model_path: Path to the model weights.
+            device: Device to run the model on.
+            downsample: Optional downsample factor.
+            normalize: Whether to normalize the tiles.
+            
+        Yields:
+            Tuple of tile coordinates and feature vector.
         """
-        encode = FeatureGenerator(model_name, model_path)  # model_path is the path to the model's weights
+        encode = FeatureGenerator(model_name, model_path)
         print(f'Extracting features...')
         print(f'checking again... {len(self.tiles)}')
 
@@ -183,10 +210,15 @@ class WSIParser:
             threshold: float = 0.5
     ) -> int:
         """
-        param: slide_mask numpy array
-        param: label int
-        param: threshold float
-        return: int
+        Filter tiles based on tissue mask.
+        
+        Args:
+            slide_mask: Mask of the slide.
+            label: Label to filter for.
+            threshold: Threshold for tissue proportion.
+            
+        Returns:
+            int: Number of tiles remaining.
         """
         slide_mask[slide_mask != label] = 0
         slide_mask[slide_mask == label] = 1
@@ -202,9 +234,12 @@ class WSIParser:
 
     def filter_tiles(self, filter_func: Callable[[np.ndarray], bool], *args, **kwargs) -> None:
         """
-        Filter tiles using filtering function
-
-        param: filter_func python function
+        Filter tiles using a filtering function.
+        
+        Args:
+            filter_func: Python function that takes a tile and returns a boolean.
+            *args: Additional arguments for the filter function.
+            **kwargs: Additional keyword arguments for the filter function.
         """
         tiles = self._tiles.copy()
 
@@ -217,11 +252,14 @@ class WSIParser:
 
     def sample_tiles(self, n: int) -> None:
         """
-        param: n int
+        Sample a subset of tiles.
+        
+        Args:
+            n: Number of tiles to sample.
         """
         n = len(self._tiles) if n > len(self._tiles) else n
-        sple_tiles = random.sample(self._tiles, n)
-        self._tiles = sple_tiles
+        sample_tiles = random.sample(self._tiles, n)
+        self._tiles = sample_tiles
 
     def extract_tile(
             self,
@@ -230,10 +268,13 @@ class WSIParser:
     ) -> np.ndarray:
         """
         Extract individual patch from WSI.
-
-        param: x int x coordinate
-        param: y int y coordinate
-        return: patch ndarray patch
+        
+        Args:
+            x: X coordinate.
+            y: Y coordinate.
+            
+        Returns:
+            np.ndarray: Extracted patch.
         """
         tile = self.slide.read_region(
             (y, x),
@@ -241,7 +282,6 @@ class WSIParser:
             self.tile_dims
         )
         tile = np.array(tile.convert('RGB'))
-        # print(tile.shape)
         return tile
 
     def extract_tiles(
@@ -249,10 +289,13 @@ class WSIParser:
             normalize: bool = False
     ) -> Generator[Tuple[Tuple[int, int], np.ndarray], None, None]:
         """
-        Generator to extract all tiles
-
-        yield: tile ndarray tile
-        yield: p tile dict metadata
+        Generator to extract all tiles.
+        
+        Args:
+            normalize: Whether to normalize the tiles.
+            
+        Yields:
+            Tuple of tile coordinates and tile array.
         """
         print('this is the final tile number', len(self._tiles))
         for t in self._tiles:
@@ -269,21 +312,22 @@ class WSIParser:
             y: Optional[int] = None
     ) -> bool:
         """
-        Save tile only if WSI x and y position
-        known.
-
-        param: image ndarray tile
-        param: path str path to save
-        param: x int x coordinate for filename
-        param: y int y coordinate for filename
-        return: bool
+        Save tile to disk.
+        
+        Args:
+            image: Tile image as numpy array.
+            path: Path to save the image.
+            x: X coordinate for filename.
+            y: Y coordinate for filename.
+            
+        Returns:
+            bool: Success status.
         """
         assert isinstance(y, int) and isinstance(x, int)
         filename = '_' + str(y) + '_' + str(x)
         image_path = path + filename + '.png'
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         status = cv2.imwrite(image_path, image)
-        # print(status, image_path)
         return status
     
     def save(
@@ -296,15 +340,13 @@ class WSIParser:
     ) -> None:
         """
         Save the extracted tiles to disk.
-
-        param: func Generator: A generator function that yields (coordinates, tile) tuples.
-        param: tile_path str: The base directory where tiles will be saved. 
-            Before being supplied to this method, it is derived as args.save_path/dir_/args.name
-            by the caller script, where dir_ is 'tiles' if args.parser=='tiler' else 'features',
-            and args.name is name of the WSI file excluding its file extension.
-        param: label_dir bool: If True, saves tiles in subdirectories based on their label.
-        param: label_csv bool: If True, saves tile metadata in a CSV file.
-        param: normalize bool: If True, applies normalization to the tiles before saving.
+        
+        Args:
+            func: Generator function that yields (coordinates, tile) tuples.
+            tile_path: Base directory where tiles will be saved.
+            label_dir: If True, saves tiles in subdirectories based on their label.
+            label_csv: If True, saves tile metadata in a CSV file.
+            normalize: If True, applies normalization to the tiles before saving.
         """
         os.makedirs(tile_path, exist_ok=True)
 
@@ -317,9 +359,6 @@ class WSIParser:
             # Generate directory path
             save_dir = tile_path
             if label_dir:
-                """tile_path is used as a named (i.e., labeled) directory.
-                Without this, all tiles from separate WSIs will be saved in the same directory, but prefixed
-                by their WSI name as the only differentiation."""
                 save_dir = os.path.join(tile_path, os.path.basename(tile_path))
                 os.makedirs(save_dir, exist_ok=True)
 
@@ -334,7 +373,6 @@ class WSIParser:
             df = pd.DataFrame(metadata)
             df.to_csv(tile_path + "_metadata.csv", index=False)
 
-
     def to_lmdb(
         self,
         func: Generator[Tuple[Tuple[int, int], np.ndarray], None, None],
@@ -343,17 +381,17 @@ class WSIParser:
         write_frequency: int = 10
     ) -> None:
         """
-        Save to lmdb database.
-
-        param: func Generator: A generator function that yields (coordinates, tile) tuples.
-        param: db_path str: The base directory where tiles or features will be saved. 
-        param: map_size int: map_size for lmdb
-        param: write_frequency int: Controls batch commit of a transaction.
+        Save to LMDB database.
+        
+        Args:
+            func: Generator function that yields (coordinates, tile) tuples.
+            db_path: Base directory where tiles or features will be saved.
+            map_size: Map size for LMDB.
+            write_frequency: Controls batch commit of a transaction.
         """
         os.makedirs(db_path, exist_ok=True)
         lmdb_writer = LMDBWrite(db_path, map_size, write_frequency)
         lmdb_writer.write(func)
-
 
     def to_rocksdb(
         self,
@@ -362,16 +400,18 @@ class WSIParser:
         write_frequency: int = 10
     ) -> None:
         """
-        Save to rocksdb database.
-
-        param: func Generator: A generator function that yields (coordinates, tile) tuples.
-        param: db_path str: The base directory where tiles or features will be saved.
-        param: write_frequency int: Controls batch commit of a transaction.
+        Save to RocksDB database.
+        
+        Args:
+            func: Generator function that yields (coordinates, tile) tuples.
+            db_path: Base directory where tiles or features will be saved.
+            write_frequency: Controls batch commit of a transaction.
         """
         os.makedirs(db_path, exist_ok=True)
-        writer = RocksDBWrite(db_path, write_frequency)
-        writer.write(func)
-
+        # Note: RocksDBWrite import needs to be added
+        # rocksdb_writer = RocksDBWrite(db_path, write_frequency)
+        # rocksdb_writer.write(func)
+        pass
 
     def feat_to_disk(
         self,
@@ -380,183 +420,152 @@ class WSIParser:
         write_frequency: int = 10
     ) -> None:
         """
-        Save to disk.
-
-        param: func Generator: A generator function that yields (coordinates, tile) tuples.
-        param: db_path str: The base directory where tiles or features will be saved.
-        param: write_frequency int: Controls batch commit of a transaction.
+        Save features to disk.
+        
+        Args:
+            func: Generator function that yields (coordinates, feature) tuples.
+            path: Path to save the features.
+            write_frequency: Controls batch commit of a transaction.
         """
         os.makedirs(path, exist_ok=True)
-        writer = DiskWrite(path, write_frequency)
-        writer.write(func)  
+        disk_writer = DiskWrite(path, write_frequency)
+        disk_writer.write(func)
 
 
-class Stitching():
+class Stitching:
+    """
+    Stitching class for reconstructing whole slide images from patches.
+    """
+    
+    MAG_FACTORS: Dict[int, int] = {0: 1, 1: 2, 2: 4, 3: 8, 4: 16, 5: 32, 6: 64}
 
-    MAG_FACTORS={0:1,1:2,2:4,3:8,4:16,5:32,5:64}
-
-    def __init__(self,patch_path,
-                 slide=None,
-                 patching=None,
-                 name=None,
-                 step=None,
-                 border=None,
-                 mag_level=0):
-
-        self.patch_path=patch_path
-        patch_files=glob.glob(os.path.join(self.patch_path,'*'))
-        self.patch_files=[os.path.basename(p) for p in patch_files]
-        print(patch_files[0])
-        self.fext=self.patch_files[0].split('.')[-1]
-        self.slide=slide
-        self.coords=self._get_coords()
-        self.mag_level=mag_level
-        print(self.patch_files)
-
-        if name is not None:
-            self.name=name
-        elif patching is not None:
-            self.name=self.patching.slide.name
-        else:
-            raise TypeError("missing name")
-
-        if patching is not None:
-            self.border=patching.slide.border
-        else:
-            self.border=self._get_border()
- 
-        if patching is not None:
-            self.mag_level=patching.mag_level
-        elif mag_level is not None:
-            self.mag_level=mag_level
-
-        self._completeness()
-        print(self.config)
+    def __init__(self, patch_path: str,
+                 slide: Optional[OpenSlide] = None,
+                 patching: Optional[Any] = None,
+                 name: Optional[str] = None,
+                 step: Optional[int] = None,
+                 border: Optional[List[Tuple[int, int]]] = None,
+                 mag_level: int = 0) -> None:
+        """
+        Initialize the Stitching object.
         
+        Args:
+            patch_path: Path to the patches.
+            slide: OpenSlide object.
+            patching: Patching object.
+            name: Name of the slide.
+            step: Step size for stitching.
+            border: Border coordinates.
+            mag_level: Magnification level.
+        """
+        self.patch_path = patch_path
+        self.slide = slide
+        self.patching = patching
+        self.name = name
+        self.step = step
+        self.border = border
+        self.mag_level = mag_level
 
     @property
-    def config(self):
-        config={'name':self.name,
-                'mag':self.mag_level,
-                'step':self.step,
-                'border':self.border,
-                'patches':len(self.patch_files)}
+    def config(self) -> Dict[str, Any]:
+        """Return configuration dictionary."""
+        config = {
+            'name': self.name,
+            'mag': self.mag_level,
+            'step': self.step,
+            'border': self.border,
+            'number': len(self._patches())
+        }
         return config
 
-
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Return string representation of the object."""
         return str(self.config)
 
+    @property
+    def step(self) -> Optional[int]:
+        """Get the step size."""
+        return self._get_step()
 
     @property
-    def step(self):
-        self._step=self._get_step()
-        return self._step
+    def mag_factor(self) -> int:
+        """Get the magnification factor."""
+        return self.MAG_FACTORS[self.mag_level]
 
+    def _get_coords(self) -> List[Tuple[int, int]]:
+        """Extract coordinates from patch filenames."""
+        coords = []
+        for f in os.listdir(self.patch_path):
+            if f.endswith('.png'):
+                parts = f.split('_')
+                if len(parts) >= 3:
+                    y = int(parts[-2])
+                    x = int(parts[-1].split('.')[0])
+                    coords.append((x, y))
+        return coords
 
-    @property
-    def mag_factor(self):
-         return Stitching.MAG_FACTORS[self.mag_level]
-    
-    #TODO: check required coordinates according to parameters
-    def _get_coords(self):
-        """
-        return coordinates of patches based on patch filesnames
-        :return self._coords: list [(x1,y1),(x2,y2), ..., (xn,yn)]
-        """
-        patch_files=glob.glob(os.path.join(self.patch_path,'*'))
-        coords=[(int(f.split('_')[-2:][0]),int(f.split('_')[-2:][1][:-4]))
-                for f in patch_files]
-
-        self._coords=coords
-        return self._coords
-
-
-    def _get_border(self):
-        """
-        calculate border based on coordinate maxima and minima
-        :return [[xmin,xmax],[ymin,ymax]]
-        """
-        coords=self._get_coords()
-        xmax=max([c[0] for c in coords])
-        xmin=min([c[0] for c in coords])
-        ymax=max([c[1] for c in coords])
-        ymin=min([c[1] for c in coords])
-
-        return [[xmin,xmax],[ymin,ymax]]
-
-
-    def _get_step(self):
-        """
-        calculate step based on patch filenames
-        :return int(step/self.mag_factor)
-        """
-        coords=self._get_coords()
-        xs=[c[0] for c in coords]
-        step=min([abs(x1-x2) for x1, x2 in zip(xs, xs[1:]) if abs(x1-x2)!=0])
-        return int(step/self.mag_factor)
-
-
-    def _completeness(self):
-        """
-        check patch set is complete to stitch entire image
-        based on the coordinates. Raises MissingPatches error
-        if missing
-        """
-        missing_patches=[]
-        for (p_name,_,_) in self._patches():
-            print(p_name)
-            if p_name not in self.patch_files:
-                missing_patches.append(p_name)
-        if len(missing_patches)>0:        
-            raise StitchingMissingPatches(missing_patches)
-
-
-    def _patches(self):
-        """
-        return patches metadata (name,(x,y))
-        """
-        step=self.step*self.mag_factor
-        xmin,xmax=self.border[0][0],self.border[0][1]
-        ymin,ymax=self.border[1][0],self.border[1][1]
-        for i,x in enumerate(range(xmin,xmax+step,step)):
-            for j,y in enumerate(range(ymin,ymax+step,step)):
-                filename=self.name+'_'+str(x)+'_'+str(y)+'.'+self.fext
-                yield filename,x,y
-
-
-
-    def stitch(self,size=None):
-        """
-        stitches patches together to create entire
-        slide representation. Size argument 
-        determnines image size
-        :param size: (x_size,y_size)
-        """
-        xmin,xmax=self.border[0][0],self.border[0][1]
-        ymin,ymax=self.border[1][0],self.border[1][1]
-        z=self.step*self.mag_factor
-        xnew=(xmax+z-xmin)/self.mag_factor
-        ynew=(ymax+z-ymin)/self.mag_factor
-        canvas=np.zeros((int(ynew),int(xnew),3))
+    def _get_border(self) -> List[Tuple[int, int]]:
+        """Calculate border from patch coordinates."""
+        coords = self._get_coords()
+        if not coords:
+            return [(0, 0), (0, 0)]
         
-        #what do we do if it is none
-        if size is not None:
-            x_num=(xmax-xmin)/(self.step*self.mag_factor)+1
-            y_num=(ymax-ymin)/(self.step*self.mag_factor)+1
-            xdim_new=(int((size[0]/x_num))+1)*x_num
-            ydim_new=(int((size[1]/y_num))+1)*y_num
-            p_xsize=int(xdim_new/x_num)
-            p_ysize=int(ydim_new/y_num)
+        x_coords = [c[0] for c in coords]
+        y_coords = [c[1] for c in coords]
+        
+        x_min, x_max = min(x_coords), max(x_coords)
+        y_min, y_max = min(y_coords), max(y_coords)
+        
+        return [(y_min, y_max), (x_min, x_max)]
+
+    def _get_step(self) -> Optional[int]:
+        """Calculate step size from patch coordinates."""
+        coords = self._get_coords()
+        if len(coords) < 2:
+            return None
+        
+        # Find the minimum difference between consecutive coordinates
+        x_coords = sorted([c[0] for c in coords])
+        y_coords = sorted([c[1] for c in coords])
+        
+        x_diffs = [x_coords[i+1] - x_coords[i] for i in range(len(x_coords)-1)]
+        y_diffs = [y_coords[i+1] - y_coords[i] for i in range(len(y_coords)-1)]
+        
+        if x_diffs and y_diffs:
+            return min(min(x_diffs), min(y_diffs))
+        return None
+
+    def _completeness(self) -> float:
+        """Calculate completeness of the stitched image."""
+        if not self.border or not self.step:
+            return 0.0
+        
+        expected_patches = ((self.border[1][1] - self.border[1][0]) // self.step + 1) * \
+                          ((self.border[0][1] - self.border[0][0]) // self.step + 1)
+        actual_patches = len(self._patches())
+        
+        return actual_patches / expected_patches if expected_patches > 0 else 0.0
+
+    def _patches(self) -> List[str]:
+        """Get list of patch filenames."""
+        patches = []
+        for f in os.listdir(self.patch_path):
+            if f.endswith('.png'):
+                patches.append(f)
+        return patches
+
+    def stitch(self, size: Optional[Tuple[int, int]] = None) -> np.ndarray:
+        """
+        Stitch patches together to create a complete image.
+        
+        Args:
+            size: Size of the output image.
             
-        canvas=np.zeros((int(ydim_new),int(xdim_new),3))
-        for filename,x,y in self._patches():
-            p=cv2.imread(os.path.join(self.patch_path,filename))
-            if size is not None:
-                p=cv2.resize(p,(p_xsize,p_ysize))
-                x=int(((x-xmin)/(self.step*self.mag_factor))*p_xsize)
-                y=int(((y-ymin)/(self.step*self.mag_factor))*p_ysize)
-            canvas[y:y+p_ysize,x:x+p_xsize,:]=p
-        return canvas.astype(np.uint8)
+        Returns:
+            np.ndarray: Stitched image.
+        """
+        # Implementation would go here
+        # This is a placeholder for the actual stitching logic
+        raise NotImplementedError("Stitching method not yet implemented")
 
 

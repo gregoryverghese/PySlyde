@@ -1,19 +1,14 @@
-'''
-utilities.py: useful functions
+"""Utility functions for PySlyde.
 
-
+This module contains various utility functions for image processing,
+mask operations, and data manipulation in the PySlyde package.
 """
-preprocessing.py: perform operations on patch dataset
-
-1. calcutate_std_mean: calculate mean and standard deviation of pixel intensities
-2. calculate_weights: generate weights proportional to inverse of class area. Useful to 
-   tackle class imbalance for ML training
-"""
-'''
 
 import os 
 import glob
+import random
 from itertools import chain
+from typing import List, Tuple, Optional, Union, Any, Dict
 
 import cv2
 import numpy as np
@@ -28,79 +23,111 @@ from skimage.filters import threshold_otsu
 from skimage.morphology import square, closing, opening
 #import staintools
 
-def mask2rgb(mask):
-    n_classes=len(np.unique(mask))
-    colors=sns.color_palette('hls',n_classes)
-    rgb_mask=np.zeros(mask.shape+(3,))
-    for c in range(1,n_classes+1):
-        t=(mask==c)
-        rgb_mask[:,:,0][t]=colors[c-1][0]
-        rgb_mask[:,:,1][t]=colors[c-1][1]
-        rgb_mask[:,:,2][t]=colors[c-1][2]
+def mask2rgb(mask: np.ndarray) -> np.ndarray:
+    """
+    Convert a mask to RGB representation.
+    
+    Args:
+        mask: Input mask as numpy array.
+        
+    Returns:
+        np.ndarray: RGB mask with colors assigned to each class.
+    """
+    n_classes = len(np.unique(mask))
+    colors = sns.color_palette('hls', n_classes)
+    rgb_mask = np.zeros(mask.shape + (3,))
+    for c in range(1, n_classes + 1):
+        t = (mask == c)
+        rgb_mask[:, :, 0][t] = colors[c - 1][0]
+        rgb_mask[:, :, 1][t] = colors[c - 1][1]
+        rgb_mask[:, :, 2][t] = colors[c - 1][2]
     return rgb_mask
 
 
-def draw_boundary(annotations, offset=100):
-
+def draw_boundary(annotations: Dict[str, List[List[List[int]]]], 
+                  offset: int = 100) -> List[Tuple[int, int]]:
+    """
+    Draw boundary around annotations.
+    
+    Args:
+        annotations: Dictionary of annotations.
+        offset: Offset from the boundary.
+        
+    Returns:
+        List of boundary coordinates.
+    """
     annotations = list(chain(*[annotations[f] for f in annotations]))
     coords = list(chain(*annotations))
-    boundaries = list(map(lambda x: (min(x)-offset, max(x)+offset), list(zip(*coords))))
-   
+    boundaries = list(map(lambda x: (min(x) - offset, max(x) + offset), 
+                         list(zip(*coords))))
     return boundaries
 
 
-def oneHotToMask(onehot):
-    nClasses =  onehot.shape[-1]
-    idx = tf.argmax(onehot, axis=-1)
-    colors = sns.color_palette('hls', nClasses)
-    multimask = tf.gather(colors, idx)
-    multimask = np.where(multimask[:,:,:]==colors[0], 0, multimask[:,:,:])
-
+def oneHotToMask(onehot: np.ndarray) -> np.ndarray:
+    """
+    Convert one-hot encoded mask to RGB mask.
+    
+    Args:
+        onehot: One-hot encoded mask.
+        
+    Returns:
+        np.ndarray: RGB mask.
+    """
+    n_classes = onehot.shape[-1]
+    idx = np.argmax(onehot, axis=-1)
+    colors = sns.color_palette('hls', n_classes)
+    multimask = np.take(colors, idx, axis=0)
+    multimask = np.where(multimask[:, :, :] == colors[0], 0, multimask[:, :, :])
     return multimask
 
 
-#can we sample and return a new patching object
-def sample_patches(patch,n,replacement=False):
+def sample_patches(patch: Any, n: int, replacement: bool = False) -> Any:
+    """
+    Sample patches from a patch object.
     
+    Args:
+        patch: Patch object to sample from.
+        n: Number of patches to sample.
+        replacement: Whether to sample with replacement.
+        
+    Returns:
+        New patch object with sampled patches.
+    """
     if replacement:
-        patches=random.choice(patch._patches,n)
+        patches = random.choices(patch._patches, k=n)
     else:
-        patches=random.sample(patch._patches,n)
+        patches = random.sample(patch._patches, n)
 
-    new_patch =  Patch(patch.slide,
-                       patch.size,
-                       patch.mag_level,
-                       patch.border,  
-                       patch.step)
+    new_patch = type(patch)(patch.slide,
+                           patch.size,
+                           patch.mag_level,
+                           patch.border,  
+                           patch.step)
 
-    new_patch.patches=patches
-    return new_patches
+    new_patch.patches = patches
+    return new_patch
 
-"""
-def reinhard(img_arr):
-    standard_img = "/SAN/colcc/TNT-AI/data/stain-targets/5.jpg"
-    target = staintools.read_image(standard_img)
-    target = staintools.LuminosityStandardizer.standardize(target)
-    normalizer = staintools.ReinhardColorNormalizer()
-    normalizer.fit(target)
-    #img = staintools.read_image(img_path)
-    img_to_transform = staintools.LuminosityStandardizer.standardize(img_arr)
-    img_transformed = normalizer.transform(img_to_transform)
-    return img_transformed
-"""
 
-def get_pca():
+def get_pca() -> Any:
+    """
+    Get PCA transformation for feature vectors.
+    
+    Returns:
+        IncrementalPCA object fitted to the data.
+    """
+    from sklearn.decomposition import IncrementalPCA
+    from tqdm import tqdm
     
     ipca = IncrementalPCA()
     batch = []
-    for path in tqdm(files):
+    for path in tqdm(glob.glob("*.npy")):  # This should be parameterized
         mat = np.load(path)
         if len(mat.shape) == 1:
             mat = np.expand_dims(mat, 0)
         if mat.sum() == 0:
             continue
-        #print('batch shape',batch.shape)
-        if check_dim(batch):
+        
+        if len(batch) > 1000:  # Batch size threshold
             batch = np.vstack(batch)
             print('partial fit')
             ipca.partial_fit(X=batch)
@@ -112,95 +139,113 @@ def get_pca():
     return ipca
 
 
-class TissueDetect():
+class TissueDetect:
+    """
+    Tissue detection class for whole slide images.
+    
+    This class provides functionality to detect tissue regions in whole slide images
+    and generate tissue masks and contours.
+    """
+    
+    bilateral_args = [
+        {"d": 90, "sigmaColor": 5000, "sigmaSpace": 5000},
+        {"d": 90, "sigmaColor": 5000, "sigmaSpace": 5000},
+        {"d": 90, "sigmaColor": 10000, "sigmaSpace": 10000},
+        {"d": 90, "sigmaColor": 10000, "sigmaSpace": 100}
+    ]
 
-    bilateral_args=[
-            #{"d":9,"sigmaColor":10000,"sigmaSpace":150},
-            {"d":90,"sigmaColor":5000,"sigmaSpace":5000},
-            {"d":90,"sigmaColor":5000,"sigmaSpace":5000},
-            {"d":90,"sigmaColor":10000,"sigmaSpace":10000},
-            {"d":90,"sigmaColor":10000,"sigmaSpace":100}
-            ]
+    thresh_args = [
+        {"thresh": 0, "maxval": 255, "type": cv2.THRESH_TRUNC + cv2.THRESH_OTSU},
+        {"thresh": 0, "maxval": 255, "type": cv2.THRESH_OTSU}
+    ]
 
-    thresh_args=[
-            {"thresh":0,"maxval":255,"type":cv2.THRESH_TRUNC+cv2.THRESH_OTSU},
-            {"thresh":0,"maxval":255,"type":cv2.THRESH_OTSU}
-            ]
-
-    def __init__(self, slide):
-        self.slide=openslide.OpenSlide(slide) if isinstance(slide, str) else slide
-        self.tissue_mask=None 
-        self.contour_mask=None
-        self._border=None
-
+    def __init__(self, slide: Union[str, OpenSlide]) -> None:
+        """
+        Initialize the tissue detector.
+        
+        Args:
+            slide: Path to slide or OpenSlide object.
+        """
+        self.slide = OpenSlide(slide) if isinstance(slide, str) else slide
+        self.tissue_mask: Optional[np.ndarray] = None 
+        self.contour_mask: Optional[np.ndarray] = None
+        self._border: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = None
 
     @property
-    def tissue_thumbnail(self):
+    def tissue_thumbnail(self) -> np.ndarray:
+        """Get thumbnail with tissue contours drawn."""
         ds = [int(d) for d in self.slide.level_downsamples]
         level = ds.index(32) if 32 in ds else ds.index(int(ds[-1]))
-        contours=self._generate_tissue_contour()
-        image=self.slide.get_thumbnail(self.slide.level_dimensions[level])
-        image=np.array(image.convert('RGB'))
+        contours = self._generate_tissue_contour()
+        image = self.slide.get_thumbnail(self.slide.level_dimensions[level])
+        image = np.array(image.convert('RGB'))
         cv2.drawContours(image, contours, -1, (0, 255, 0), 5)
-        x,y,w,h=cv2.boundingRect(np.concatenate(contours))
-        cv2.rectangle(image,(x,y),(x+w,y+h),(255,0,0),5)
-
+        x, y, w, h = cv2.boundingRect(np.concatenate(contours))
+        cv2.rectangle(image, (x, y), (x + w, y + h), (255, 0, 0), 5)
         return image
 
-
-    def mask_image(self,thumb):
-        thumb[:,:,0][self.contour_mask==0]=255
-        thumb[:,:,1][self.contour_mask==0]=255
-        thumb[:,:,2][self.contour_mask==0]=255
+    def mask_image(self, thumb: np.ndarray) -> np.ndarray:
+        """
+        Apply tissue mask to thumbnail.
+        
+        Args:
+            thumb: Thumbnail image.
+            
+        Returns:
+            np.ndarray: Masked thumbnail.
+        """
+        thumb[:, :, 0][self.contour_mask == 0] = 255
+        thumb[:, :, 1][self.contour_mask == 0] = 255
+        thumb[:, :, 2][self.contour_mask == 0] = 255
         return thumb
     
-    
-    def border(self, mask=None):
+    def border(self, mask: Optional[np.ndarray] = None) -> Optional[Tuple[Tuple[int, int], Tuple[int, int]]]:
+        """
+        Get border coordinates from tissue mask.
         
+        Args:
+            mask: Optional mask to use instead of contour_mask.
+            
+        Returns:
+            Border coordinates as ((x_min, y_min), (x_max, y_max)).
+        """
         if (mask is None) and (self.contour_mask is None):
-            #return dimensions of slide.
             return None
         
-        mask=self.contour_mask if mask is None else mask
-        mask =cv2.resize(mask,self.slide.dimensions)
+        mask = self.contour_mask if mask is None else mask
+        mask = cv2.resize(mask, self.slide.dimensions)
        
-        contours,_=cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
-        #test=cv2.resize(self.contour_mask,self.slide.dimensions)
-        #image=self.slide.get_thumbnail(self.slide.level_dimensions[3])
-        #image=np.array(image.convert('RGB'))
-        #contour=contours[np.argmax([c.size for c in contours])]
-        x,y,w,h=cv2.boundingRect(np.concatenate(contours))
-        #x,y,w,h=[d*int(self.slide.level_downsamples[mag_level]) for d in [x,y,w,h]]
-        self._border=((x,y),(x+w,y+h))
+        x, y, w, h = cv2.boundingRect(np.concatenate(contours))
+        self._border = ((x, y), (x + w, y + h))
         return self._border
-        
 
-    def detect_tissue(self):
+    def detect_tissue(self) -> np.ndarray:
+        """
+        Detect tissue regions in the slide.
+        
+        Returns:
+            np.ndarray: Tissue mask.
+        """
         if isinstance(self.slide, OpenSlide): 
             ds = [int(d) for d in self.slide.level_downsamples]
             level = ds.index(32) if 32 in ds else ds.index(int(ds[-1]))
-            image = self.slide.read_region((0,0),level, 
-                        self.slide.level_dimensions[level]) 
             image = self.slide.get_thumbnail(self.slide.level_dimensions[level]) 
             image = np.array(image.convert('RGB'))
-            dims = self.slide.dimensions
         else:
             image = self.slide
-            dims = self.slide.shape
 
         gray = rgb2gray(image)
         gray_f = gray.flatten()
 
         pixels_int = gray_f[np.logical_and(gray_f > 0.1, gray_f < 0.98)]
         t = threshold_otsu(pixels_int)
-        thresh = np.logical_and(gray_f<t, gray_f>0.1).reshape(gray.shape)
+        thresh = np.logical_and(gray_f < t, gray_f > 0.1).reshape(gray.shape)
         
         mask = opening(closing(thresh, footprint=square(2)), footprint=square(2))
         self.tissue_mask = mask.astype(np.uint8)
-         
-        return cv2.resize(mask.astype(np.uint8),dims)
-
+        return self.tissue_mask
 
     def _generate_tissue_contour(self):
         
