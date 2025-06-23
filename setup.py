@@ -1,4 +1,4 @@
-"""Setup configuration for PySlyde package."""
+"""Setup configuration for the PySlyde package."""
 
 from setuptools import setup, find_packages
 
