@@ -196,7 +196,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Citation
 
-If you use PySlyde in your research, please cite:
+If you use PySlyde in your research, please cites:
 
 ```bibtex
 @software{pyslyde2024,
