@@ -1,27 +1,51 @@
+"""Disk I/O utilities for PySlyde."""
+
 import os
 import pickle
+from typing import Generator, Tuple, List, Dict, Any
+
 import numpy as np
 
+
 class DiskWrite:
-    def __init__(self, path, write_frequency=10):
+    """
+    Disk writer for saving tiles and features to disk.
+    
+    This class provides functionality to write tiles and features to disk
+    in batches with configurable write frequency.
+    """
+    
+    def __init__(self, path: str, write_frequency: int = 10) -> None:
+        """
+        Initialize the disk writer.
+        
+        Args:
+            path: Directory path to save files.
+            write_frequency: Number of items to buffer before writing to disk.
+        """
         self.path = path
         self.write_frequency = write_frequency
         os.makedirs(path, exist_ok=True)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Return string representation of the object."""
         return f'DiskWrite(path: {self.path})'
 
-    def _print_progress(self, i):
+    def _print_progress(self, i: int) -> None:
+        """Print progress information."""
         print(f"Processed {i + 1} tiles", end='\r')
 
-    def write(self, parser):
+    def write(self, parser: Generator[Tuple[Tuple[int, int], np.ndarray], None, None]) -> None:
         """
+        Write tiles to disk in batches.
+        
         Writes tiles to disk in batches after every self.write_frequency iterations.
-
-        param: parser Generator: A generator that yields (coordinates, tile) tuples.
+        
+        Args:
+            parser: Generator that yields (coordinates, tile) tuples.
         """
-        tile_buffer = []
-        meta_buffer = []
+        tile_buffer: List[Tuple[str, np.ndarray]] = []
+        meta_buffer: List[Tuple[str, Dict[str, Any]]] = []
 
         for i, (p, tile) in enumerate(parser):
             # Create file names for tile and metadata
@@ -46,12 +70,14 @@ class DiskWrite:
 
         print("\nFinished writing tiles to disk.")
 
-    def _write_buffer(self, tile_buffer, meta_buffer):
+    def _write_buffer(self, tile_buffer: List[Tuple[str, np.ndarray]], 
+                     meta_buffer: List[Tuple[str, Dict[str, Any]]]) -> None:
         """
-        Writes the contents of the buffers to disk.
+        Write the contents of the buffers to disk.
         
-        param: tile_buffer List[Tuple[str, np.ndarray]]: A list of tuples (file path, tile).
-        param: meta_buffer List[Tuple[str, dict]]: A list of tuples (file path, metadata).
+        Args:
+            tile_buffer: List of tuples (file path, tile).
+            meta_buffer: List of tuples (file path, metadata).
         """
         # Write all tiles in the buffer to disk
         for tile_path, tile in tile_buffer:
