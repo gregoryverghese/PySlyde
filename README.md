@@ -3,6 +3,7 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PyPI version](https://badge.fury.io/py/pyslyde.svg)](https://badge.fury.io/py/pyslyde)
+[![Documentation](https://readthedocs.org/projects/pyslyde/badge/?version=latest)](https://pyslyde.readthedocs.io/en/latest/)
 
 PySlyde is a comprehensive Python package for preprocessing pathology whole slide images (WSIs). Built as a wrapper around OpenSlide, it provides powerful, user-friendly functionality for working with high-resolution pathology images, making it ideal for researchers and data scientists in the medical imaging domain.
 
@@ -39,6 +40,14 @@ pip install -e .
 git clone https://github.com/gregoryverghese/PySlide.git
 cd PySlide
 pip install -e ".[dev]"
+```
+
+### Documentation Installation
+
+```bash
+git clone https://github.com/gregoryverghese/PySlide.git
+cd PySlide
+pip install -e ".[docs]"
 ```
 
 ## Quick Start
@@ -120,7 +129,38 @@ thumbnail = detector.tissue_thumbnail
 
 ## Documentation
 
-For detailed documentation, please visit the [PySlyde documentation](https://github.com/gregoryverghese/PySlide#readme).
+📖 **Complete documentation is available at [pyslyde.readthedocs.io](https://pyslyde.readthedocs.io/)**
+
+The documentation includes:
+
+- **Installation Guide**: Detailed installation instructions and troubleshooting
+- **Quick Start Guide**: Get up and running quickly with basic examples
+- **User Guide**: Comprehensive guide to all features and workflows
+- **API Reference**: Complete API documentation with examples
+- **Examples**: Tutorials and example notebooks
+- **Contributing Guide**: How to contribute to the project
+
+### Building Documentation Locally
+
+To build the documentation locally:
+
+```bash
+# Install documentation dependencies
+pip install -e ".[docs]"
+
+# Build documentation
+cd docs
+make html
+
+# View documentation
+open _build/html/index.html
+```
+
+Or use the provided script:
+
+```bash
+python build_docs.py
+```
 
 ## Contributing
 
@@ -134,6 +174,15 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+### Development Tools
+
+The project uses several development tools:
+
+- **Testing**: pytest for unit tests
+- **Code Quality**: black for formatting, flake8 for linting, mypy for type checking
+- **Documentation**: Sphinx with Read the Docs theme
+- **Pre-commit**: Git hooks for code quality
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -143,6 +192,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Author**: Gregory Verghese
 - **Email**: gregory.verghese@gmail.com
 - **Project Link**: [https://github.com/gregoryverghese/PySlide](https://github.com/gregoryverghese/PySlide)
+- **Documentation**: [https://pyslyde.readthedocs.io/](https://pyslyde.readthedocs.io/)
 
 ## Citation
 

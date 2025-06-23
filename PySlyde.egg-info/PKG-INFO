@@ -5,77 +5,236 @@ Summary: A Python package for preprocessing pathology whole slide images.
 Home-page: https://github.com/gregoryverghese/PySlide
 Author: Gregory Verghese
 Author-email: gregory.verghese@gmail.com
-Classifier: Programming Language :: Python :: 3
+Project-URL: Bug Reports, https://github.com/gregoryverghese/PySlide/issues
+Project-URL: Source, https://github.com/gregoryverghese/PySlide
+Project-URL: Documentation, https://github.com/gregoryverghese/PySlide#readme
+Keywords: pathology,whole-slide-image,medical-imaging,computer-vision
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Science/Research
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: OS Independent
-Requires-Python: >=3.12
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Scientific/Engineering :: Image Processing
+Classifier: Topic :: Scientific/Engineering :: Medical Science Apps.
+Requires-Python: >=3.8
 Description-Content-Type: text/markdown
-Requires-Dist: einops
-Requires-Dist: h5py
-Requires-Dist: huggingface_hub
-Requires-Dist: lmdb
-Requires-Dist: matplotlib
-Requires-Dist: pandas
-Requires-Dist: rocksdb
-Requires-Dist: scipy
-Requires-Dist: seaborn
-Requires-Dist: scikit-image
-Requires-Dist: tensorflow
-Requires-Dist: timm
-Requires-Dist: webdataset
+Provides-Extra: dev
+Provides-Extra: docs
+Provides-Extra: rocksdb
 
+# PySlyde
 
-<!-- PROJECT LOGO -->
-<br />
-<p align="center">
-  <a href="https://github.com/othneildrew/Best-README-Template">
-    <img src="images/logo.png" alt="Logo" width="80" height="80">
-  </a>
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PyPI version](https://badge.fury.io/py/pyslyde.svg)](https://badge.fury.io/py/pyslyde)
+[![Documentation](https://readthedocs.org/projects/pyslyde/badge/?version=latest)](https://pyslyde.readthedocs.io/en/latest/)
 
-  <h3 align="centre">PySlyde</h3>
- 
 PySlyde is a comprehensive Python package for preprocessing pathology whole slide images (WSIs). Built as a wrapper around OpenSlide, it provides powerful, user-friendly functionality for working with high-resolution pathology images, making it ideal for researchers and data scientists in the medical imaging domain.
 
 ## Features
 
-- **WSI Handling**: Supports large pathology slides and other WSI formats via OpenSlide.
-- **Efficient Preprocessing**: Streamline tasks like cropping, resizing, and filtering at high performance.
-- **Annotation Support**: Easily integrate and visualize annotations.
-- **Tiling and Patching**: Flexible tiling options for patch extraction, ideal for deep learning workflows.
-- **Image Metadata Extraction**: Retrieve and manage metadata from WSIs.
-  
+- **WSI Handling**: Supports large pathology slides and other WSI formats via OpenSlide
+- **Efficient Preprocessing**: Streamline tasks like cropping, resizing, and filtering at high performance
+- **Annotation Support**: Easily integrate and visualize annotations from multiple formats (QuPath, ImageJ, ASAP, JSON, CSV)
+- **Tiling and Patching**: Flexible tiling options for patch extraction, ideal for deep learning workflows
+- **Image Metadata Extraction**: Retrieve and manage metadata from WSIs
+- **Multiple Output Formats**: Save processed data to disk, LMDB, or RocksDB databases
+- **Tissue Detection**: Automatic tissue region detection and masking
+- **Feature Extraction**: Built-in support for extracting features from tiles using pre-trained models
+
 ## Installation
 
-Install PySlide via PyPI:
+### From PyPI
 
 ```bash
-pip install PySlide
+pip install pyslyde
+```
+
+### From Source
+
+```bash
+git clone https://github.com/gregoryverghese/PySlide.git
+cd PySlide
+pip install -e .
+```
+
+### Development Installation
+
+```bash
+git clone https://github.com/gregoryverghese/PySlide.git
+cd PySlide
+pip install -e ".[dev]"
+```
+
+### Documentation Installation
+
+```bash
+git clone https://github.com/gregoryverghese/PySlide.git
+cd PySlide
+pip install -e ".[docs]"
 ```
 
 ## Quick Start
 
+### Basic Usage
+
 ```python
-from pyslide import SlideProcessor
+from pyslyde import Slide, Annotations
 
-# Initialize the processor with your WSI file
-processor = SlideProcessor("path/to/your/slide.svs")
+# Load a slide
+slide = Slide("path/to/your/slide.svs")
 
-# Example: Extract a tile
-tile = processor.get_tile(x=1000, y=2000, width=256, height=256)
+# Load annotations
+annotations = Annotations("path/to/annotations.json", source="json")
 
-# Example: Preprocess a slide
-processed_slide = processor.preprocess_slide(parameters)
+# Create slide with annotations
+slide_with_annotations = Slide(
+    "path/to/your/slide.svs",
+    annotations=annotations
+)
+
+# Generate mask
+mask = slide_with_annotations.generate_mask()
+
+# Extract a region
+region, region_mask = slide_with_annotations.generate_region(
+    x=(1000, 2000),
+    y=(1500, 2500),
+    x_size=1000,
+    y_size=1000
+)
 ```
 
-<!-- LICENSE -->
-### License
+### Tiling and Feature Extraction
 
-Distributed under the MIT License
+```python
+from pyslyde import WSIParser
 
-<!-- CONTACT -->
-### Contact
+# Create parser
+parser = WSIParser(
+    slide=slide,
+    tile_dim=256,
+    border=slide.get_border(),
+    mag_level=0
+)
 
-gregory.verghese@gmail.com
+# Generate tiles
+num_tiles = parser.tiler(stride=128)
+
+# Extract features
+for coords, features in parser.extract_features(
+    model_name="resnet50",
+    model_path="path/to/model.pth"
+):
+    print(f"Tile {coords}: {features.shape}")
+
+# Save tiles to disk
+parser.save(
+    parser.extract_tiles(),
+    tile_path="output/tiles/"
+)
+```
+
+### Tissue Detection
+
+```python
+from pyslyde.util.utilities import TissueDetect
+
+# Detect tissue regions
+detector = TissueDetect("path/to/slide.svs")
+tissue_mask = detector.detect_tissue()
+
+# Get tissue border
+border = detector.border()
+
+# Visualize tissue regions
+thumbnail = detector.tissue_thumbnail
+```
+
+## Documentation
+
+📖 **Complete documentation is available at [pyslyde.readthedocs.io](https://pyslyde.readthedocs.io/)**
+
+The documentation includes:
+
+- **Installation Guide**: Detailed installation instructions and troubleshooting
+- **Quick Start Guide**: Get up and running quickly with basic examples
+- **User Guide**: Comprehensive guide to all features and workflows
+- **API Reference**: Complete API documentation with examples
+- **Examples**: Tutorials and example notebooks
+- **Contributing Guide**: How to contribute to the project
+
+### Building Documentation Locally
+
+To build the documentation locally:
+
+```bash
+# Install documentation dependencies
+pip install -e ".[docs]"
+
+# Build documentation
+cd docs
+make html
+
+# View documentation
+open _build/html/index.html
+```
+
+Or use the provided script:
+
+```bash
+python build_docs.py
+```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+### Development Setup
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Tools
+
+The project uses several development tools:
+
+- **Testing**: pytest for unit tests
+- **Code Quality**: black for formatting, flake8 for linting, mypy for type checking
+- **Documentation**: Sphinx with Read the Docs theme
+- **Pre-commit**: Git hooks for code quality
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Contact
+
+- **Author**: Gregory Verghese
+- **Email**: gregory.verghese@gmail.com
+- **Project Link**: [https://github.com/gregoryverghese/PySlide](https://github.com/gregoryverghese/PySlide)
+- **Documentation**: [https://pyslyde.readthedocs.io/](https://pyslyde.readthedocs.io/)
+
+## Citation
+
+If you use PySlyde in your research, please cite:
+
+```bibtex
+@software{pyslyde2024,
+  title={PySlyde: A Python package for preprocessing pathology whole slide images},
+  author={Verghese, Gregory},
+  year={2024},
+  url={https://github.com/gregoryverghese/PySlide}
+}
+```
 
 
 

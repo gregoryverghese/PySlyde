@@ -1,0 +1,278 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Installation &mdash; PySlyde 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=01f34227"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Quick Start Guide" href="quickstart.html" />
+    <link rel="prev" title="PySlyde Documentation" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #2980B9" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PySlyde
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installation-from-pypi">Installation from PyPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installation-from-source">Installation from Source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#development-installation">Development Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#system-dependencies">System Dependencies</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ubuntu-debian">Ubuntu/Debian:</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#macos">macOS:</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#windows">Windows:</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#verifying-installation">Verifying Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#common-installation-issues">Common Installation Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#getting-help">Getting Help</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#basic-usage">Basic Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#loading-a-slide">Loading a Slide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#working-with-annotations">Working with Annotations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#generating-masks">Generating Masks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#extracting-regions">Extracting Regions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#tiling-and-feature-extraction">Tiling and Feature Extraction</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#creating-tiles">Creating Tiles</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#extracting-features">Extracting Features</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#saving-results">Saving Results</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#tissue-detection">Tissue Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#image-filtering">Image Filtering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#complete-example">Complete Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/index.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#core-classes">Core Classes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/slide.html">Slide Module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/slide.html#pyslyde.slide.Slide"><code class="docutils literal notranslate"><span class="pre">Slide</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/slide.html#pyslyde.slide.Annotations"><code class="docutils literal notranslate"><span class="pre">Annotations</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/slide.html#slide-class">Slide Class</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/slide.html#annotations-class">Annotations Class</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#i-o-modules">I/O Modules</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#utility-modules">Utility Modules</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#encoder-modules">Encoder Modules</a><ul class="simple">
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #2980B9" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PySlyde</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Installation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/installation.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h1>
+<p>PySlyde can be installed from PyPI or from source. This guide covers all installation methods and requirements.</p>
+<section id="requirements">
+<h2>Requirements<a class="headerlink" href="#requirements" title="Link to this heading"></a></h2>
+<p>PySlyde requires Python 3.8 or higher and the following dependencies:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://numpy.org/">numpy</a> &gt;= 1.20.0</p></li>
+<li><p><a class="reference external" href="https://opencv.org/">opencv-python</a> &gt;= 4.5.0</p></li>
+<li><p><a class="reference external" href="https://openslide.org/">openslide-python</a> &gt;= 1.1.0</p></li>
+<li><p><a class="reference external" href="https://pandas.pydata.org/">pandas</a> &gt;= 1.3.0</p></li>
+<li><p><a class="reference external" href="https://matplotlib.org/">matplotlib</a> &gt;= 3.3.0</p></li>
+<li><p><a class="reference external" href="https://seaborn.pydata.org/">seaborn</a> &gt;= 0.11.0</p></li>
+<li><p><a class="reference external" href="https://scikit-image.org/">scikit-image</a> &gt;= 0.18.0</p></li>
+<li><p><a class="reference external" href="https://scipy.org/">scipy</a> &gt;= 1.7.0</p></li>
+<li><p><a class="reference external" href="https://lmdb.readthedocs.io/">lmdb</a> &gt;= 1.2.0</p></li>
+<li><p><a class="reference external" href="https://einops.rocks/">einops</a> &gt;= 0.4.0</p></li>
+<li><p><a class="reference external" href="https://www.h5py.org/">h5py</a> &gt;= 3.1.0</p></li>
+<li><p><a class="reference external" href="https://huggingface.co/docs/huggingface_hub/">huggingface_hub</a> &gt;= 0.10.0</p></li>
+<li><p><a class="reference external" href="https://tensorflow.org/">tensorflow</a> &gt;= 2.8.0</p></li>
+<li><p><a class="reference external" href="https://pytorch.org/">torch</a> &gt;= 1.10.0</p></li>
+<li><p><a class="reference external" href="https://github.com/huggingface/pytorch-image-models">timm</a> &gt;= 0.6.0</p></li>
+<li><p><a class="reference external" href="https://github.com/webdataset/webdataset">webdataset</a> &gt;= 0.2.0</p></li>
+</ul>
+</section>
+<section id="installation-from-pypi">
+<h2>Installation from PyPI<a class="headerlink" href="#installation-from-pypi" title="Link to this heading"></a></h2>
+<p>The easiest way to install PySlyde is using pip:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>pyslyde
+</pre></div>
+</div>
+<p>This will install PySlyde and all its dependencies automatically.</p>
+</section>
+<section id="installation-from-source">
+<h2>Installation from Source<a class="headerlink" href="#installation-from-source" title="Link to this heading"></a></h2>
+<p>To install from source, clone the repository and install in development mode:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/gregoryverghese/PySlide.git
+<span class="nb">cd</span><span class="w"> </span>PySlide
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</pre></div>
+</div>
+</section>
+<section id="development-installation">
+<h2>Development Installation<a class="headerlink" href="#development-installation" title="Link to this heading"></a></h2>
+<p>For development work, install with development dependencies:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/gregoryverghese/PySlide.git
+<span class="nb">cd</span><span class="w"> </span>PySlide
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev]&quot;</span>
+</pre></div>
+</div>
+<p>This includes additional tools for development:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://pytest.org/">pytest</a> - Testing framework</p></li>
+<li><p><a class="reference external" href="https://pytest-cov.readthedocs.io/">pytest-cov</a> - Coverage reporting</p></li>
+<li><p><a class="reference external" href="https://black.readthedocs.io/">black</a> - Code formatting</p></li>
+<li><p><a class="reference external" href="https://flake8.pycqa.org/">flake8</a> - Linting</p></li>
+<li><p><a class="reference external" href="https://mypy.readthedocs.io/">mypy</a> - Type checking</p></li>
+<li><p><a class="reference external" href="https://pre-commit.com/">pre-commit</a> - Git hooks</p></li>
+</ul>
+</section>
+<section id="system-dependencies">
+<h2>System Dependencies<a class="headerlink" href="#system-dependencies" title="Link to this heading"></a></h2>
+<p>Some dependencies may require system-level libraries:</p>
+<section id="ubuntu-debian">
+<h3>Ubuntu/Debian:<a class="headerlink" href="#ubuntu-debian" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt-get<span class="w"> </span>update
+sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>libopenslide-dev<span class="w"> </span>libgl1-mesa-glx<span class="w"> </span>libglib2.0-0
+</pre></div>
+</div>
+</section>
+<section id="macos">
+<h3>macOS:<a class="headerlink" href="#macos" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>brew<span class="w"> </span>install<span class="w"> </span>openslide
+</pre></div>
+</div>
+</section>
+<section id="windows">
+<h3>Windows:<a class="headerlink" href="#windows" title="Link to this heading"></a></h3>
+<p>For Windows, most dependencies are available as pre-compiled wheels. If you encounter issues with OpenSlide, you may need to install it manually from the <a class="reference external" href="https://openslide.org/download/">OpenSlide website</a>.</p>
+</section>
+</section>
+<section id="verifying-installation">
+<h2>Verifying Installation<a class="headerlink" href="#verifying-installation" title="Link to this heading"></a></h2>
+<p>To verify that PySlyde is installed correctly, run:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pyslyde</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">pyslyde</span><span class="o">.</span><span class="n">__version__</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You should see the version number printed without any errors.</p>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h2>
+<section id="common-installation-issues">
+<h3>Common Installation Issues<a class="headerlink" href="#common-installation-issues" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>OpenSlide not found</strong>: Make sure you have the system-level OpenSlide library installed.</p></li>
+<li><p><strong>CUDA issues</strong>: If you’re using GPU acceleration, ensure you have the correct CUDA version installed for your PyTorch/TensorFlow version.</p></li>
+<li><p><strong>Memory issues</strong>: PySlyde works with large images, so ensure you have sufficient RAM (8GB+ recommended).</p></li>
+<li><p><strong>Permission errors</strong>: On some systems, you may need to use <cite>pip install –user</cite> or install with sudo.</p></li>
+</ol>
+</section>
+</section>
+<section id="getting-help">
+<h2>Getting Help<a class="headerlink" href="#getting-help" title="Link to this heading"></a></h2>
+<p>If you encounter installation issues:</p>
+<ol class="arabic simple">
+<li><p>Check the <a class="reference external" href="https://github.com/gregoryverghese/PySlide/issues">GitHub issues</a> for similar problems</p></li>
+<li><p>Create a new issue with your system details and error messages</p></li>
+<li><p>Contact the maintainer at <a class="reference external" href="mailto:gregory&#46;verghese&#37;&#52;&#48;gmail&#46;com">gregory<span>&#46;</span>verghese<span>&#64;</span>gmail<span>&#46;</span>com</a></p></li>
+</ol>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="PySlyde Documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="quickstart.html" class="btn btn-neutral float-right" title="Quick Start Guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Gregory Verghese.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

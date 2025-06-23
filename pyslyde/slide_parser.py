@@ -407,11 +407,16 @@ class WSIParser:
             db_path: Base directory where tiles or features will be saved.
             write_frequency: Controls batch commit of a transaction.
         """
+        try:
+            from pyslyde.io.rocksdb_io import RocksDBWrite
+        except ImportError:
+            raise ImportError(
+                "RocksDB is not installed. Install it with: pip install pyslyde[rocksdb]"
+            )
+        
         os.makedirs(db_path, exist_ok=True)
-        # Note: RocksDBWrite import needs to be added
-        # rocksdb_writer = RocksDBWrite(db_path, write_frequency)
-        # rocksdb_writer.write(func)
-        pass
+        rocksdb_writer = RocksDBWrite(db_path, write_frequency)
+        rocksdb_writer.write(func)
 
     def feat_to_disk(
         self,

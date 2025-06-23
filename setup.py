@@ -22,7 +22,6 @@ setup(
         "opencv-python",
         "openslide-python",
         "pandas",
-        "rocksdb",
         "scipy",
         "seaborn",
         "scikit-image",
@@ -39,6 +38,15 @@ setup(
             "flake8",
             "mypy",
             "pre-commit"
+        ],
+        "docs": [
+            "sphinx>=4.0.0",
+            "sphinx-rtd-theme>=1.0.0",
+            "myst-parser>=0.18.0",
+            "sphinx-autodoc-typehints>=1.12.0"
+        ],
+        "rocksdb": [
+            "rocksdb"
         ]
     },
     classifiers=[
