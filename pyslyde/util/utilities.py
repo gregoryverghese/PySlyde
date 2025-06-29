@@ -233,8 +233,10 @@ class TissueDetect:
             level = ds.index(32) if 32 in ds else ds.index(int(ds[-1]))
             image = self.slide.get_thumbnail(self.slide.level_dimensions[level]) 
             image = np.array(image.convert('RGB'))
+            dims = self.slide.dimensions
         else:
             image = self.slide
+            dims = self.slide.shape
 
         gray = rgb2gray(image)
         gray_f = gray.flatten()
@@ -245,7 +247,7 @@ class TissueDetect:
         
         mask = opening(closing(thresh, footprint=square(2)), footprint=square(2))
         self.tissue_mask = mask.astype(np.uint8)
-        return self.tissue_mask
+        return cv2.resize(mask.astype(np.uint8),dims)
 
     def _generate_tissue_contour(self):
         
