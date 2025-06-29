@@ -4,7 +4,7 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PyPI version](https://badge.fury.io/py/pyslyde.svg)](https://badge.fury.io/py/pyslyde)
-[![Documentation](https://readthedocs.org/projects/pyslyde/badge/?version=latest)](https://pyslyde.readthedocs.io/en/latest/)
+[![Documentation](https://gregoryverghese.github.io/PySlyde/)
 
 PySlyde is a comprehensive Python package for preprocessing pathology whole slide images (WSIs). Built as a wrapper around OpenSlide, it provides powerful, user-friendly functionality for working with high-resolution pathology images, making it ideal for researchers and data scientists in the medical imaging domain.
 
@@ -193,7 +193,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Author**: Gregory Verghese
 - **Email**: gregory.verghese@gmail.com
 - **Project Link**: [https://github.com/gregoryverghese/PySlide](https://github.com/gregoryverghese/PySlide)
-- **Documentation**: [https://pyslyde.readthedocs.io/](https://pyslyde.readthedocs.io/)
+- **Documentation**: [Documentation](https://gregoryverghese.github.io/PySlyde/)
 
 ## Citation
 
