@@ -129,7 +129,7 @@ thumbnail = detector.tissue_thumbnail
 
 ## Documentation
 
-📖 **Complete documentation is available at [pyslyde.readthedocs.io](https://pyslyde.readthedocs.io/)**
+📖 **📚 [Documentation](https://gregoryverghese.github.io/PySlyde/)**
 
 The documentation includes:
 
