@@ -325,7 +325,7 @@ class WSIParser:
         """
         assert isinstance(y, int) and isinstance(x, int)
         filename = '_' + str(y) + '_' + str(x)
-        image_path = path + filename + '.png'
+        image_path = os.path.join(path,filename + '.png')
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         status = cv2.imwrite(image_path, image)
         return status
