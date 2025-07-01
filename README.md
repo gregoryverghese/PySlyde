@@ -13,11 +13,11 @@ PySlyde is a comprehensive Python package for preprocessing pathology whole slid
 - **WSI Handling**: Supports large pathology slides and other WSI formats via OpenSlide
 - **Efficient Preprocessing**: Streamline tasks like cropping, resizing, and filtering at high performance
 - **Annotation Support**: Easily integrate and visualize annotations from multiple formats (QuPath, ImageJ, ASAP, JSON, CSV)
-- **Tiling and Patching**: Flexible tiling options for patch extraction, ideal for deep learning workflows
+- **Tesselation**: Flexible tiling options for patch extraction, ideal for deep learning workflows
 - **Image Metadata Extraction**: Retrieve and manage metadata from WSIs
 - **Multiple Output Formats**: Save processed data to disk, LMDB, or RocksDB databases
 - **Tissue Detection**: Automatic tissue region detection and masking
-- **Feature Extraction**: Built-in support for extracting features from tiles using pre-trained models
+- **Feature Extraction**: Built-in support for extracting features from tiles using latest pathology foundation models
 
 ## Installation
 
