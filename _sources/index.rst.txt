@@ -1,3 +1,5 @@
+![Logo](images/logoV2.png)
+
 PySlyde Documentation
 =====================
 
