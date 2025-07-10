@@ -1,4 +1,4 @@
-![Logo](images/logoV2.png)
+![Logo](../images/logoV2.png)
 
 PySlyde Documentation
 =====================
