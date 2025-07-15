@@ -19,4 +19,7 @@ dependencies:
   - tensorflow
   - timm
   - webdataset
-prefix: /Users/k2030634/miniforge3
+  - opencv-python
+  - openslide-python
+  - openslide-bin
+  - lmdb
