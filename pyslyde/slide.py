@@ -90,6 +90,7 @@ class Slide(OpenSlide):
             np.ndarray: Single-channel mask with integer for each class.
         """
         x, y = self.dims[0], self.dims[1]
+    
         slide_mask = np.zeros((y, x), dtype=np.uint8)
         
         if self.annotations is None:
@@ -121,6 +122,7 @@ class Slide(OpenSlide):
         
         if size is not None:
             slide_mask = cv2.resize(slide_mask, size)
+    
         return slide_mask
 
     @staticmethod

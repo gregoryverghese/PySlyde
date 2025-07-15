@@ -19,6 +19,7 @@ import pandas as pd
 from pyslyde.io.lmdb_io import LMDBWrite
 from pyslyde.io.disk_io import DiskWrite
 from pyslyde.encoders.feature_extractor import FeatureGenerator
+from pyslyde.slide import Slide
 
 
 class WSIParser:
@@ -31,7 +32,7 @@ class WSIParser:
     
     def __init__(
             self,
-            slide: OpenSlide,
+            slide: Slide,
             tile_dim: int,
             border: List[Tuple[int, int]],
             mag_level: int = 0,
@@ -58,7 +59,6 @@ class WSIParser:
         self._y_min = int(self.border[0][0])
         self._y_max = int(self.border[1][0])
         self._downsample = int(slide.level_downsamples[mag_level])
-        print('downsample', self._downsample)
         self._x_dim = int(tile_dim * self._downsample)
         self._y_dim = int(tile_dim * self._downsample)
         self._tiles: List[Tuple[int, int]] = []
@@ -261,6 +261,36 @@ class WSIParser:
         sample_tiles = random.sample(self._tiles, n)
         self._tiles = sample_tiles
 
+
+    def extract_mask(self, x, y):
+        """
+        extract binary mask corresponding to patch
+        from slide_mask
+        :param x: int x coordinate
+        :param y: int y coordinate
+        """
+        #if we want x,y coordinate of point to be central
+        #x_size=int(self.size[0]*self.mag_factor*.5)
+        #y_size=int(self.size[1]*self.mag_factor*.5)
+        #[y-y_size:y+y_size,x-x_size:x+x_size]
+        
+        base_mask=self.slide.generate_mask()
+        mask = base_mask[x:x+self._x_dim,y:y+self._y_dim]
+        mask=cv2.resize(mask,(self.tile_dims[0],self.tile_dims[1]))
+        return mask
+
+
+    def extract_masks(self):
+        """
+        extract all masks
+        :yield mask: ndarray mask
+        :yield m: mask dict metadata
+        """
+        for m in self._tiles:
+            mask = self.extract_mask(m[0],m[1]) 
+            yield m, mask
+
+
     def extract_tile(
             self,
             x: Optional[int] = None,
@@ -324,9 +354,10 @@ class WSIParser:
             bool: Success status.
         """
         assert isinstance(y, int) and isinstance(x, int)
-        filename = '_' + str(y) + '_' + str(x)
+        filename = str(y) + '_' + str(x)
         image_path = os.path.join(path,filename + '.png')
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        if len(image.shape)>2:
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         status = cv2.imwrite(image_path, image)
         return status
     
@@ -353,6 +384,7 @@ class WSIParser:
         metadata = []
 
         for (x, y), tile in func:
+          
             if normalize and self.stain_normalizer is not None:
                 self.stain_normalizer.normalize(tile)
             
@@ -372,6 +404,7 @@ class WSIParser:
         if label_csv:
             df = pd.DataFrame(metadata)
             df.to_csv(tile_path + "_metadata.csv", index=False)
+
 
     def to_lmdb(
         self,
