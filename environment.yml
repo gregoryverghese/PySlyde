@@ -5,7 +5,7 @@ dependencies:
   - python=3.12
   - pip
   - conda
-  - mamba[version='>=1.5.9']
+  - mamba>=1.5.9
   - einops
   - h5py
   - huggingface_hub
@@ -19,7 +19,9 @@ dependencies:
   - tensorflow
   - timm
   - webdataset
-  - opencv-python
-  - openslide-python
-  - openslide-bin
-  - lmdb
+  - geopandas
+  - pip:
+      - opencv-python
+      - openslide-python
+      - openslide-bin
+      - rasterio
