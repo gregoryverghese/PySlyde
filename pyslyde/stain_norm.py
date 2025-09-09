@@ -22,13 +22,14 @@ class StainNormalizer:
 
     # ---------- Public API ----------
     
-    def fit(self, target_rgb: np.ndarray) -> "StainNormalizer":
+    def fit(self, tile_target: np.ndarray) -> "StainNormalizer":
         """Learn target stain matrix and robust concentration percentiles from a target RGB image."""
 
         return self
 
-    def normalize(self, source_rgb: np.ndarray) -> "StainNormalizer":
+    def normalize(self, tile_src: np.ndarray) -> np.ndarray:
         """Transform towards the target image."""
-        return self
+        tile_normd = tile_src
+        return tile_normd
     
 

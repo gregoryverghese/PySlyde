@@ -331,7 +331,7 @@ class WSIParser:
         for t in self._tiles:
             tile = self.extract_tile(t[0], t[1])
             if normalize and self.stain_normalizer is not None:
-                self.stain_normalizer.normalize(tile)
+                tile = self.stain_normalizer.normalize(tile)
             yield t, tile
 
     @staticmethod
@@ -377,7 +377,6 @@ class WSIParser:
             tile_path: Base directory where tiles will be saved.
             label_dir: If True, saves tiles in subdirectories based on their label.
             label_csv: If True, saves tile metadata in a CSV file.
-            normalize: If True, applies normalization to the tiles before saving.
         """
         os.makedirs(tile_path, exist_ok=True)
 
@@ -385,8 +384,9 @@ class WSIParser:
 
         for (x, y), tile in func:
           
-            if normalize and self.stain_normalizer is not None:
-                self.stain_normalizer.normalize(tile)
+            ## stain normalization is handled during extract_tiles
+            #if normalize and self.stain_normalizer is not None:
+            #    self.stain_normalizer.normalize(tile)
             
             # Generate directory path
             save_dir = tile_path
