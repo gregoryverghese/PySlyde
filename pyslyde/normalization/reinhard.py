@@ -27,10 +27,22 @@ class ReinhardStainNormalizer(StainNormalizer):
     * This implementation uses global image statistics (no tissue mask).
     """
 
-    def __init__(self, eps: float = 1e-6, clip_rgb: bool = True, backend: str = "auto"):
+    def __init__(
+        self,
+        eps: float = 1e-6,
+        clip_rgb: bool = True,
+        backend: str = "auto",
+        verbose: bool = True,
+    ):
         if eps <= 0:
             raise ValueError(f"eps must be > 0. Got {eps}")
         self.eps = float(eps)
+
+
+        self.clip_rgb = bool(clip_rgb)
+        self.verbose = bool(verbose)
+        self.mu_lab: Optional[np.ndarray] = None   # (3,)
+        self.std_lab: Optional[np.ndarray] = None  # (3,)
 
         if backend not in ("auto", "numpy", "opencv"):
             raise ValueError(f"backend must be 'auto', 'numpy', or 'opencv'. Got {backend}")
@@ -41,10 +53,8 @@ class ReinhardStainNormalizer(StainNormalizer):
             self.backend = backend
             if backend == "opencv" and not _HAS_CV2:
                 raise ImportError("OpenCV not available but backend='opencv' was requested.")
-
-        self.clip_rgb = bool(clip_rgb)
-        self.mu_lab: Optional[np.ndarray] = None   # (3,)
-        self.std_lab: Optional[np.ndarray] = None  # (3,)
+        if self.verbose:
+            print(f"[Reinhard] Using backend: {self.backend}")
 
     # ---------- Public API ----------
 

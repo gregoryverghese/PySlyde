@@ -30,6 +30,7 @@ class MacenkoStainNormalizer(StainNormalizer):
         # --- new guardrail knobs ---
         cos_similarity_max: float = 0.98,
         scale_clip: tuple[float, float] = (1e-2, 1e2),
+        verbose: bool = True,
     ):
         # ---- validate alpha ----
         if not (0 < alpha <= 50):
@@ -60,6 +61,7 @@ class MacenkoStainNormalizer(StainNormalizer):
         # guardrail knobs that make sense to expose
         self.cos_similarity_max = float(cos_similarity_max) # if cos(stain1, stain2) > this, widen alpha
         self.scale_clip = (float(scale_clip[0]), float(scale_clip[1])) # clamp per-stain scale factors
+        self.verbose = bool(verbose)
 
         self.W_target: Optional[np.ndarray] = None
         self.H_target_pct: Optional[np.ndarray] = None
@@ -104,9 +106,13 @@ class MacenkoStainNormalizer(StainNormalizer):
         scale = (self.H_target_pct + 1e-8) / H_src_pct
         # --- guardrail 2: clamp scales ---
         lo, hi = self.scale_clip
-        scale = np.clip(scale, lo, hi)
+        scale_clipped = np.clip(scale, lo, hi)
 
-        C_scaled = C * scale
+        #compare to original scale, and if they differ, log it
+        if self.verbose and not np.allclose(scale, scale_clipped):
+            print(f"[Macenko] Scale factors {scale} clipped to {scale_clipped}")
+
+        C_scaled = C * scale_clipped
         OD_norm = C_scaled @ self.W_target.T
         return self.od2rgb(OD_norm.reshape(source_tile.shape))
 
@@ -170,12 +176,18 @@ class MacenkoStainNormalizer(StainNormalizer):
             return float(np.dot(u, v) / (np.linalg.norm(u) * np.linalg.norm(v) + 1e-12))
 
         if cos_sim(W[:, 0], W[:, 1]) > self.cos_similarity_max:
+            if self.verbose:
+                print(f"[Macenko] Stains too similar with alpha={self.alpha}, widening...")
             for a in self._alpha_steps:
                 W_try = stain_dirs(a)
                 if cos_sim(W_try[:, 0], W_try[:, 1]) <= self.cos_similarity_max:
+                    if self.verbose:
+                        print(f"[Macenko] Using widened alpha={a}")
                     W = W_try
                     break
             else:
+                if self.verbose:
+                    print("[Macenko] Using orthogonal fallback for stain separation")
                 # last resort: enforce orthogonal direction within the PCA plane
                 v1p = (P2.T @ W[:, 0]); v1p /= (np.linalg.norm(v1p) + 1e-12)
                 v2p = np.array([-v1p[1], v1p[0]], dtype=np.float32)  # 90° rotation
