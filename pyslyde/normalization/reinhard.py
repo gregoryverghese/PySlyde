@@ -4,12 +4,20 @@ import numpy as np
 from typing import Any, Dict, Optional
 from .base import StainNormalizer
 
+# Try to import OpenCV (optional speed-up)
+try:
+    import cv2
+    _HAS_CV2 = True
+except ImportError:
+    _HAS_CV2 = False
+
 
 class ReinhardStainNormalizer(StainNormalizer):
     """
     Reinhard color normalization in CIE Lab (D65) with minimal dependencies.
-
+    - Uses OpenCV if available, else falls back to NumPy-only implementation.
     - Converts RGB↔Lab using sRGB + D65 matrices (NumPy only).
+
     - fit(): compute target Lab per-channel mean/std
     - normalize(): standardize source Lab to its own stats, then re-scale to target stats
 
@@ -19,10 +27,20 @@ class ReinhardStainNormalizer(StainNormalizer):
     * This implementation uses global image statistics (no tissue mask).
     """
 
-    def __init__(self, eps: float = 1e-6, clip_rgb: bool = True):
+    def __init__(self, eps: float = 1e-6, clip_rgb: bool = True, backend: str = "auto"):
         if eps <= 0:
             raise ValueError(f"eps must be > 0. Got {eps}")
         self.eps = float(eps)
+
+        if backend not in ("auto", "numpy", "opencv"):
+            raise ValueError(f"backend must be 'auto', 'numpy', or 'opencv'. Got {backend}")
+        # Choose backend
+        if backend == "auto":
+            self.backend = "opencv" if _HAS_CV2 else "numpy"
+        else:
+            self.backend = backend
+            if backend == "opencv" and not _HAS_CV2:
+                raise ImportError("OpenCV not available but backend='opencv' was requested.")
 
         self.clip_rgb = bool(clip_rgb)
         self.mu_lab: Optional[np.ndarray] = None   # (3,)
@@ -49,6 +67,7 @@ class ReinhardStainNormalizer(StainNormalizer):
     def normalize(self, source_tile: np.ndarray) -> np.ndarray:
         if self.mu_lab is None or self.std_lab is None:
             raise RuntimeError("Not fitted. Call fit(target_tile) first or use fit_normalize().")
+        
         lab = self._rgb_to_lab(source_tile)
 
         # Source stats
@@ -59,8 +78,7 @@ class ReinhardStainNormalizer(StainNormalizer):
         lab_norm = (lab - mu_s) / std_s
         lab_tgt = lab_norm * self.std_lab + self.mu_lab
 
-        out = self._lab_to_rgb(lab_tgt)
-        return out
+        return self._lab_to_rgb(lab_tgt)
 
     # ---------- Serialization ----------
 
@@ -69,6 +87,7 @@ class ReinhardStainNormalizer(StainNormalizer):
             "algo": "Reinhard",
             "eps": self.eps,
             "clip_rgb": self.clip_rgb,
+            "backend": self.backend,
             "mu_lab": None if self.mu_lab is None else self.mu_lab.tolist(),
             "std_lab": None if self.std_lab is None else self.std_lab.tolist(),
         }
@@ -80,12 +99,47 @@ class ReinhardStainNormalizer(StainNormalizer):
         self.eps = eps_val
         
         self.clip_rgb = bool(profile.get("clip_rgb", self.clip_rgb))
+        self.backend = profile.get("backend", self.backend)
         mu = profile.get("mu_lab")
         sd = profile.get("std_lab")
         self.mu_lab = None if mu is None else np.asarray(mu, dtype=np.float32)
         self.std_lab = None if sd is None else np.asarray(sd, dtype=np.float32)
 
-    # ---------- Color space utilities (NumPy-only) ----------
+
+
+    # ---------- color space backends ----------
+
+    def _rgb_to_lab(self, rgb: np.ndarray) -> np.ndarray:
+        if self.backend == "opencv":
+            # OpenCV expects uint8 BGR
+            if rgb.dtype != np.uint8:
+                arr = (np.clip(rgb, 0, 1) * 255).astype(np.uint8)
+            else:
+                arr = rgb
+            lab = cv2.cvtColor(arr, cv2.COLOR_RGB2LAB).astype(np.float32)
+            # map to standard Lab float ranges
+            L = lab[..., 0] * (100.0 / 255.0)
+            a = lab[..., 1] - 128.0
+            b = lab[..., 2] - 128.0
+            return np.stack([L, a, b], axis=-1)
+        else:
+            return self._rgb_to_lab_numpy(rgb)
+
+    def _lab_to_rgb(self, lab: np.ndarray) -> np.ndarray:
+        if self.backend == "opencv":
+            L = np.clip(lab[..., 0] * (255.0 / 100.0), 0, 255)
+            a = np.clip(lab[..., 1] + 128.0, 0, 255)
+            b = np.clip(lab[..., 2] + 128.0, 0, 255)
+            lab_uint8 = np.stack([L, a, b], axis=-1).astype(np.uint8)
+            rgb = cv2.cvtColor(lab_uint8, cv2.COLOR_LAB2RGB)
+            return rgb
+        else:
+            return self._lab_to_rgb_numpy(lab)
+        
+
+
+        
+    # ---------- Color space utilities (NumPy fallback) ----------
 
     @staticmethod
     def _srgb_to_linear(x: np.ndarray) -> np.ndarray:
@@ -187,9 +241,8 @@ class ReinhardStainNormalizer(StainNormalizer):
         xyz = np.stack([X, Y, Z], axis=-1).astype(np.float32)
         return xyz
 
-    def _rgb_to_lab(self, rgb: np.ndarray) -> np.ndarray:
+    def _rgb_to_lab_numpy(self, rgb: np.ndarray) -> np.ndarray:
         return self._xyz_to_lab(self._rgb_to_xyz(rgb))
 
-    def _lab_to_rgb(self, lab: np.ndarray) -> np.ndarray:
-        xyz = self._lab_to_xyz(lab)
-        return self._xyz_to_rgb(xyz, clip=self.clip_rgb)
+    def _lab_to_rgb_numpy(self, lab: np.ndarray) -> np.ndarray:
+        return self._xyz_to_rgb(self._lab_to_xyz(lab), clip=self.clip_rgb)
