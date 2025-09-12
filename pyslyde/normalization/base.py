@@ -73,7 +73,11 @@ class StainNormalizer(ABC):
         return -np.log(I_clamped / I0)
 
     @staticmethod
-    def od2rgb(OD: np.ndarray, I0: float = 255.0) -> np.ndarray:
+    def od2rgb(OD: np.ndarray, I0: float | None = None) -> np.ndarray:
+        # Auto-select I0 if not provided: 1.0 for float images in [0,1], else 255.0
+        if I0 is None:
+            I0 = 1.0 if OD.max() <= 1.0 + 1e-6 else 255.0
+
         I = I0 * np.exp(-OD)
         # If I0==1.0 (float image), keep float output; else return uint8
         if I0 <= 1.0 + 1e-6:

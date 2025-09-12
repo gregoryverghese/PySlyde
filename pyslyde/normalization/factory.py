@@ -3,13 +3,13 @@
 from typing import Dict, Type
 from .base import StainNormalizer
 from .macenko import MacenkoStainNormalizer
-#from .vahadane import VahadaneStainNormalizer
+from .vahadane import VahadaneStainNormalizer
 from .reinhard import ReinhardStainNormalizer
 
 # Registry of available normalizers
 _REGISTRY: Dict[str, Type[StainNormalizer]] = {
     "macenko": MacenkoStainNormalizer,
-    #"vahadane": VahadaneStainNormalizer,
+    "vahadane": VahadaneStainNormalizer,
     "reinhard": ReinhardStainNormalizer,
 }
 
