@@ -233,3 +233,37 @@ Now that you have the basics, you can explore:
 * :doc:`examples/index` - More examples and tutorials
 
 For more advanced usage patterns and best practices, see the :doc:`user_guide/index`. 
+
+
+(Optional) Quality Control with HistoQC
+---------------------------------------
+
+If you’d like to quality control your WSIs before or after running PySlyde, 
+we provide a thin wrapper around `HistoQC <https://github.com/fsumayyamohamed/HistoQC>`_.
+
+**Setup (once):**
+
+.. code-block:: bash
+
+   mamba env create -f envs/pyslyde-histoqc.yml
+   mamba activate pyslyde-histoqc
+
+**Run QC:**
+
+.. code-block:: bash
+
+   pyslyde-histoqc -n 4 -o qc_out /path/to/slides/*.ndpi
+
+This produces ``qc_out/results.tsv`` and per-slide artifacts (thumbnails, masks, macros).
+You can use the QC report to exclude slides before running the rest of the PySlyde pipeline.
+
+**Future integration (optional):**
+
+Developers can later add a helper such as:
+
+.. code-block:: python
+
+   from pyslyde import qc
+   slides = qc.find_passed_slides("qc_out")
+
+to automatically load only high-quality slides into the main PySlyde workflow.
