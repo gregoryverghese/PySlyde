@@ -20,5 +20,5 @@ dependencies:
   - geojson
   - pip:
       - "opencv-python-headless>=4.9,<4.13"
-      # use your fixed HistoQC fork
-      - "histoqc @ git+ssh://git@github.com/fsumayyamohamed/HistoQC@main"
+      # use your fixed HistoQC fork (HTTPS for CI)
+      - "histoqc @ git+https://github.com/fsumayyamohamed/HistoQC@main"
