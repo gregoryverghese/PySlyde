@@ -20,7 +20,7 @@ from pyslyde.io.lmdb_io import LMDBWrite
 from pyslyde.io.disk_io import DiskWrite
 from pyslyde.encoders.feature_extractor import FeatureGenerator
 from pyslyde.slide import Slide
-
+from pyslyde.normalization import StainNormalizer
 
 class WSIParser:
     """
@@ -36,7 +36,7 @@ class WSIParser:
             tile_dim: int,
             border: List[Tuple[int, int]],
             mag_level: int = 0,
-            stain_normalizer: Optional[Any] = None
+            stain_normalizer: Optional[StainNormalizer] = None
     ) -> None:
         """
         Initialize the WSI parser.
@@ -46,7 +46,7 @@ class WSIParser:
             tile_dim: Dimension of tiles to extract.
             border: Border coordinates as list of tuples.
             mag_level: Magnification level to work at.
-            stain_normalizer: Optional stain normalizer object.
+            stain_normalizer: Optional stain normalizer object  (must subclass StainNormalizer).
         """
         super().__init__()
         self.slide = slide
@@ -64,6 +64,20 @@ class WSIParser:
         self._tiles: List[Tuple[int, int]] = []
         self._features: List[np.ndarray] = []
         self._number = len(self._tiles)
+
+        """
+        TODO    consider whether we should fit to a default target file 
+                if the user hasn't already fit the normalizer
+        if stain_normalizer:
+            if self.W_target is None or self.H_target_pct is None:
+                img = Image.open(os.path.join('./images','target1.png')).convert("RGB")
+                target_tile = np.array(img)
+                stain_normalizer.fit(target_tile)    
+        """
+        if stain_normalizer is not None and not isinstance(stain_normalizer, StainNormalizer):
+            raise TypeError(
+                f"stain_normalizer must be a subclass of StainNormalizer, got {type(stain_normalizer)}"
+            )
 
         self.stain_normalizer = stain_normalizer
 
@@ -196,7 +210,9 @@ class WSIParser:
             if downsample:
                 tile = self._tile_downsample(tile, downsample)
             if normalize and self.stain_normalizer is not None:
-                self.stain_normalizer.normalize(tile)
+                if not self.stain_normalizer.is_fitted:
+                    raise RuntimeError("StainNormalizer is not fitted. Run stain_normalizer.fit() before calling this function")
+                tile = self.stain_normalizer.normalize(tile)
 
             feature_vec = encode.forward_pass(tile)
             feature_vec = feature_vec.detach().cpu().numpy()
@@ -220,12 +236,13 @@ class WSIParser:
         Returns:
             int: Number of tiles remaining.
         """
-        slide_mask[slide_mask != label] = 0
-        slide_mask[slide_mask == label] = 1
+        self.tissue_mask = slide_mask.copy()
+        self.tissue_mask[self.tissue_mask != label] = 0
+        self.tissue_mask[self.tissue_mask == label] = 1
         tiles = self._tiles.copy()
         for t in self._tiles:
             x, y = (t[0], t[1])
-            t_mask = slide_mask[x:x + self._x_dim, y:y + self._y_dim]
+            t_mask = self.tissue_mask[x:x + self._x_dim, y:y + self._y_dim]
             if np.sum(t_mask) < threshold * (self._x_dim * self._y_dim):
                 tiles.remove(t)
 
@@ -250,15 +267,13 @@ class WSIParser:
         print(f'Removed {self.number - len(tiles)} tiles')
         self._tiles = tiles.copy()
 
-    def sample_tiles(self, n: int) -> None:
+    def sample_tiles(self, n: int, seed: int | None = None) -> None:
         """
-        Sample a subset of tiles.
-        
-        Args:
-            n: Number of tiles to sample.
+        Optional seed allows to always get the same subset of tiles
         """
-        n = len(self._tiles) if n > len(self._tiles) else n
-        sample_tiles = random.sample(self._tiles, n)
+        n = min(n, len(self._tiles))
+        rng = random.Random(seed) if seed is not None else random
+        sample_tiles = rng.sample(self._tiles, n)
         self._tiles = sample_tiles
 
 
@@ -316,21 +331,44 @@ class WSIParser:
 
     def extract_tiles(
             self,
-            normalize: bool = False
+            normalize: bool = False,
+            apply_mask: bool = False,
+            mask: Optional[np.ndarray] = None,
+            bg_value: int = 255
     ) -> Generator[Tuple[Tuple[int, int], np.ndarray], None, None]:
         """
         Generator to extract all tiles.
         
         Args:
             normalize: Whether to normalize the tiles.
+            apply_mask: Whether to apply the saved tissue mask.
+            mask: Whole-slide mask to apply (must align with slide coordinates).
+            bg_value: Value to assign to background pixels (default: white=255).
             
         Yields:
             Tuple of tile coordinates and tile array.
         """
         print('this is the final tile number', len(self._tiles))
+        #print(f"x dim: {self.tile_dims[0]} | y dim: {self.tile_dims[1]}")
         for t in self._tiles:
-            tile = self.extract_tile(t[0], t[1])
+            x, y = (t[0], t[1])
+            tile = self.extract_tile(x, y)
+            #print(tile.shape)
+            # Apply mask if requested
+            if apply_mask and mask is not None:
+                mask = self.tissue_mask
+                #print(f"mask shape: {mask.shape}")
+                # Slice the mask to the tile's region
+                tile_mask = mask[x:x + self.tile_dims[0], y:y + self.tile_dims[1]]
+                #print(tile_mask.shape)
+
+                # Broadcast mask into RGB, zero out background
+                tile[tile_mask == 0] = bg_value  
+
+
             if normalize and self.stain_normalizer is not None:
+                if not self.stain_normalizer.is_fitted:
+                    raise RuntimeError("StainNormalizer is not fitted. Run stain_normalizer.fit() before calling this function")
                 tile = self.stain_normalizer.normalize(tile)
             yield t, tile
 
@@ -358,6 +396,7 @@ class WSIParser:
         image_path = os.path.join(path,filename + '.png')
         if len(image.shape)>2:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        
         status = cv2.imwrite(image_path, image)
         return status
     
@@ -386,7 +425,7 @@ class WSIParser:
           
             ## stain normalization is handled during extract_tiles
             #if normalize and self.stain_normalizer is not None:
-            #    self.stain_normalizer.normalize(tile)
+            #    tile = self.stain_normalizer.normalize(tile)
             
             # Generate directory path
             save_dir = tile_path

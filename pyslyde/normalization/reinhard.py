@@ -32,8 +32,9 @@ class ReinhardStainNormalizer(StainNormalizer):
         eps: float = 1e-6,
         clip_rgb: bool = True,
         backend: str = "auto",
-        verbose: bool = True,
+        verbose: bool = False,
     ):
+        super().__init__()   # calls StainNormalizer.__init__
         if eps <= 0:
             raise ValueError(f"eps must be > 0. Got {eps}")
         self.eps = float(eps)
@@ -60,9 +61,14 @@ class ReinhardStainNormalizer(StainNormalizer):
 
     def fit(self, target_tile: np.ndarray) -> "ReinhardStainNormalizer":
         lab = self._rgb_to_lab(target_tile)
+        mask = self._tissue_mask(target_tile)
 
-        mu = lab.reshape(-1, 3).mean(axis=0)
-        sd = lab.reshape(-1, 3).std(axis=0)
+        if not np.any(mask):
+            raise ValueError("No tissue pixels found in target_tile for Reinhard fitting.") 
+        #mu = lab.reshape(-1, 3).mean(axis=0)
+        #sd = lab.reshape(-1, 3).std(axis=0)
+        mu = lab[mask].mean(axis=0)
+        sd = lab[mask].std(axis=0)
 
         if np.any(sd < self.eps):
             raise ValueError(
@@ -71,6 +77,7 @@ class ReinhardStainNormalizer(StainNormalizer):
 
         self.mu_lab = mu
         self.std_lab = sd + self.eps
+        self._fitted = True
         return self
 
 
@@ -79,16 +86,31 @@ class ReinhardStainNormalizer(StainNormalizer):
             raise RuntimeError("Not fitted. Call fit(target_tile) first or use fit_normalize().")
         
         lab = self._rgb_to_lab(source_tile)
+        mask = self._tissue_mask(source_tile)
 
+        if not np.any(mask):
+            if self.verbose:
+                print("[Reinhard] Warning: no tissue pixels found in source, returning original.")
+            return source_tile
+    
         # Source stats
-        mu_s = lab.reshape(-1, 3).mean(axis=0)
-        std_s = lab.reshape(-1, 3).std(axis=0) + self.eps
+        #mu_s = lab.reshape(-1, 3).mean(axis=0)
+        #std_s = lab.reshape(-1, 3).std(axis=0) + self.eps
+        mu_s = lab[mask].mean(axis=0)
+        std_s = lab[mask].std(axis=0) + self.eps
 
         # Standardize then re-scale to target stats (per-channel in Lab)
         lab_norm = (lab - mu_s) / std_s
         lab_tgt = lab_norm * self.std_lab + self.mu_lab
 
-        return self._lab_to_rgb(lab_tgt)
+        rgb = self._lab_to_rgb(lab_tgt)
+
+        # --- match output dtype to input dtype ---
+        if source_tile.dtype == np.uint8:
+            return rgb.astype(np.uint8)
+        else:
+            return (rgb.astype(np.float32) / 255.0).clip(0.0, 1.0)
+      
 
     # ---------- Serialization ----------
 
@@ -256,3 +278,12 @@ class ReinhardStainNormalizer(StainNormalizer):
 
     def _lab_to_rgb_numpy(self, lab: np.ndarray) -> np.ndarray:
         return self._xyz_to_rgb(self._lab_to_xyz(lab), clip=self.clip_rgb)
+    
+    @staticmethod
+    def _tissue_mask(rgb: np.ndarray, thresh: int = 220) -> np.ndarray:
+        """Return boolean mask of non-background pixels.
+        Any pixel with mean RGB < thresh is considered tissue.
+        """
+        if rgb.max() <= 1.0 + 1e-6:  # float image
+            thresh = thresh / 255.0
+        return np.mean(rgb, axis=-1) < thresh
