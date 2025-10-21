@@ -37,7 +37,8 @@ setup(
             "black",
             "flake8",
             "mypy",
-            "pre-commit"
+            "pre-commit",
+            "scikit-learn"
         ],
         "docs": [
             "sphinx>=4.0.0",
