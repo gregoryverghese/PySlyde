@@ -51,7 +51,8 @@ dev = [
     "pytest-cov",
     "ruff",
     "mypy",
-    "pre-commit"
+    "pre-commit",
+    "scikit-learn"
 ]
 docs = [
     "sphinx>=4.0.0",
