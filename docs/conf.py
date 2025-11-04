@@ -205,3 +205,8 @@ epub_uid = 'PySlyde'
 
 # A list of files that should not be packed into the epub file.
 epub_exclude_files = ['search.html'] 
+
+import os
+import sys
+# Add your project root (or wherever your Python files are) to sys.path
+sys.path.insert(0, os.path.abspath("."))  # adjust the path as needed
