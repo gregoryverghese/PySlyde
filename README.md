@@ -21,6 +21,14 @@ PySlyde is a comprehensive Python package for preprocessing pathology whole slid
 
 ## Installation
 
+## System requirements
+Before installing the Python package, make sure the following system libraries are installed:
+
+```bash
+sudo apt update
+sudo apt install libopenslide0 openslide-tools
+```
+
 ### From PyPI
 
 ```bash

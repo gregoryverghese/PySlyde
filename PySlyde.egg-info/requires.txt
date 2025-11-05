@@ -22,6 +22,7 @@ black
 flake8
 mypy
 pre-commit
+scikit-learn
 
 [docs]
 sphinx>=4.0.0

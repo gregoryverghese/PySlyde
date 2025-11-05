@@ -1,4 +1,4 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: PySlyde
 Version: 0.1.0
 Summary: A Python package for preprocessing pathology whole slide images.
@@ -23,29 +23,70 @@ Classifier: Topic :: Scientific/Engineering :: Image Processing
 Classifier: Topic :: Scientific/Engineering :: Medical Science Apps.
 Requires-Python: >=3.8
 Description-Content-Type: text/markdown
+Requires-Dist: einops
+Requires-Dist: h5py
+Requires-Dist: huggingface_hub
+Requires-Dist: lmdb
+Requires-Dist: matplotlib
+Requires-Dist: numpy
+Requires-Dist: opencv-python
+Requires-Dist: openslide-python
+Requires-Dist: pandas
+Requires-Dist: scipy
+Requires-Dist: seaborn
+Requires-Dist: scikit-image
+Requires-Dist: tensorflow
+Requires-Dist: timm
+Requires-Dist: torch
+Requires-Dist: webdataset
 Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: pytest-cov; extra == "dev"
+Requires-Dist: black; extra == "dev"
+Requires-Dist: flake8; extra == "dev"
+Requires-Dist: mypy; extra == "dev"
+Requires-Dist: pre-commit; extra == "dev"
+Requires-Dist: scikit-learn; extra == "dev"
 Provides-Extra: docs
+Requires-Dist: sphinx>=4.0.0; extra == "docs"
+Requires-Dist: sphinx-rtd-theme>=1.0.0; extra == "docs"
+Requires-Dist: myst-parser>=0.18.0; extra == "docs"
+Requires-Dist: sphinx-autodoc-typehints>=1.12.0; extra == "docs"
 Provides-Extra: rocksdb
+Requires-Dist: rocksdb; extra == "rocksdb"
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: keywords
+Dynamic: project-url
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
 
-# PySlyde
+![Logo](images/logoV2.png)
+
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PyPI version](https://badge.fury.io/py/pyslyde.svg)](https://badge.fury.io/py/pyslyde)
-[![Documentation](https://readthedocs.org/projects/pyslyde/badge/?version=latest)](https://pyslyde.readthedocs.io/en/latest/)
+[![Docs](https://img.shields.io/badge/docs-available-brightgreen.svg)](https://gregoryverghese.github.io/PySlyde/)
 
-PySlyde is a comprehensive Python package for preprocessing pathology whole slide images (WSIs). Built as a wrapper around OpenSlide, it provides powerful, user-friendly functionality for working with high-resolution pathology images, making it ideal for researchers and data scientists in the medical imaging domain.
+PySlyde is a comprehensive Python package for preprocessing pathology whole slide images (WSIs). Built as a wrapper around OpenSlide, it provides powerful, user-friendly functionality for working with high-resolution pathology images, making it ideal for researchers and data scientists in the medical imaging domain.https://github.com/gregoryverghese/PySlyde/blob/master/README.md
 
 ## Features
 
 - **WSI Handling**: Supports large pathology slides and other WSI formats via OpenSlide
 - **Efficient Preprocessing**: Streamline tasks like cropping, resizing, and filtering at high performance
 - **Annotation Support**: Easily integrate and visualize annotations from multiple formats (QuPath, ImageJ, ASAP, JSON, CSV)
-- **Tiling and Patching**: Flexible tiling options for patch extraction, ideal for deep learning workflows
+- **Tesselation**: Flexible tiling options for patch extraction, ideal for deep learning workflows
 - **Image Metadata Extraction**: Retrieve and manage metadata from WSIs
 - **Multiple Output Formats**: Save processed data to disk, LMDB, or RocksDB databases
 - **Tissue Detection**: Automatic tissue region detection and masking
-- **Feature Extraction**: Built-in support for extracting features from tiles using pre-trained models
+- **Feature Extraction**: Built-in support for extracting features from tiles using latest pathology foundation models
 
 ## Installation
 
@@ -158,7 +199,7 @@ thumbnail = detector.tissue_thumbnail
 
 ## Documentation
 
-📖 **Complete documentation is available at [pyslyde.readthedocs.io](https://pyslyde.readthedocs.io/)**
+📖 **📚 [Documentation](https://gregoryverghese.github.io/PySlyde/)**
 
 The documentation includes:
 
@@ -221,7 +262,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Author**: Gregory Verghese
 - **Email**: gregory.verghese@gmail.com
 - **Project Link**: [https://github.com/gregoryverghese/PySlide](https://github.com/gregoryverghese/PySlide)
-- **Documentation**: [https://pyslyde.readthedocs.io/](https://pyslyde.readthedocs.io/)
+- **Documentation**: [Documentation](https://gregoryverghese.github.io/PySlyde/)
 
 ## Citation
 

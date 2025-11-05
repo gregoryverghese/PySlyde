@@ -28,7 +28,8 @@ setup(
         "tensorflow",
         "timm",
         "torch",
-        "webdataset"
+        "webdataset",
+        "loguru"
     ],
     extras_require={
         "dev": [

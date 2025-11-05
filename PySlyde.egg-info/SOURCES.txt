@@ -10,5 +10,10 @@ pyslyde/exceptions.py
 pyslyde/filters.py
 pyslyde/slide.py
 pyslyde/slide_parser.py
+pyslyde/tools.py
+test/test_feature_extractor.py
+test/test_filters.py
+test/test_io.py
 test/test_patching.py
 test/test_pyslide.py
+test/test_utils.py

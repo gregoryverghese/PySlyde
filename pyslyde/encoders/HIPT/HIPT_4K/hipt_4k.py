@@ -36,8 +36,8 @@ class HIPT_4K(torch.nn.Module):
 	def __init__(self, 
 		model256_path: str = '../Checkpoints/vit256_small_dino.pth',
 		model4k_path: str = '../Checkpoints/vit4k_xs_dino.pth', 
-		device256=torch.device('cuda:0'), 
-		device4k=torch.device('cuda:1')):
+		device256=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'), 
+		device4k=torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')):
 
 		super().__init__()
 		self.model256 = get_vit256(pretrained_weights=model256_path).to(device256)
