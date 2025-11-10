@@ -201,8 +201,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Author**: Gregory Verghese
 - **Email**: gregory.verghese@gmail.com
 - **Project Link**: [https://github.com/gregoryverghese/PySlide](https://github.com/gregoryverghese/PySlide)
-- **Documentation**: [Documentation](https://gregoryverghese.github.io/PySlyde/)
-
+- **Documentation**: [Documentation](https://pyslyde.readthedocs.io/en/latest/)
 ## Citation
 
 If you use PySlyde in your research, please cite:
