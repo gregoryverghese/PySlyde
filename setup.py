@@ -49,6 +49,12 @@ setup(
             "rocksdb"
         ]
     },
+    entry_points={
+        "console_scripts": [
+            # exposes CLI command
+            "pyslyde-histoqc = pyslyde.histoqc_wrapper:main",
+        ],
+    },
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Science/Research",

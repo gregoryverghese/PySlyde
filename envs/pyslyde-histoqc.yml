@@ -1,0 +1,24 @@
+name: pyslyde-histoqc
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - numpy=1.26.*
+  - scipy=1.13.*
+  - scikit-image=0.22.*
+  - scikit-learn=1.4.*
+  - pandas>=2.2,<2.4
+  - matplotlib>=3.7,<3.11
+  - pillow
+  - openslide
+  - openslide-python
+  - tqdm
+  - pyyaml
+  - click
+  - flask
+  - geojson
+  - pip:
+      - "opencv-python-headless>=4.9,<4.13"
+      # use your fixed HistoQC fork (HTTPS for CI)
+      - "histoqc @ git+https://github.com/fsumayyamohamed/HistoQC@main"
