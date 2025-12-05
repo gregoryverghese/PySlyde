@@ -31,6 +31,7 @@ jobs:
         python -m pip install --upgrade pip openslide-bin
         df -h
         python -m pip install .[dev]
+        df -h
     - name: Test with pytest
       run: |
         pytest
