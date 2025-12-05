@@ -30,8 +30,9 @@ jobs:
       run: |
         python -m pip install --upgrade pip openslide-bin
         df -h
-        python -m pip install openslide-python
+        python -m pip install openslide-python tensorflow
         df -h
+        python -m pip show openslide-python
     - name: Test with pytest
       run: |
         pytest
