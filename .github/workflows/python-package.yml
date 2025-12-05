@@ -20,6 +20,12 @@ jobs:
         python-version: ["3.13"]
 
     steps:
+    - name: Clear disk space 
+      uses: endersonmenezes/free-disk-space@v3
+      with:
+        remove_android: true
+        rm_cmd: "rmz"
+        rmz_version: "3.1.1"
     - uses: actions/checkout@v5
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
@@ -30,9 +36,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip openslide-bin
         df -h
-        python -m pip install openslide-python tensorflow
-        df -h
-        python -m pip show openslide-python
+        python -m pip install .[dev]
     - name: Test with pytest
       run: |
         pytest
