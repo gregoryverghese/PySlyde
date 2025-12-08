@@ -1,3 +1,72 @@
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "PySlyde"
+version = "0.1.0"
+dependencies = [
+    "einops",
+    "h5py",
+    "huggingface_hub",
+    "lmdb",
+    "matplotlib",
+    "numpy",
+    "opencv-python",
+    "openslide-python",
+    "pandas",
+    "scipy",
+    "seaborn",
+    "scikit-image",
+    "tensorflow",
+    "timm",
+    "torch",
+    "webdataset"
+]
+requires-python = ">= 3.8"
+authors = [
+    {name = "Gregory Verghese", email = "gregory.verghese@gmail.com"}
+    ]
+description = "A Python package for preprocessing pathology whole slide images."
+readme = "README.md"
+keywords = ["pathology", "whole slide image", "medical imaging", "computer vision"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Topic :: Scientific/Engineering :: Medical Science Apps."
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "black",
+    "flake8",
+    "mypy",
+    "pre-commit"
+]
+docs = [
+    "sphinx>=4.0.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "myst-parser>=0.18.0",
+    "sphinx-autodoc-typehints>=1.12.0"
+]
+rocksdb =  ["rocksdb"]
+
+
+[project.urls]
+Source = "https://github.com/PharosKCL/pyslyde"
+Documentation = "https://pyslyde.readthedocs.io/en/latest/"
+"Bug Reports" = "https://github.com/PharosKCL/pyslyde/issues"
+
+[tool.setuptools]
+packages = ["pyslyde"]
