@@ -49,8 +49,7 @@ classifiers = [
 dev = [
     "pytest",
     "pytest-cov",
-    "black",
-    "flake8",
+    "ruff",
     "mypy",
     "pre-commit"
 ]
