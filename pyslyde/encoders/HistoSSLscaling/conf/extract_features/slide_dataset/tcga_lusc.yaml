@@ -1,3 +1,0 @@
-_target_: rl_benchmarks.datasets.load_dataset
-_partial_: True
-cohort: TCGA_LUSC
