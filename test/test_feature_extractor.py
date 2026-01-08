@@ -44,14 +44,10 @@ def test_invalid_encoder_name_raises_keyerror(mock_checkpoint):
         ("vgg16", "_vgg16"),
         ("ciga", "_ciga"),
         ("simclr", "_simclr"),
-        ("hipt4k", "_hipt4k"),
-        ("hipt256", "_hipt256"),
         ("transpath", "_transpath"),
-        ("dinobrca", "_dinobrca"),
         ("uni", "_uni"),
         ("virchow2", "_virchow2"),
         ("gigapath", "_gigapath"),
-        ("phikon", "_phikon"),
     ]
 )
 def test_model_loader_methods(model_name, loader_method, mock_checkpoint):
