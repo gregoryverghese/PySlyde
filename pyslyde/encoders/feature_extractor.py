@@ -138,30 +138,30 @@ class FeatureGenerator():
     #     return model
 
 
-    def _hipt256(self): 
-        checkpoint_key = 'teacher'
-        arch = 'vit_small'
-        image_size=(256,256)
-        model256 = vits.__dict__[arch](patch_size=16, num_classes=0)
-        for p in model256.parameters():
-            p.requires_grad = False
-        state_dict = self.checkpoint_dict
-        if checkpoint_key is not None and checkpoint_key in state_dict:
-            print(f"Take key {checkpoint_key} in provided checkpoint dict")
-            state_dict = state_dict[checkpoint_key]
+    # def _hipt256(self): 
+    #     checkpoint_key = 'teacher'
+    #     arch = 'vit_small'
+    #     image_size=(256,256)
+    #     model256 = vits.__dict__[arch](patch_size=16, num_classes=0)
+    #     for p in model256.parameters():
+    #         p.requires_grad = False
+    #     state_dict = self.checkpoint_dict
+    #     if checkpoint_key is not None and checkpoint_key in state_dict:
+    #         print(f"Take key {checkpoint_key} in provided checkpoint dict")
+    #         state_dict = state_dict[checkpoint_key]
         
-        state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}  # remove `module.` prefix
-        state_dict = {k.replace("backbone.", ""): v for k, v in state_dict.items()}  # remove `backbone.` prefix induced by multicrop wrapper
-        msg = model256.load_state_dict(state_dict, strict=False)
-        model = model256
+    #     state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}  # remove `module.` prefix
+    #     state_dict = {k.replace("backbone.", ""): v for k, v in state_dict.items()}  # remove `backbone.` prefix induced by multicrop wrapper
+    #     msg = model256.load_state_dict(state_dict, strict=False)
+    #     model = model256
 
-        self.transforms = T.Compose([
-            T.Resize(image_size),
-            T.ToTensor(),
-            T.Normalize(
-                [0.5, 0.5, 0.5], [0.5, 0.5, 0.5])])
+    #     self.transforms = T.Compose([
+    #         T.Resize(image_size),
+    #         T.ToTensor(),
+    #         T.Normalize(
+    #             [0.5, 0.5, 0.5], [0.5, 0.5, 0.5])])
 
-        return model.to(self.device)
+    #     return model.to(self.device)
 
 
     # def _phikon(self):
@@ -177,6 +177,24 @@ class FeatureGenerator():
     #     return model.to(self.device)
 
 
+    # def _dinobrca(self):
+    #     arch = 'vit_small'
+    #     image_size=(256,256)
+    #     checkpoint_key = 'teacher'
+        
+    #     model = vits.__dict__[arch](patch_size=16, num_classes=0)
+    #     for p in model.parameters():
+    #         p.requires_grad = False
+   
+    #     transform = T.Compose([
+    #         T.Resize(image_size),
+    #         T.ToTensor(),
+    #         T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+    #     ])
+    #     self.transforms = transform
+    #     return model.to(self.device)
+
+
     def _transpath(self):
         model = ctranspath()
         model.head = nn.Identity()
@@ -188,24 +206,6 @@ class FeatureGenerator():
             T.Resize(224),
             T.ToTensor(),
             T.Normalize(mean = mean, std = std)])
-        self.transforms = transform
-        return model.to(self.device)
-
-
-    def _dinobrca(self):
-        arch = 'vit_small'
-        image_size=(256,256)
-        checkpoint_key = 'teacher'
-        
-        model = vits.__dict__[arch](patch_size=16, num_classes=0)
-        for p in model.parameters():
-            p.requires_grad = False
-   
-        transform = T.Compose([
-            T.Resize(image_size),
-            T.ToTensor(),
-            T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        ])
         self.transforms = transform
         return model.to(self.device)
 
