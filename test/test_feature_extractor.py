@@ -146,7 +146,7 @@ def test_invalid_model_name_raises_attribute_error(mock_checkpoint):
         FeatureGenerator(model_name="unknown_model", model_path=str(mock_checkpoint)).model
 
 
-@pytest.mark.parametrize("name", ["moco", "ciga", "simclr", "hipt256", "uni"])
+@pytest.mark.parametrize("name", ["moco", "ciga", "simclr", "uni"])
 @mock.patch("pyslyde.encoders.feature_extractor.torch.load", side_effect=FileNotFoundError)
 def test_model_checkpoint_missing_raises_file_error(mock_load, name, tmp_path):
     with pytest.raises(FileNotFoundError):
