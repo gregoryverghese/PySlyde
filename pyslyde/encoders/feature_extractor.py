@@ -23,11 +23,10 @@ import torchvision.models as models
 from torchvision import transforms as T
 
 from pyslyde.encoders.ctran import ctranspath
-from pyslyde.encoders.HistoSSLscaling.rl_benchmarks.models import iBOTViT 
-from pyslyde.encoders.HIPT.HIPT_4K.hipt_model_utils import eval_transforms
-from pyslyde.encoders.HIPT.HIPT_4K import vision_transformer as vits
-from pyslyde.encoders.HIPT.HIPT_4K.hipt_4k import HIPT_4K
-
+# from pyslyde.encoders.HistoSSLscaling.rl_benchmarks.models import iBOTViT 
+# from pyslyde.encoders.HIPT.HIPT_4K.hipt_model_utils import eval_transforms
+# from pyslyde.encoders.HIPT.HIPT_4K import vision_transformer as vits
+# from pyslyde.encoders.HIPT.HIPT_4K.hipt_4k import HIPT_4K
 
 from timm.data import resolve_data_config
 from timm.data.transforms_factory import create_transform
@@ -48,8 +47,8 @@ class FeatureGenerator():
             encoder_name='resnet18',
             contrastive=None):
 
-        self.model_path=model_path
-        self.encoder_name=encoder_name
+        self.model_path = model_path
+        self.encoder_name = encoder_name
         self.model = model_name
         self.model_name = model_name
 
@@ -91,9 +90,9 @@ class FeatureGenerator():
 
 
     def _ciga(self):
-       
-        # See https://github.com/ozanciga/self-supervised-histopathology/blob/main/README.md
-       
+       """
+       See https://github.com/ozanciga/self-supervised-histopathology/blob/main/README.md
+       """
         state_dict=self.checkpoint_dict['state_dict']
         for k in list(state_dict.keys()):
             k_new=k.replace('model.', '').replace('resnet.', '')
@@ -132,15 +131,14 @@ class FeatureGenerator():
         return model
 
 
-    def _hipt4k(self):
-        model = HIPT_4K()
-        model.eval()
-        self.transforms = eval_transforms()
-        return model
+    # def _hipt4k(self):
+    #     model = HIPT_4K()
+    #     model.eval()
+    #     self.transforms = eval_transforms()
+    #     return model
 
 
-    def _hipt256(self):
-        
+    def _hipt256(self): 
         checkpoint_key = 'teacher'
         arch = 'vit_small'
         image_size=(256,256)
@@ -166,17 +164,17 @@ class FeatureGenerator():
         return model.to(self.device)
 
 
-    def _phikon(self):
-
-        # See https://github.com/owkin/HistoSSLscaling/tree/main?tab=readme-ov-file#download
-
-        model = iBOTViT(
-            architecture="vit_base_pancan", 
-            encoder="teacher",
-            weights_path=self.model_path  
-        )
-        self.transforms = model.transform
-        return model.to(self.device)
+    # def _phikon(self):
+    #     """
+    #     See https://github.com/owkin/HistoSSLscaling/tree/main?tab=readme-ov-file#download
+    #     """
+    #     model = iBOTViT(
+    #         architecture="vit_base_pancan", 
+    #         encoder="teacher",
+    #         weights_path=self.model_path  
+    #     )
+    #     self.transforms = model.transform
+    #     return model.to(self.device)
 
 
     def _transpath(self):
@@ -213,9 +211,9 @@ class FeatureGenerator():
 
 
     def _uni(self):
-
-        # See https://github.com/mahmoodlab/UNI
-
+        """
+        See https://github.com/mahmoodlab/UNI
+        """
         model = timm.create_model(
                 "vit_large_patch16_224", img_size=224,
             init_values=1e-5, num_classes=0, dynamic_img_size=True
@@ -235,12 +233,10 @@ class FeatureGenerator():
 
 
     def _virchow2(self):
-
-        # See https://huggingface.co/paige-ai/Virchow2 
-
-        #login(os.getenv('HUGGINGFACE_TOKEN'))  # HUGGINGFACE_TOKEN is an environment variable
-        login(os.getenv('HUGGINGFACE_TOKEN'), add_to_git_credential=True)  # To save token to your Git credentials
-
+        """
+        See https://huggingface.co/paige-ai/Virchow2 
+        """
+        login(os.getenv('HUGGINGFACE_TOKEN'))  # HUGGINGFACE_TOKEN is an environment variable
         model = timm.create_model("hf-hub:paige-ai/Virchow2", 
                                 pretrained=True, 
                                 mlp_layer=SwiGLUPacked, 
@@ -256,11 +252,9 @@ class FeatureGenerator():
         """
         See https://huggingface.co/prov-gigapath/prov-gigapath.
         """
-        
-        #login(os.getenv('HUGGINGFACE_TOKEN'))  # HUGGINGFACE_TOKEN is an environment variable
-        login(os.getenv('HUGGINGFACE_TOKEN'), add_to_git_credential=True)  # To save token to your Git credentials
-
-        # this approach is for tile encoding. slide-level encoding is done a different way
+        login(os.getenv('HUGGINGFACE_TOKEN'))  # HUGGINGFACE_TOKEN is an environment variable
+    
+        # this approach is for tile encoding. slide-level encoding is done differently
         model = timm.create_model("hf_hub:prov-gigapath/prov-gigapath", pretrained=True)
 
         transform = T.Compose(
