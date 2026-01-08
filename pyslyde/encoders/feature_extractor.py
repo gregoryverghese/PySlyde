@@ -90,9 +90,9 @@ class FeatureGenerator():
 
 
     def _ciga(self):
-       """
-       See https://github.com/ozanciga/self-supervised-histopathology/blob/main/README.md
-       """
+        """
+        See https://github.com/ozanciga/self-supervised-histopathology/blob/main/README.md
+        """
         state_dict=self.checkpoint_dict['state_dict']
         for k in list(state_dict.keys()):
             k_new=k.replace('model.', '').replace('resnet.', '')
