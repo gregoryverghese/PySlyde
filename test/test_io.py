@@ -9,6 +9,7 @@ import shutil
 import pickle
 import tempfile
 import unittest
+import pytest
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -53,21 +54,6 @@ except Exception:
 # Helpers
 ##################################################################
 
-def _run_and_report(label: str, suite: unittest.TestSuite) -> unittest.result.TestResult:
-    """
-    Run a suite of test for a given io script and print a status line.
-    Prints [OK] only if there are no failures/errors; otherwise prints [FAIL] with counts.
-    """
-    result = unittest.TextTestRunner(verbosity=0, buffer=True).run(suite)
-    if result.wasSuccessful():
-        print(f"\n[OK] Finished tests for {label}")
-    else:
-        f = len(result.failures)
-        e = len(result.errors)
-        s = len(getattr(result, "skipped", []))
-        print(f"\n[FAIL] Finished tests for {label} (failures={f}, errors={e}, skipped={s})")
-    return result
-
 def _synthetic_parser(coords, shape=(8, 8, 3), dtype=np.uint8):
     """
     Yield deterministic ((x, y), tile) pairs for the given coordinates.
@@ -87,6 +73,7 @@ def _synthetic_parser(coords, shape=(8, 8, 3), dtype=np.uint8):
 # Tests for pyslyde/io/disk_io.py
 ##################################################################
 
+@pytest.mark.disk
 class TestDiskWrite(unittest.TestCase):
     """
     Test suite for DiskWrite focusing on correctness of filenames, tiles/metadata,
@@ -247,6 +234,7 @@ class TestDiskWrite(unittest.TestCase):
 # Tests for pyslyde/io/lmdb_io.py
 ##################################################################
 
+@pytest.mark.lmdb
 @unittest.skipUnless(HAS_LMDB, "lmdb (and lmdb_io import) not available")
 class TestNpyObject_LMDB(unittest.TestCase):
     """
@@ -275,6 +263,7 @@ class TestNpyObject_LMDB(unittest.TestCase):
         self.assertTrue(np.allclose(back, arr))
 
 
+@pytest.mark.lmdb
 @unittest.skipUnless(HAS_LMDB, "lmdb (and lmdb_io import) not available")
 class TestLMDBReadWrite(unittest.TestCase):
     """
@@ -375,6 +364,7 @@ class TestLMDBReadWrite(unittest.TestCase):
 # Tests for pyslyde/io/rocksdb_io.py
 ##################################################################
 
+@pytest.mark.rocksdb
 @unittest.skipUnless(HAS_ROCKSDB, "rocksdb (and rocksdb_io import) not available")
 class TestNpyObject_RocksDB(unittest.TestCase):
     """
@@ -403,6 +393,7 @@ class TestNpyObject_RocksDB(unittest.TestCase):
         self.assertTrue(np.allclose(back, arr))
 
 
+@pytest.mark.rocksdb
 @unittest.skipUnless(HAS_ROCKSDB, "rocksdb (and rocksdb_io import) not available")
 class TestRocksDBReadWrite(unittest.TestCase):
     """
@@ -494,6 +485,7 @@ class TestRocksDBReadWrite(unittest.TestCase):
 # Tests for pyslyde/io/tfrecords_io.py
 ##################################################################
 
+@pytest.mark.tfrecords
 class TestTFRecordWrite(unittest.TestCase):
     """
     Tests for TFRecordWrite: shard/size properties and TFRecord round-trip with a dummy patcher.
@@ -591,6 +583,7 @@ class TestTFRecordWrite(unittest.TestCase):
 # Tests for pyslyde/io/tfrecord_write.py
 ##################################################################
 
+@pytest.mark.tfrecord_write
 class TestTFRecordWriteScript(unittest.TestCase):
     """
     Tests for tfrecord_write helpers: wrapping utilities, conversion functions, and simple end-to-end sharding.
@@ -712,42 +705,3 @@ class TestTFRecordWriteScript(unittest.TestCase):
         self.assertGreaterEqual(len(self._collect_tfrecords('train')), 1)
         self.assertGreaterEqual(len(self._collect_tfrecords('validation')), 1)
         self.assertGreaterEqual(len(self._collect_tfrecords('test')), 1)
-
-
-##################################################################
-# Main: run Disk, LMDB, RocksDB, TFRecords (class), then tfrecord_write (functions)
-#       with per-section summaries.
-##################################################################
-
-if __name__ == "__main__":
-    loader = unittest.TestLoader()
-
-    # Disk I/O
-    suite_disk = loader.loadTestsFromTestCase(TestDiskWrite)
-    _run_and_report("disk_io.py", suite_disk)
-
-    # LMDB I/O
-    if HAS_LMDB:
-        suite_lmdb = unittest.TestSuite()
-        suite_lmdb.addTests(loader.loadTestsFromTestCase(TestNpyObject_LMDB))
-        suite_lmdb.addTests(loader.loadTestsFromTestCase(TestLMDBReadWrite))
-        _run_and_report("lmdb_io.py", suite_lmdb)
-    else:
-        print("[SKIP] lmdb not available — LMDB I/O tests skipped")
-
-    # RocksDB I/O
-    if HAS_ROCKSDB:
-        suite_rocks = unittest.TestSuite()
-        suite_rocks.addTests(loader.loadTestsFromTestCase(TestNpyObject_RocksDB))
-        suite_rocks.addTests(loader.loadTestsFromTestCase(TestRocksDBReadWrite))
-        _run_and_report("rocksdb_io.py", suite_rocks)
-    else:
-        print("[SKIP] rocksdb not available — RocksDB I/O tests skipped")
-
-    # TFRecords I/O (class-based)
-    suite_tfrec_cls = loader.loadTestsFromTestCase(TestTFRecordWrite)
-    _run_and_report("tfrecords_io.py", suite_tfrec_cls)
-
-    # tfrecord_write (functions-based)
-    suite_tfrec_fn = loader.loadTestsFromTestCase(TestTFRecordWriteScript)
-    _run_and_report("tfrecord_write.py", suite_tfrec_fn)
