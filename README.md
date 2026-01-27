@@ -30,24 +30,24 @@ pip install pyslyde
 ### From Source
 
 ```bash
-git clone https://github.com/gregoryverghese/PySlide.git
-cd PySlide
+git clone https://github.com/gregoryverghese/pyslyde.git
+cd pyslyde
 pip install -e .
 ```
 
 ### Development Installation
 
 ```bash
-git clone https://github.com/gregoryverghese/PySlide.git
-cd PySlide
+git clone https://github.com/gregoryverghese/pyslyde.git
+cd pyslyde
 pip install -e ".[dev]"
 ```
 
 ### Documentation Installation
 
 ```bash
-git clone https://github.com/gregoryverghese/PySlide.git
-cd PySlide
+git clone https://github.com/gregoryverghese/pyslyde.git
+cd pyslyde
 pip install -e ".[docs]"
 ```
 
