@@ -21,7 +21,9 @@ dependencies = [
     "tensorflow",
     "timm",
     "torch",
-    "webdataset"
+    "webdataset",
+    "transformers",
+    "tf-keras",
 ]
 requires-python = ">= 3.8"
 authors = [
@@ -81,4 +83,6 @@ markers = [
   "rocksdb: tests that require RocksDB for pyslyde.io.rocksdb_io",
   "tfrecords: tests for TFRecords IO",
   "tfrecord_write: tests for tfrecord_write helpers",
+  "integration: slow tests that load real feature extractor models and run real forward passes",
+  "network: tests that may access the internet (downloads, HF hub, etc.)",  
 ]
