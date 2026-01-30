@@ -21,7 +21,9 @@ dependencies = [
     "tensorflow",
     "timm",
     "torch",
-    "webdataset"
+    "webdataset",
+    "transformers",
+    "tf-keras",
 ]
 requires-python = ">= 3.8"
 authors = [
