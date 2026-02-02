@@ -29,7 +29,7 @@ class ConvStem(nn.Module):
 
         stem = []
         input_dim, output_dim = 3, embed_dim // 8
-        for l in range(2):
+        for layer in range(2):
             stem.append(
                 nn.Conv2d(
                     input_dim,
