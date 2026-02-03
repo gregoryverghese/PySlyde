@@ -187,7 +187,7 @@ class FeatureGenerator:
     embedding vectors.
     """
 
-    def __init__(self, model_name, model_path=None):
+    def __init__(self, model_name, model_path=None, force_hf_login=False):
         """
         Initialize a feature generator for the specified model.
 
@@ -201,6 +201,7 @@ class FeatureGenerator:
         self._model = None
         self.transforms = None
         self._hf_logged_in = False
+        self.force_hf_login = force_hf_login
 
         self.model_name = model_name
         self.model = model_name
@@ -226,8 +227,12 @@ class FeatureGenerator:
 
         if value in GATED_HF_MODELS:
             repo = self._model_repo_id(value)
-            if not self._hf_cache_exists(repo):
-                self._hf_login()
+
+            if self.force_hf_login:
+                self._hf_login(force=True)
+            else:
+                if not self._hf_cache_exists(repo):
+                    self._hf_login()
 
         self._model = getattr(self, "_" + value)()
 
@@ -257,12 +262,12 @@ class FeatureGenerator:
                 f"from '{self.model_path}'."
             ) from e
 
-    def _hf_login(self):
+    def _hf_login(self, force=False):
         """
-        Logs into HF using the HUGGINGFACE_TOKEN
-        environment variable (set by the user).
+        Logs into HF using the HUGGINGFACE_TOKEN environment variable (set by the user).
+        If force=True, re-runs login even if this instance already logged in.
         """
-        if self._hf_logged_in:
+        if self._hf_logged_in and not force:
             return
 
         token = os.getenv("HUGGINGFACE_TOKEN")
