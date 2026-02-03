@@ -669,7 +669,7 @@ class Annotations:
         
         # Check necessary columns exist
         if not all(col in anns_df.columns for col in ['labels', 'x', 'y']):
-            raise KeyError("Invalid csv file structure: must conatin columns 'label', 'x' and 'y'")
+            raise KeyError("Invalid csv file structure: must contain columns 'label', 'x' and 'y'")
         
         anns_df.fillna('undefined', inplace=True)
         anns_df.set_index('labels', drop=True, inplace=True)
