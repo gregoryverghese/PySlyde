@@ -214,6 +214,16 @@ class FeatureGenerator:
     def device(self):
         return "cuda" if torch.cuda.is_available() else "cpu"
 
+    @property
+    def hf_repo_id(self) -> str:
+        """canonical HF repo string: 'org/name'"""
+        return self._model_repo_id(self.model_name)
+
+    @property
+    def hf_hub_ref(self) -> str:
+        """timm-specific HF hub reference"""
+        return f"hf-hub:{self.hf_repo_id}"
+
     @model.setter
     def model(self, value):
         m_name = "_" + value
@@ -361,7 +371,7 @@ class FeatureGenerator:
         See https://huggingface.co/1aurent/swin_tiny_patch4_window7_224.CTransPath
         """
         model = timm.create_model(
-            model_name="hf-hub:1aurent/swin_tiny_patch4_window7_224.CTransPath",
+            model_name=self.hf_hub_ref,
             embed_layer=ConvStem,
             pretrained=True,
         )
@@ -374,8 +384,8 @@ class FeatureGenerator:
         Phikon (ViT-B/16) feature extractor.
         See https://huggingface.co/owkin/phikon
         """
-        processor = AutoImageProcessor.from_pretrained("owkin/phikon")
-        model = AutoModel.from_pretrained("owkin/phikon")
+        processor = AutoImageProcessor.from_pretrained(self.hf_repo_id)
+        model = AutoModel.from_pretrained(self.hf_repo_id)
         wrapper = HFVisionWrapper(model)
         transforms = self._hf_image_transform(processor)
         return TorchWrapper(wrapper, transforms, self.device)
@@ -385,8 +395,10 @@ class FeatureGenerator:
         Phikon-v2 (ViT-L/16) feature extractor.
         See https://huggingface.co/owkin/phikon-v2
         """
-        processor = AutoImageProcessor.from_pretrained("owkin/phikon-v2")
-        model = AutoModel.from_pretrained("owkin/phikon-v2")
+        processor = AutoImageProcessor.from_pretrained(
+            self._model_repo_id(self.model_name)
+        )
+        model = AutoModel.from_pretrained(self._model_repo_id(self.model_name))
         wrapper = HFVisionWrapper(model)
         transforms = self._hf_image_transform(processor)
         return TorchWrapper(wrapper, transforms, self.device)
@@ -396,7 +408,7 @@ class FeatureGenerator:
         See https://huggingface.co/MahmoodLab/UNI
         """
         model = timm.create_model(
-            "hf-hub:MahmoodLab/uni",
+            self.hf_hub_ref,
             pretrained=True,
             init_values=1e-5,
             dynamic_img_size=True,
@@ -426,7 +438,9 @@ class FeatureGenerator:
             "dynamic_img_size": True,
         }
         model = timm.create_model(
-            "hf-hub:MahmoodLab/UNI2-h", pretrained=True, **timm_kwargs
+            self.hf_hub_ref,
+            pretrained=True,
+            **timm_kwargs,
         )
         transforms = create_transform(
             **resolve_data_config(model.pretrained_cfg, model=model)
@@ -438,7 +452,7 @@ class FeatureGenerator:
         See https://huggingface.co/paige-ai/Virchow
         """
         model = timm.create_model(
-            "hf-hub:paige-ai/Virchow",
+            self.hf_hub_ref,
             pretrained=True,
             mlp_layer=SwiGLUPacked,
             act_layer=torch.nn.SiLU,
@@ -453,7 +467,7 @@ class FeatureGenerator:
         See https://huggingface.co/paige-ai/Virchow2
         """
         model = timm.create_model(
-            "hf-hub:paige-ai/Virchow2",
+            self.hf_hub_ref,
             pretrained=True,
             mlp_layer=SwiGLUPacked,
             act_layer=torch.nn.SiLU,
@@ -469,7 +483,10 @@ class FeatureGenerator:
 
         Note: For tile (not slide) encoding
         """
-        model = timm.create_model("hf_hub:prov-gigapath/prov-gigapath", pretrained=True)
+        model = timm.create_model(
+            self.hf_hub_ref,
+            pretrained=True,
+        )
         transforms = T.Compose(
             [
                 T.Resize(256, interpolation=T.InterpolationMode.BICUBIC),
@@ -485,7 +502,7 @@ class FeatureGenerator:
         See https://huggingface.co/bioptimus/H-optimus-0
         """
         model = timm.create_model(
-            "hf-hub:bioptimus/H-optimus-0",
+            self.hf_hub_ref,
             pretrained=True,
             init_values=1e-5,
             dynamic_img_size=False,
@@ -506,7 +523,7 @@ class FeatureGenerator:
         See https://huggingface.co/bioptimus/H-optimus-1
         """
         model = timm.create_model(
-            "hf-hub:bioptimus/H-optimus-1",
+            self.hf_hub_ref,
             pretrained=True,
             init_values=1e-5,
             dynamic_img_size=False,
@@ -548,7 +565,7 @@ class FeatureGenerator:
                 "pathfm requires tf_keras (legacy Keras 2) to be installed."
             ) from e
 
-        repo_path = snapshot_download(repo_id="google/path-foundation")
+        repo_path = snapshot_download(repo_id=self.hf_repo_id)
         model = tfk.models.load_model(repo_path)
         infer_fn = model.signatures["serving_default"]
         return TFVisionWrapper(infer_fn, image_size=(224, 224))
