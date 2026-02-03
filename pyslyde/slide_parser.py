@@ -58,6 +58,10 @@ class WSIParser:
         self._x_max = int(self.border[1][1])
         self._y_min = int(self.border[0][0])
         self._y_max = int(self.border[1][0])
+        
+        if mag_level < 0 or mag_level >= len(slide.level_downsamples):
+            raise KeyError(f'Mag level must in range 0 - {len(slide.level_downsamples)}')
+        
         self._downsample = int(slide.level_downsamples[mag_level])
         self._x_dim = int(tile_dim * self._downsample)
         self._y_dim = int(tile_dim * self._downsample)
@@ -220,6 +224,11 @@ class WSIParser:
         Returns:
             int: Number of tiles remaining.
         """
+        
+        # Check tissue mask provided is the same dimensions as the slide
+        if slide_mask.shape[0] != self.slide.dims[1] or slide_mask.shape[1] != self.slide.dims[0]:
+            raise ValueError(f'Tissue mask dimensions {slide_mask.shape} do not match slide dimensions ({self.slide.dims[1]}, {self.slide.dims[0]})')
+        
         slide_mask[slide_mask != label] = 0
         slide_mask[slide_mask == label] = 1
         tiles = self._tiles.copy()
