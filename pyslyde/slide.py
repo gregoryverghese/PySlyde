@@ -370,11 +370,6 @@ class Annotations:
     def __init__(self, path: Union[str, List[str]], source: str, 
                  labels: Optional[List[str]] = None, encode: bool = False) -> None:
         
-        # TODO - is this needed?
-        # # Error if source is invalid
-        # if not hasattr(self, '_' + source):
-        #     raise AttributeError(f"Source {source} is invalid")
-        
         self.paths: List[str] = path if isinstance(path, list) else [path]
         self.source: str = source
         self.labels: Optional[List[str]] = labels
@@ -383,9 +378,6 @@ class Annotations:
         self._generate_annotations()
         
         # Check labels exist in annotation file
-        # invalid_labels = [n for n in self.labels if not n in v]
-        # if invalid_labels:
-        #     raise KeyError(f'Labels {invalid_labels} are invalid.')
         self._check_labels(self.labels)
 
     def __repr__(self) -> str:
