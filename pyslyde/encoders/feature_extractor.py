@@ -172,7 +172,7 @@ class TFVisionWrapper:
         elif len(out) == 1:
             emb = next(iter(out.values())).numpy()
         else:
-            raise RuntimeError(f"Unexpected TF model outputs: {list(out.keys())}")
+            raise RuntimeError(f"Unexpected TF model outputs: {list(out.keys())}.")
 
         return torch.from_numpy(emb)
 
@@ -233,7 +233,7 @@ class FeatureGenerator:
                 for k in dir(self)
                 if k.startswith("_") and callable(getattr(self, k))
             )
-            raise ValueError(f"Unknown model '{value}'. Supported: {supported}")
+            raise ValueError(f"Unknown model '{value}'. Supported: {supported}.")
 
         if value in GATED_HF_MODELS:
             repo = self._model_repo_id(value)
@@ -261,7 +261,7 @@ class FeatureGenerator:
         if not os.path.isfile(self.model_path):
             raise RuntimeError(
                 f"Checkpoint file not found for model '{self.model_name}': "
-                f"{self.model_path}"
+                f"{self.model_path}."
             )
 
         try:
@@ -302,7 +302,7 @@ class FeatureGenerator:
         ):
             try:
                 hf_hub_download(repo_id, filename=fname, local_files_only=True)
-                print(f"Local cache exists for {self.model_name} at {repo_id}")
+                print(f"Local cache exists for {self.model_name} at {repo_id}.")
                 return True
             except LocalEntryNotFoundError:
                 continue
@@ -332,7 +332,10 @@ class FeatureGenerator:
         }
 
         if name not in repo_map:
-            raise KeyError(f"No Hugging Face repo mapping found for model '{name}'")
+            raise KeyError(
+                f"No Hugging Face repo mapping found for model '{name}'. "
+                f"Supported HF models: {sorted(repo_map.keys())}."
+            )
 
         return repo_map[name]
 
@@ -581,7 +584,7 @@ class FeatureGenerator:
         if feats.shape[1] != exp:
             raise RuntimeError(
                 f"{self.model_name} feature dim mismatch: "
-                f"expected {exp}, got {feats.shape[1]}"
+                f"expected {exp}, got {feats.shape[1]}."
             )
         return feats.squeeze(0)
 
@@ -605,7 +608,7 @@ class FeatureGenerator:
         if isinstance(image_in, np.ndarray):
             if image_in.ndim != 3 or image_in.shape[2] != 3:
                 raise ValueError(
-                    f"Expected HxWx3 RGB np.ndarray, got shape {image_in.shape}"
+                    f"Expected HxWx3 RGB np.ndarray, got shape {image_in.shape}."
                 )
             if image_in.dtype != np.uint8:
                 image_in = image_in.astype(np.uint8)
@@ -613,7 +616,7 @@ class FeatureGenerator:
         elif isinstance(image_in, Image.Image):
             img = image_in
         else:
-            raise TypeError(f"Unsupported image type: {type(image_in)}")
+            raise TypeError(f"Unsupported image type: {type(image_in)}.")
 
         if img.mode != "RGB":
             img = img.convert("RGB")
@@ -642,20 +645,20 @@ class FeatureGenerator:
 
         if name in {"phikon", "phikon2"}:
             if out.ndim != 3:
-                raise RuntimeError(f"{name} expected (B,T,C), got {out.shape}")
+                raise RuntimeError(f"{name} expected (B,T,C), got {out.shape}.")
             out = out[:, 0, :]
 
         if name in VIRCHOW_POSTPROCESS:
             cfg = VIRCHOW_POSTPROCESS[name]
 
             if out.ndim != 3:
-                raise RuntimeError(f"{name} expected (B,T,C), got {out.shape}")
+                raise RuntimeError(f"{name} expected (B,T,C), got {out.shape}.")
 
             B, T, C = out.shape
             exp_T, exp_C = cfg["expected_T"], cfg["expected_C"]
             if (exp_T is not None and T != exp_T) or (exp_C is not None and C != exp_C):
                 raise RuntimeError(
-                    f"{name} expected (B,{exp_T},{exp_C}), got {out.shape}"
+                    f"{name} expected (B,{exp_T},{exp_C}), got {out.shape}."
                 )
 
             class_token = out[:, 0, :]
@@ -671,12 +674,12 @@ class FeatureGenerator:
         Raises RuntimeError if the result cannot be represented as 2D.
         """
         if not torch.is_tensor(feats):
-            raise RuntimeError(f"Expected torch.Tensor feats, got {type(feats)}")
+            raise RuntimeError(f"Expected torch.Tensor feats, got {type(feats)}.")
         if feats.ndim == 1:
             feats = feats.unsqueeze(0)
         feats = feats.reshape(feats.shape[0], -1)
         if feats.ndim != 2:
-            raise RuntimeError(f"Expected feats to be 2D (B,D), got {feats.shape}")
+            raise RuntimeError(f"Expected feats to be 2D (B,D), got {feats.shape}.")
         return feats
 
     def _check_finite(self, feats: torch.Tensor, name: str) -> None:
@@ -690,6 +693,5 @@ class FeatureGenerator:
         if exp is not None:
             return exp
         raise RuntimeError(
-            f"No expected dim configured for model '{self.model_name}' "
-            f"in EXPECTED_DIMS."
+            f"No expected embedding dim configured for model '{self.model_name}'."
         )
