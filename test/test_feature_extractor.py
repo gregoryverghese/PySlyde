@@ -150,6 +150,10 @@ def test_model_property_is_wrapper(fg_resnet18_mocked):
 
 
 def test_hf_repo_id_and_hf_hub_ref_properties():
+    """
+    Verifies that the hf_repo_id and hf_hub_ref properties
+    are correctly derived from the model_name attribute.
+    """
     fg = object.__new__(FeatureGenerator)
     fg.model_name = "uni"
     assert fg.hf_repo_id == "MahmoodLab/uni"
