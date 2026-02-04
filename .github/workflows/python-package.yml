@@ -37,9 +37,9 @@ jobs:
         python -m pip install --upgrade pip openslide-bin
         df -h
         python -m pip install .[dev]
-    - name: Test with pytest
+    - name: Test with pytest (exclude integration-marked tests)
       run: |
-        pytest
+        python -m pytest -m "not integration"
 
   lint:
     runs-on: ubuntu-latest

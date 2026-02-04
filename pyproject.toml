@@ -53,7 +53,8 @@ dev = [
     "pytest-cov",
     "ruff",
     "mypy",
-    "pre-commit"
+    "pre-commit",
+    "scikit-learn"
 ]
 docs = [
     "sphinx>=4.0.0",
@@ -71,3 +72,17 @@ Documentation = "https://pyslyde.readthedocs.io/en/latest/"
 
 [tool.setuptools]
 packages = ["pyslyde"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra"
+testpaths = ["tests"]
+markers = [
+  "disk: tests for disk-backed IO",
+  "lmdb: tests that require LMDB for pyslyde.io.lmdb_io",
+  "rocksdb: tests that require RocksDB for pyslyde.io.rocksdb_io",
+  "tfrecords: tests for TFRecords IO",
+  "tfrecord_write: tests for tfrecord_write helpers",
+  "integration: slow tests that load real feature extractor models and run real forward passes",
+  "network: tests that may access the internet (downloads, HF hub, etc.)",  
+]
