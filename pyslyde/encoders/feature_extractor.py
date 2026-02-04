@@ -547,7 +547,7 @@ class FeatureGenerator:
         Google Path Foundation model (TensorFlow/Keras) from HF.
         See https://huggingface.co/google/path-foundation
 
-        Notes:
+        Note:
         - This model runs in TensorFlow (not PyTorch).
         - Outputs are converted to torch.Tensor for consistency with the rest of the pipeline.
         - Model loading here uses tf_keras instead of from_pretrained_keras from legacy huggingface_hub,
