@@ -379,6 +379,75 @@ def test_np_image_to_pil_rejects_unknown_type(fg_resnet18_mocked):
         _ = fg_resnet18_mocked.np_image_to_pil("not an image")
 
 
+def test_build_transforms_returns_compose_for_configured_model(monkeypatch):
+    """
+    Ensures _build_transforms constructs a torchvision Compose pipeline for a
+    model that has an entry in MODEL_PREPROCESS_CONFIG.
+    """
+    fg = object.__new__(FeatureGenerator)
+
+    t = fe.T
+    transforms = FeatureGenerator._build_transforms(fg, "gigapath")
+    assert isinstance(transforms, t.Compose)
+
+
+def test_build_transforms_respects_pipeline_order():
+    """
+    Ensures _build_transforms respects explicit pipeline ordering declared in
+    MODEL_PREPROCESS_CONFIG, so future models can override step sequence safely.
+    """
+    fg = object.__new__(FeatureGenerator)
+
+    tr = FeatureGenerator._build_transforms(fg, "gigapath")
+    steps = [type(x).__name__ for x in tr.transforms]
+
+    assert "Resize" in steps
+    assert "CenterCrop" in steps
+    assert "ToTensor" in steps
+    assert "Normalize" in steps
+
+    assert (
+        steps.index("Resize")
+        < steps.index("CenterCrop")
+        < steps.index("ToTensor")
+        < steps.index("Normalize")
+    )
+
+
+def test_build_transforms_raises_on_unknown_pipeline_step(monkeypatch):
+    """
+    Ensures misconfigured preprocessing pipelines fail fast with a clear error.
+    Protects against silent incorrect preprocessing when adding new models.
+    """
+    fg = object.__new__(FeatureGenerator)
+
+    monkeypatch.setitem(
+        fe.MODEL_PREPROCESS_CONFIG,
+        "bad_model",
+        {
+            "pipeline": ["to_tensor", "this_step_does_not_exist"],
+            "mean": (0.0, 0.0, 0.0),
+            "std": (1.0, 1.0, 1.0),
+        },
+    )
+
+    with pytest.raises(ValueError) as e:
+        _ = FeatureGenerator._build_transforms(fg, "bad_model")
+
+    assert "Unknown preprocessing pipeline step" in str(e.value)
+
+
+def test_build_transforms_raises_on_unknown_model_name():
+    """
+    Ensures _build_transforms raises KeyError when no preprocessing config exists
+    for the requested model.
+    """
+    fg = object.__new__(FeatureGenerator)
+
+    with pytest.raises(KeyError):
+        _ = FeatureGenerator._build_transforms(fg, "not_in_registry")
+
+
 # ------------------------------------------------
 # # Postprocessing tests
 # ------------------------------------------------
