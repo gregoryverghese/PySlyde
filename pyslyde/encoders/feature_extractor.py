@@ -8,17 +8,16 @@ import os
 import numpy as np
 import timm
 import torch
+import torch.nn as nn
 import torchvision.models as models
 from huggingface_hub import hf_hub_download, login, snapshot_download
 from huggingface_hub.utils import LocalEntryNotFoundError
 from PIL import Image
 from timm.data import resolve_data_config
 from timm.data.transforms_factory import create_transform
-from timm.layers import SwiGLUPacked
+from timm.layers import SwiGLUPacked, to_2tuple
 from torchvision import transforms as T
 from transformers import AutoImageProcessor, AutoModel
-
-from pyslyde.encoders.ctran import ConvStem
 
 GATED_HF_MODELS = {
     "uni",
@@ -46,6 +45,26 @@ EXPECTED_DIMS = {
     "pathfm": 384,
     "phikon": 768,
     "phikon2": 1024,
+}
+
+MODEL_PREPROCESS_CONFIG = {
+    "gigapath": {
+        "pipeline": ["resize", "center_crop", "to_tensor", "normalize"],
+        "resize": 256,
+        "center_crop": 224,
+        "mean": (0.485, 0.456, 0.406),
+        "std": (0.229, 0.224, 0.225),
+    },
+    "hoptimus0": {
+        "pipeline": ["to_tensor", "normalize"],
+        "mean": (0.707223, 0.578729, 0.703617),
+        "std": (0.211883, 0.230117, 0.177517),
+    },
+    "hoptimus1": {
+        "pipeline": ["to_tensor", "normalize"],
+        "mean": (0.707223, 0.578729, 0.703617),
+        "std": (0.211883, 0.230117, 0.177517),
+    },
 }
 
 VIRCHOW_POSTPROCESS = {
@@ -89,11 +108,11 @@ class TorchWrapper:
         return out.cpu()
 
 
-class HFVisionWrapper(torch.nn.Module):
+class HFVisionWrapper(nn.Module):
     """
-    Wrapper for Hugging Face vision models to standardize their forward output.
+    Wrapper for Hugging Face (HF) vision models to standardize their forward output.
 
-    Adapts Hugging Face vision backbones so that a BCHW input tensor
+    Adapts HF vision backbones so that a BCHW input tensor
     produces a raw token-level output (last_hidden_state), enabling
     consistent downstream postprocessing across all models.
     """
@@ -127,8 +146,8 @@ class TFVisionWrapper:
         Initialize the TensorFlow vision wrapper.
 
         Parameters:
-        - infer_fn: TensorFlow serving function (e.g. model.signatures["serving_default"])
-        - image_size: Target (H, W) resolution for input images.
+        - infer_fn: TensorFlow serving function
+        - image_size: Target (H, W) resolution for input images
         """
         self.infer_fn = infer_fn
         self.image_size = image_size
@@ -175,6 +194,69 @@ class TFVisionWrapper:
             raise RuntimeError(f"Unexpected TF model outputs: {list(out.keys())}.")
 
         return torch.from_numpy(emb)
+
+
+class ConvStem(nn.Module):
+    """
+    Patch embedding implementation used as a replacement for the
+    default embedding layer in Swin Transformer models.
+
+    This implementation matches the convolutional stem expected by
+    CTransPath (transpath) pretrained pathology model distributed via HF.
+    """
+
+    def __init__(
+        self,
+        img_size=224,
+        patch_size=4,
+        in_chans=3,
+        embed_dim=768,
+        norm_layer=None,
+        **kwargs,
+    ):
+        super().__init__()
+
+        assert patch_size == 4
+        assert embed_dim % 8 == 0
+
+        img_size = to_2tuple(img_size)
+        patch_size = to_2tuple(patch_size)
+        self.img_size = img_size
+        self.patch_size = patch_size
+        self.grid_size = (img_size[0] // patch_size[0], img_size[1] // patch_size[1])
+        self.num_patches = self.grid_size[0] * self.grid_size[1]
+
+        stem = []
+        input_dim, output_dim = 3, embed_dim // 8
+        for layer in range(2):
+            stem.append(
+                nn.Conv2d(
+                    input_dim,
+                    output_dim,
+                    kernel_size=3,
+                    stride=2,
+                    padding=1,
+                    bias=False,
+                )
+            )
+            stem.append(nn.BatchNorm2d(output_dim))
+            stem.append(nn.ReLU(inplace=True))
+            input_dim = output_dim
+            output_dim *= 2
+        stem.append(nn.Conv2d(input_dim, embed_dim, kernel_size=1))
+        self.proj = nn.Sequential(*stem)
+
+        self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
+
+    def forward(self, x):
+        B, C, H, W = x.shape
+        assert H == self.img_size[0] and W == self.img_size[1], (
+            f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."
+        )
+        x = self.proj(x)
+        x = x.permute(0, 2, 3, 1)  # BCHW -> BHWC
+        x = self.norm(x)
+        return x
 
 
 class FeatureGenerator:
@@ -339,13 +421,66 @@ class FeatureGenerator:
 
         return repo_map[name]
 
+    def _build_transforms(self, model_name: str):
+        """
+        Build a torchvision transform pipeline for models with explicit preprocessing configuration.
+
+        Supported pipeline steps:
+        - "resize"
+        - "center_crop"
+        - "to_tensor"
+        - "normalize"
+        """
+        if model_name not in MODEL_PREPROCESS_CONFIG:
+            raise KeyError(
+                f"No preprocessing config found for '{model_name}'. "
+                f"Add it to MODEL_PREPROCESS_CONFIG or use a different transform path."
+            )
+
+        cfg = MODEL_PREPROCESS_CONFIG[model_name]
+        pipeline = cfg.get(
+            "pipeline",
+            ["resize", "center_crop", "to_tensor", "normalize"],
+        )
+
+        ops = []
+
+        for step in pipeline:
+            if step == "resize":
+                size = cfg.get("resize")
+                if size is not None:
+                    ops.append(
+                        T.Resize(size, interpolation=T.InterpolationMode.BICUBIC)
+                    )
+
+            elif step == "center_crop":
+                size = cfg.get("center_crop")
+                if size is not None:
+                    ops.append(T.CenterCrop(size))
+
+            elif step == "to_tensor":
+                ops.append(T.ToTensor())
+
+            elif step == "normalize":
+                mean = cfg.get("mean")
+                std = cfg.get("std")
+                if mean is not None and std is not None:
+                    ops.append(T.Normalize(mean=mean, std=std))
+
+            else:
+                raise ValueError(
+                    f"Unknown preprocessing pipeline step '{step}' for '{model_name}'."
+                )
+
+        return T.Compose(ops)
+
     def _resnet18(self):
         """
         Standard torchvision ResNet-18 feature extractor.
         """
         weights = models.ResNet18_Weights.DEFAULT
         model = models.resnet18(weights=weights)
-        model.fc = torch.nn.Identity()
+        model.fc = nn.Identity()
         transforms = weights.transforms()
         return TorchWrapper(model, transforms, self.device)
 
@@ -355,7 +490,7 @@ class FeatureGenerator:
         """
         weights = models.ResNet50_Weights.DEFAULT
         model = models.resnet50(weights=weights)
-        model.fc = torch.nn.Identity()
+        model.fc = nn.Identity()
         transforms = weights.transforms()
         return TorchWrapper(model, transforms, self.device)
 
@@ -364,7 +499,7 @@ class FeatureGenerator:
         Standard torchvision VGG16 feature extractor.
         """
         model = models.vgg16(weights=models.VGG16_Weights.DEFAULT)
-        model.classifier = torch.nn.Identity()
+        model.classifier = nn.Identity()
         weights = models.VGG16_Weights.DEFAULT
         transforms = weights.transforms()
         return TorchWrapper(model, transforms, self.device)
@@ -436,7 +571,7 @@ class FeatureGenerator:
             "num_classes": 0,
             "no_embed_class": True,
             "mlp_layer": timm.layers.SwiGLUPacked,
-            "act_layer": torch.nn.SiLU,
+            "act_layer": nn.SiLU,
             "reg_tokens": 8,
             "dynamic_img_size": True,
         }
@@ -458,7 +593,7 @@ class FeatureGenerator:
             self.hf_hub_ref,
             pretrained=True,
             mlp_layer=SwiGLUPacked,
-            act_layer=torch.nn.SiLU,
+            act_layer=nn.SiLU,
         )
         transforms = create_transform(
             **resolve_data_config(model.pretrained_cfg, model=model)
@@ -473,7 +608,7 @@ class FeatureGenerator:
             self.hf_hub_ref,
             pretrained=True,
             mlp_layer=SwiGLUPacked,
-            act_layer=torch.nn.SiLU,
+            act_layer=nn.SiLU,
         )
         transforms = create_transform(
             **resolve_data_config(model.pretrained_cfg, model=model)
@@ -490,14 +625,7 @@ class FeatureGenerator:
             self.hf_hub_ref,
             pretrained=True,
         )
-        transforms = T.Compose(
-            [
-                T.Resize(256, interpolation=T.InterpolationMode.BICUBIC),
-                T.CenterCrop(224),
-                T.ToTensor(),
-                T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-            ]
-        )
+        transforms = self._build_transforms("gigapath")
         return TorchWrapper(model, transforms, self.device)
 
     def _hoptimus0(self):
@@ -510,15 +638,7 @@ class FeatureGenerator:
             init_values=1e-5,
             dynamic_img_size=False,
         )
-        transforms = T.Compose(
-            [
-                T.ToTensor(),
-                T.Normalize(
-                    mean=(0.707223, 0.578729, 0.703617),
-                    std=(0.211883, 0.230117, 0.177517),
-                ),
-            ]
-        )
+        transforms = self._build_transforms("hoptimus0")
         return TorchWrapper(model, transforms, self.device)
 
     def _hoptimus1(self):
@@ -531,15 +651,7 @@ class FeatureGenerator:
             init_values=1e-5,
             dynamic_img_size=False,
         )
-        transforms = T.Compose(
-            [
-                T.ToTensor(),
-                T.Normalize(
-                    mean=(0.707223, 0.578729, 0.703617),
-                    std=(0.211883, 0.230117, 0.177517),
-                ),
-            ]
-        )
+        transforms = self._build_transforms("hoptimus1")
         return TorchWrapper(model, transforms, self.device)
 
     def _pathfm(self):
