@@ -119,12 +119,12 @@ class StainNormalizer(ABC):
             - np.uint8 → output in [0, 255]
             - np.float32/64 → output in [0, 1]
         """
-        print("OD max:",OD.max())
+        #print("OD max:",OD.max())
         # Auto-select I0 if not provided: 1.0 for float images in [0,1], else 255.0
         if I0 is None:
-            print("autoselect I0")
+            #print("autoselect I0")
             I0 = 255.0 if ref_dtype == np.uint8 else 1.0
-            print("I0",I0)
+            #print("I0",I0)
 
         #I = I0 * np.exp(-OD) #I = I0 * np.exp(-np.clip(OD, 0, 2.5))
         I = I0 * np.exp(-np.clip(OD, 0, 2.5))
