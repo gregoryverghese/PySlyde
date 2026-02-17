@@ -192,7 +192,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Author**: Gregory Verghese
 - **Email**: gregory.verghese@gmail.com
-- **Project Link**: [https://github.com/gregoryverghese/PySlide](https://github.com/gregoryverghese/PySlide)
+- **Project Link**: [https://github.com/PharosKCL/pyslyde)
 - **Documentation**: [Documentation](https://pyslyde.readthedocs.io/en/latest/)
 ## Citation
 
@@ -203,7 +203,7 @@ If you use PySlyde in your research, please cite:
   title={PySlyde: A Python package for preprocessing pathology whole slide images},
   author={Verghese, Gregory},
   year={2024},
-  url={https://github.com/gregoryverghese/PySlide}
+  url={https://github.com/PharosKCL/pyslyde}
 }
 ```
 
