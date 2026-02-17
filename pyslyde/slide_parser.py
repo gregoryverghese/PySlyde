@@ -236,9 +236,14 @@ class WSIParser:
         Returns:
             int: Number of tiles remaining.
         """
+        # Check tissue mask provided is the same dimensions as the slide
+        if slide_mask.shape[0] != self.slide.dims[1] or slide_mask.shape[1] != self.slide.dims[0]:
+            raise ValueError(f'Tissue mask dimensions {slide_mask.shape} do not match slide dimensions ({self.slide.dims[1]}, {self.slide.dims[0]})')
+        
         self.tissue_mask = slide_mask.copy()
         self.tissue_mask[self.tissue_mask != label] = 0
         self.tissue_mask[self.tissue_mask == label] = 1
+
         tiles = self._tiles.copy()
         for t in self._tiles:
             x, y = (t[0], t[1])
