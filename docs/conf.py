@@ -64,6 +64,7 @@ source_suffix = {
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 html_theme = 'sphinx_rtd_theme'
+html_logo = '_static/logoV2.png'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -74,7 +75,7 @@ html_theme_options = {
     'collapse_navigation': False,
     'sticky_navigation': True,
     'includehidden': True,
-    'logo_only': False,
+    'logo_only': True,
     'display_version': True,
     'prev_next_buttons_location': 'bottom',
     'style_external_links': False,
@@ -204,3 +205,8 @@ epub_uid = 'PySlyde'
 
 # A list of files that should not be packed into the epub file.
 epub_exclude_files = ['search.html'] 
+
+import os
+import sys
+# Add your project root (or wherever your Python files are) to sys.path
+sys.path.insert(0, os.path.abspath("."))  # adjust the path as needed

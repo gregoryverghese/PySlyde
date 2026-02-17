@@ -30,24 +30,24 @@ pip install pyslyde
 ### From Source
 
 ```bash
-git clone https://github.com/gregoryverghese/PySlide.git
-cd PySlide
+git clone https://github.com/gregoryverghese/pyslyde.git
+cd pyslyde
 pip install -e .
 ```
 
 ### Development Installation
 
 ```bash
-git clone https://github.com/gregoryverghese/PySlide.git
-cd PySlide
+git clone https://github.com/gregoryverghese/pyslyde.git
+cd pyslyde
 pip install -e ".[dev]"
 ```
 
 ### Documentation Installation
 
 ```bash
-git clone https://github.com/gregoryverghese/PySlide.git
-cd PySlide
+git clone https://github.com/gregoryverghese/pyslyde.git
+cd pyslyde
 pip install -e ".[docs]"
 ```
 
@@ -130,7 +130,7 @@ thumbnail = detector.tissue_thumbnail
 
 ## Documentation
 
-📖 **📚 [Documentation](https://gregoryverghese.github.io/PySlyde/)**
+📖 **📚 [Documentation](https://pyslyde.readthedocs.io/en/latest/)**
 
 The documentation includes:
 
@@ -193,8 +193,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Author**: Gregory Verghese
 - **Email**: gregory.verghese@gmail.com
 - **Project Link**: [https://github.com/gregoryverghese/PySlide](https://github.com/gregoryverghese/PySlide)
-- **Documentation**: [Documentation](https://gregoryverghese.github.io/PySlyde/)
-
+- **Documentation**: [Documentation](https://pyslyde.readthedocs.io/en/latest/)
 ## Citation
 
 If you use PySlyde in your research, please cite:

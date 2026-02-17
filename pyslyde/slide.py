@@ -54,6 +54,11 @@ class Slide(OpenSlide):
                  labels: Optional[List[str]] = None,
                  source: Optional[str] = None) -> None:
         super().__init__(filename)
+        
+        # Check magnification level
+        if not mag in list(Slide.MAG_FACTORS.keys()):
+            raise KeyError(f"mag must be in {list(Slide.MAG_FACTORS.keys())}")
+        
         self.mag: int = mag
         self.dims: Tuple[int, int] = self.dimensions
         self.name: str = os.path.basename(filename)
@@ -144,7 +149,12 @@ class Slide(OpenSlide):
             threshold = dim
 
         operator_dict: Dict[str, Callable] = {'>': op.gt, '=>': op.ge, '<': op.lt, '=<': op.lt}
-        op_func = operator_dict[operator]
+        
+        # Check valid operator
+        try:
+            op_func = operator_dict[operator]
+        except KeyError:
+            raise KeyError(f"Operation '{operator}' invalid. Must be one of {list(operator_dict.keys())}")
         multiples = [factor * i for i in range(100000)]
         multiples = [m for m in multiples if op_func(m, threshold)]
         diff = list(map(lambda x: abs(dim - x), multiples))
@@ -205,8 +215,7 @@ class Slide(OpenSlide):
             contours = contours[-num_component:]
 
         if min_size is not None:
-            contours = list(map(lambda x: cv2.contourArea(x), contours))
-            contours = [c for c in contours if c > min_size]
+            contours = [c for c in contours if cv2.contourArea(c) > min_size]
 
         borders: List[List[Tuple[int, int]]] = []
         components: List[np.ndarray] = []
@@ -258,6 +267,11 @@ class Slide(OpenSlide):
         Returns:
             tuple: (Extracted region as RGB ndarray, mask)
         """
+        
+        # Check valid magnification
+        if not mag in list(self.MAG_FACTORS.keys()):
+            raise KeyError(f"mag must be in {list(Slide.MAG_FACTORS.keys())}")
+        
         x_min: int = 0
         y_min: int = 0
         x_max: int = 0
@@ -275,6 +289,7 @@ class Slide(OpenSlide):
                 if x_size is None:
                     x_min, x_max = x
                     x_size = x_max - x_min
+                    
                 elif x_size is not None:
                     x_min = x[0]
                     x_max = x_min + x_size
@@ -287,12 +302,21 @@ class Slide(OpenSlide):
                 if y_size is None:
                     y_min, y_max = y
                     y_size = y_max - y_min
+                    
+                    
+                        
                 elif y_size is not None:
                     y_min = y[0]
                     y_max = y_min + y_size
             elif isinstance(y, int):
                 y_min = y
                 y_max = y + (y_size or 0)
+
+        # Check values lie within the WSI border
+        if x_min < 0 or x_max > self.dims[0]:
+            raise ValueError(f'x values ({x_min}, {x_max}) are outside WSI boundary')
+        if y_min < 0 or y_max > self.dims[0]:
+            raise ValueError(f'y values ({y_min}, {y_max}) are outside WSI boundary')
 
         if scale_border and x_size is not None and y_size is not None:
             x_size = Slide.resize_border(x_size, factor, threshold, operator)
@@ -345,12 +369,16 @@ class Annotations:
 
     def __init__(self, path: Union[str, List[str]], source: str, 
                  labels: Optional[List[str]] = None, encode: bool = False) -> None:
+        
         self.paths: List[str] = path if isinstance(path, list) else [path]
         self.source: str = source
         self.labels: Optional[List[str]] = labels
         self.encode: bool = encode
         self._annotations: Optional[Dict[Union[str, int], List[List[List[int]]]]] = None
         self._generate_annotations()
+        
+        # Check labels exist in annotation file
+        self._check_labels(self.labels)
 
     def __repr__(self) -> str:
         if self._annotations is None:
@@ -404,6 +432,7 @@ class Annotations:
         if self.source is not None:
             for p in self.paths:
                 annotations = getattr(self, '_' + self.source)(p)
+                
                 for k, v in annotations.items():
                     if k in self._annotations:
                         self._annotations[k].append(v)
@@ -414,6 +443,27 @@ class Annotations:
         else:
             self.labels = list(self._annotations.keys())
 
+    def _check_labels(self, labels: List[str]) -> None:
+        """
+        Given list of labels, check labels exist in annotations and throw
+        an error if they do not
+
+        Parameters
+        ----------
+        labels : List[str]
+            List of labels to check.
+
+        Raises
+        ------
+        KeyError
+            Raises key error if any of the given labels don't exist in
+            the current self._annotations.
+
+        """
+        invalid_labels = [lab for lab in labels if not lab in self._annotations.keys()]
+        if invalid_labels:
+            raise KeyError(f"Labels {invalid_labels} are not present in annotations")
+
     def filter_labels(self, labels: List[str]) -> Dict[Union[str, int], List[List[List[int]]]]:
         """
         Remove labels from annotations.
@@ -423,10 +473,14 @@ class Annotations:
 
         Returns:
             dict: Filtered annotation dictionary.
-        """
+        """     
+        # Check labels exist in annotations
+        self._check_labels(labels)
+        
         self.labels = labels
         if self._annotations is None:
             return {}
+        
         keys = list(self._annotations.keys())
         for k in keys:
             if k not in labels:
@@ -440,6 +494,9 @@ class Annotations:
         Args:
             names (dict): Mapping from current labels to new labels.
         """
+        # Check all labels to rename already exist in annotations
+        self._check_labels(list(names.keys()))
+        
         if self._annotations is None:
             return
         for k, v in names.items():
@@ -468,7 +525,11 @@ class Annotations:
         Returns:
             dict: Annotations dictionary.
         """
-        tree = ET.parse(path)
+        try:
+            tree = ET.parse(path)
+        except ET.ParseError as e:
+            raise ET.ParseError(f"Unable to decode {path} as XML: {e}")
+        
         root = tree.getroot()
         anns = root.findall('Annotation')
         labels = list(root.iter('Annotation'))
@@ -482,6 +543,7 @@ class Annotations:
                 coordinates = [[c.attrib['X'], c.attrib['Y']] for c in coordinates]
                 coordinates = [[round(float(c[0])), round(float(c[1]))] for c in coordinates]
                 annotations[label] = annotations[label] + [coordinates]
+                
         return annotations
 
     def _asap(self, path: str) -> Dict[str, List[List[List[int]]]]:
@@ -494,7 +556,11 @@ class Annotations:
         Returns:
             dict: Annotations dictionary.
         """
-        tree = ET.parse(path)
+        try:
+            tree = ET.parse(path)
+        except ET.ParseError as e:
+            raise ET.ParseError(f"Unable to decode {path} as XML: {e}")
+            
         root = tree.getroot()
         ns = root[0].findall('Annotation')
         labels = list(root.iter('Annotation'))
@@ -520,7 +586,10 @@ class Annotations:
         """
         annotations: Dict[str, List[List[List[int]]]] = {}
         with open(path) as json_file:
-            j = json.load(json_file)
+            try:
+                j = json.load(json_file)
+            except json.JSONDecodeError as e:
+                raise json.JSONDecodeError(f"Unable to decode {path} as JSON: {e}", e.doc, e.pos)
         for a in j:
             c = a['properties']['classification']['name']
             geometry = a['geometry']['type']
@@ -567,6 +636,7 @@ class Annotations:
         Parse a DataFrame with a specific structure.
         """
         anns_df = pd.read_csv(path)
+            
         anns_df.fillna('undefined', inplace=True)
         anns_df.set_index('labels', drop=True, inplace=True)
         self.labels = list(set(anns_df.index))
@@ -588,6 +658,11 @@ class Annotations:
             dict: Annotations dictionary.
         """
         anns_df = pd.read_csv(path)
+        
+        # Check necessary columns exist
+        if not all(col in anns_df.columns for col in ['labels', 'x', 'y']):
+            raise KeyError("Invalid csv file structure: must contain columns 'label', 'x' and 'y'")
+        
         anns_df.fillna('undefined', inplace=True)
         anns_df.set_index('labels', drop=True, inplace=True)
         labels = list(set(anns_df.index))
