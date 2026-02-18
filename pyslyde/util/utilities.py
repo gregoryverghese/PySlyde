@@ -177,7 +177,14 @@ class TissueDetect:
         Args:
             slide: Path to slide or OpenSlide object.
         """
-        self.slide = OpenSlide(slide) if isinstance(slide, str) else slide
+        
+        if isinstance(slide, str):
+            self.slide = OpenSlide(slide)
+        elif (isinstance(slide, OpenSlide) or isinstance(slide, np.array)):
+            self.slide = slide
+        else:
+            raise TypeError("Slide must be of type OpenSlide, numpy array or string path to OpenSlide")
+            
         self.tissue_mask: Optional[np.ndarray] = None 
         self.contour_mask: Optional[np.ndarray] = None
         self._border: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = None
