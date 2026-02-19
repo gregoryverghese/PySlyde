@@ -4,9 +4,9 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PyPI version](https://badge.fury.io/py/pyslyde.svg)](https://badge.fury.io/py/pyslyde)
-[![Docs](https://img.shields.io/badge/docs-available-brightgreen.svg)](https://gregoryverghese.github.io/PySlyde/)
+[![Docs](https://img.shields.io/badge/docs-available-brightgreen.svg)](https://pyslyde.readthedocs.io/en/latest/)
 
-PySlyde is a comprehensive Python package for preprocessing pathology whole slide images (WSIs). Built as a wrapper around OpenSlide, it provides powerful, user-friendly functionality for working with high-resolution pathology images, making it ideal for researchers and data scientists in the medical imaging domain.https://github.com/gregoryverghese/PySlyde/blob/master/README.md
+PySlyde is a comprehensive Python package for preprocessing pathology whole slide images (WSIs). Built as a wrapper around OpenSlide, it provides powerful, user-friendly functionality for working with high-resolution pathology images, making it ideal for researchers and data scientists in the medical imaging domain. 
 
 ## Features
 
@@ -30,7 +30,7 @@ pip install pyslyde
 ### From Source
 
 ```bash
-git clone https://github.com/gregoryverghese/pyslyde.git
+git clone https://github.com/PharosKCL/pyslyde.git
 cd pyslyde
 pip install -e .
 ```
@@ -38,7 +38,7 @@ pip install -e .
 ### Development Installation
 
 ```bash
-git clone https://github.com/gregoryverghese/pyslyde.git
+git clone https://github.com/PharosKCL/pyslyde.git
 cd pyslyde
 pip install -e ".[dev]"
 ```
@@ -46,7 +46,7 @@ pip install -e ".[dev]"
 ### Documentation Installation
 
 ```bash
-git clone https://github.com/gregoryverghese/pyslyde.git
+git clone https://github.com/PharosKCL/pyslyde.git
 cd pyslyde
 pip install -e ".[docs]"
 ```
@@ -191,7 +191,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Contact
 
 - **Author**: Gregory Verghese
-- **Email**: gregory.verghese@gmail.com
+- **Email**: gregory.e.verghese@kcl.ac.uk
 - **Project Link**: [https://github.com/PharosKCL/pyslyde)
 - **Documentation**: [Documentation](https://pyslyde.readthedocs.io/en/latest/)
 ## Citation
@@ -200,8 +200,8 @@ If you use PySlyde in your research, please cite:
 
 ```bibtex
 @software{pyslyde2024,
-  title={PySlyde: A Python package for preprocessing pathology whole slide images},
-  author={Verghese, Gregory},
+  title={PySlyde: A Lightweight, Open-Source Toolkit for Pathology Preprocessing},
+  authors={Gregory Verghese, Anthony Baptista, Chima Eke, Holly Rafique, Liz Ing-Simmons, Enrico Parisini, Mengyuan Li, Fathima Mohamed, Ananya Bhalla, Lucy Ryan, Michael Pitcher, Concetta Piazzese, Dinis Calado, Christopher Banerji, Anita Grigoriadis},
   year={2024},
   url={https://github.com/PharosKCL/pyslyde}
 }
