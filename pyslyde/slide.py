@@ -1,10 +1,18 @@
-#!/usr/bin/env python3
-
 """
-slide.py: Contains the Slide and Annotations classes.
+slide.py: Slide abstraction, annotation handling, and API validation utilities.
 
-Slide class: Wrapper around openslide.OpenSlide with annotation overlay and mask generation.
-Annotations class: Parses annotation files from QuPath, ImageJ, and ASAP.
+This module provides:
+
+- Slide:
+    An extension of ``openslide.OpenSlide`` with annotation-aware
+    region extraction and mask rasterisation capabilities.
+
+- Annotations:
+    A format-agnostic parser and container for polygon-based slide annotations.
+
+- Validation exceptions:
+    Custom exception classes used to signal invalid API arguments
+    and contract violations within the Slide interface.
 """
 
 import json
@@ -13,7 +21,8 @@ import os
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from itertools import chain
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from types import MappingProxyType
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union
 
 import cv2
 import numpy as np
@@ -21,6 +30,19 @@ import pandas as pd
 from openslide import OpenSlide
 
 from pyslyde.util.utilities import mask2rgb
+
+_OPERATOR_FUNCS: Mapping[str, Callable[[int, int], bool]] = MappingProxyType(
+    {
+        ">": op.gt,
+        ">=": op.ge,
+        "=>": op.ge,
+        "<": op.lt,
+        "<=": op.le,
+        "=<": op.le,
+    }
+)
+
+ALLOWED_RESIZE_OPERATORS: tuple[str, ...] = tuple(_OPERATOR_FUNCS.keys())
 
 
 class Slide(OpenSlide):
@@ -191,26 +213,8 @@ class Slide(OpenSlide):
         )
 
         ds = float(self.level_downsamples[level])
-
-        rounding_funcs = {
-            "round": round,
-            "floor": np.floor,
-            "ceil": np.ceil,
-        }
-
-        try:
-            round_func = rounding_funcs[rounding]
-        except KeyError as exc:
-            raise ValueError(
-                f"Invalid ``rounding`` value {rounding!r}. "
-                f"Expected one of {sorted(rounding_funcs)}."
-            ) from exc
-
-        def round_dim(v: float) -> int:
-            return int(round_func(v))
-
-        out_w = max(round_dim(x_size / ds), 1)
-        out_h = max(round_dim(y_size / ds), 1)
+        out_w = max(Slide._round_dim(x_size / ds, rounding), 1)
+        out_h = max(Slide._round_dim(y_size / ds, rounding), 1)
 
         if clamp_to_level_bounds:
             level_w, level_h = self.level_dimensions[level]
@@ -231,6 +235,8 @@ class Slide(OpenSlide):
             ds=ds,
             labels=labels,
             dtype=dtype,
+            rounding=rounding,
+            clamp_to_level_bounds=clamp_to_level_bounds,
         )
 
         return image_rgb, mask_roi
@@ -291,8 +297,8 @@ class Slide(OpenSlide):
                 req_ar = level_w / level_h
                 if not np.isclose(req_ar, slide_ar, rtol=aspect_rtol, atol=0.0):
                     raise ValueError(
-                        "Requested mask size alters the slide aspect ratio, which would distort "
-                        "annotation geometry. "
+                        "Requested mask size alters the slide aspect ratio, "
+                        "which would distort annotation geometry. "
                         f"Slide aspect={slide_ar:.6f}, requested aspect={req_ar:.6f}, "
                         f"size={size}, slide_dims={(full_w, full_h)}. "
                         "Provide a size with a matching aspect ratio or set "
@@ -836,6 +842,8 @@ class Slide(OpenSlide):
         ds: float,
         labels: Optional[List[Union[int, str]]],
         dtype: np.dtype,
+        rounding: str = "round",
+        clamp_to_level_bounds: bool = True,
     ) -> np.ndarray:
         """
         Rasterise annotation polygons into a mask for a specific ROI.
@@ -860,7 +868,14 @@ class Slide(OpenSlide):
                 Optional subset of labels/IDs to rasterise.
             dtype:
                 NumPy dtype for the output mask (e.g., np.uint16).
-
+            rounding:
+                Used when converting level-0 ROI sizes to ``level`` pixel dimensions.
+                - round: default (nearest pixel grid)
+                - floor: avoids over-requesting pixels
+                - ceil: ensures coverage, may request slightly larger regions
+            clamp_to_level_bounds:
+                If True, clamps the requested (out_w, out_h) to the available level dimensions
+                to avoid requesting pixels beyond slide bounds.
         Returns:
             Integer label mask of shape (out_h, out_w). Background is 0 and
             foreground pixels are assigned class IDs.
@@ -873,12 +888,19 @@ class Slide(OpenSlide):
                 f"Downsample mismatch for level={level}: got ds={ds}, expected {expected_ds}."
             )
 
-        expected_out_w = max(int(round(x_size / expected_ds)), 1)
-        expected_out_h = max(int(round(y_size / expected_ds)), 1)
+        expected_out_w = max(Slide._round_dim(x_size / expected_ds, rounding), 1)
+        expected_out_h = max(Slide._round_dim(y_size / expected_ds, rounding), 1)
+
+        if clamp_to_level_bounds:
+            level_w, level_h = self.level_dimensions[level]
+            expected_out_w = min(expected_out_w, int(level_w))
+            expected_out_h = min(expected_out_h, int(level_h))
+
         if (out_w, out_h) != (expected_out_w, expected_out_h):
             raise ValueError(
                 f"Output size mismatch for level={level}: got (out_w, out_h)=({out_w}, {out_h}), "
-                f"expected ({expected_out_w}, {expected_out_h}) from ROI and ds."
+                f"expected ({expected_out_w}, {expected_out_h}) from ROI and ds, rounding={rounding!r}, "
+                f"clamp_to_level_bounds={clamp_to_level_bounds}."
             )
 
         mask_roi = np.zeros((out_h, out_w), dtype=dtype)
@@ -1024,6 +1046,29 @@ class Slide(OpenSlide):
         return paths
 
     @staticmethod
+    def _round_dim(value: float, rounding: str) -> int:
+        """
+        Apply the requested rounding policy to a floating-point dimension.
+
+        Args:
+            value:
+                Floating-point dimension (e.g., x_size / ds).
+            rounding:
+                One of {"round", "floor", "ceil"}.
+
+        Returns:
+            int:
+                Rounded integer dimension.
+        """
+        if rounding == "round":
+            return int(round(value))
+        if rounding == "floor":
+            return int(np.floor(value))
+        if rounding == "ceil":
+            return int(np.ceil(value))
+        raise InvalidRoundingPolicyError(rounding)
+
+    @staticmethod
     def resize_border(
         dim: int,
         factor: int = 1,
@@ -1062,23 +1107,13 @@ class Slide(OpenSlide):
         if threshold is None:
             threshold = dim
 
-        operator_dict: Dict[str, Callable[[int, int], bool]] = {
-            ">": op.gt,
-            ">=": op.ge,
-            "=>": op.ge,
-            "<": op.lt,
-            "<=": op.le,
-            "=<": op.le,
-        }
-        if operator not in operator_dict:
-            raise ValueError(
-                f"Invalid operator '{operator}'. Use one of {sorted(operator_dict.keys())}."
-            )
+        if operator not in _OPERATOR_FUNCS:
+            raise InvalidResizeBorderOperatorError(operator)
 
-        op_func = operator_dict[operator]
+        op_func = _OPERATOR_FUNCS[operator]
 
         if factor <= 0:
-            raise ValueError(f"``factor`` must be positive, got {factor}.")
+            raise InvalidResizeBorderFactorError(factor)
 
         max_i = max(int(max(dim, threshold) / factor) + 100, 100)
         multiples = [factor * i for i in range(max_i) if op_func(factor * i, threshold)]
@@ -2163,3 +2198,37 @@ class Annotations:
                 annotations[lbl].append(points)
 
         return annotations
+
+
+class InvalidRoundingPolicyError(ValueError):
+    """
+    Raised when an invalid rounding policy is requested.
+
+    This is used by Slide._round_dim(...) and any API that accepts the
+    `rounding` argument (e.g., Slide.generate_region).
+    """
+
+    def __init__(
+        self, rounding: str, *, allowed: tuple[str, ...] = ("round", "floor", "ceil")
+    ):
+        self.rounding = rounding
+        self.allowed = allowed
+        super().__init__(f"Invalid rounding policy: {rounding!r}. Allowed: {allowed}.")
+
+
+class InvalidResizeBorderOperatorError(ValueError):
+    def __init__(
+        self,
+        operator: str,
+        *,
+        allowed: tuple[str, ...] = ALLOWED_RESIZE_OPERATORS,
+    ) -> None:
+        self.operator = operator
+        self.allowed = allowed
+        super().__init__(f"Invalid operator {operator!r}. Allowed: {allowed}.")
+
+
+class InvalidResizeBorderFactorError(ValueError):
+    def __init__(self, factor: int):
+        self.factor = factor
+        super().__init__(f"factor must be positive, got {factor}.")
