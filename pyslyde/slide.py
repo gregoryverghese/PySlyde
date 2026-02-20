@@ -28,10 +28,10 @@ class Slide(OpenSlide):
     Wrapper around OpenSlide that adds annotation-aware utilities.
 
     The class can load polygon annotations and provides helpers to:
-      - rasterise annotations into integer label masks (`generate_mask`)
-      - extract image regions with aligned ROI masks (`generate_region`)
-      - compute an annotation-derived bounding box (`get_border`)
-      - save mask/visualisation/metadata artifacts (`save`)
+      - rasterise annotations into integer label masks (``generate_mask``)
+      - extract image regions with aligned ROI masks (``generate_region``)
+      - compute an annotation-derived bounding box (``get_border``)
+      - save mask/visualisation/metadata artifacts (``save``)
 
     Coordinate conventions:
       - Annotation vertices are interpreted in level-0 (full-resolution) pixel space as
@@ -46,7 +46,7 @@ class Slide(OpenSlide):
         name:
             Filename (basename) of the slide.
         annotations:
-            Optional loaded :class:`Annotations` instance.
+            Optional loaded :class:``Annotations`` instance.
         _border:
             Cached annotation border in level-0 units as
             [(x_min, x_max), (y_min, y_max)].
@@ -68,8 +68,8 @@ class Slide(OpenSlide):
         Create a Slide backed by an OpenSlide WSI and optionally load annotations.
 
         Only one annotation source is permitted:
-        - pre-built `Annotations` instance via `annotations`, or
-        - `annotations_path` + `source` to load annotations from disk.
+        - pre-built ``Annotations`` instance via ``annotations``, or
+        - ``annotations_path`` + ``source`` to load annotations from disk.
 
         Args:
             filename:
@@ -78,22 +78,22 @@ class Slide(OpenSlide):
                 OpenSlide pyramid magnificaiton level index.
                 Level 0 is full resolution; increasing levels are downsampled.
             annotations:
-                Pre-loaded `Annotations` instance. If provided, `annotations_path`
-                and `source` are ignored.
+                Pre-loaded ``Annotations`` instance. If provided, ``annotations_path``
+                and ``source`` are ignored.
             annotations_path:
                 Path or list of paths to annotation file(s). Used only if
-                `annotations` is not provided. Must be provided together with `source`.
+                ``annotations`` is not provided. Must be provided together with ``source``.
             labels:
                 Optional list of annotation labels to keep when loading annotations
-                from `annotations_path`. Ignored when `annotations` is provided.
+                from ``annotations_path``. Ignored when ``annotations`` is provided.
             source:
-                Annotation loader identifier understood by `Annotations`
+                Annotation loader identifier understood by ``Annotations``
                 (e.g. "qupath", "imagej", "asap", "geojson", "csv", ...).
-                Required if `annotations_path` is provided.
+                Required if ``annotations_path`` is provided.
 
         Raises:
             ValueError:
-                If `annotations_path` is provided without `source` (or vice versa),
+                If ``annotations_path`` is provided without ``source`` (or vice versa),
                 or if annotation loading fails.
         """
         super().__init__(filename)
@@ -107,7 +107,7 @@ class Slide(OpenSlide):
             self.annotations = annotations
         elif (annotations_path is None) ^ (source is None):
             raise ValueError(
-                "Provide both `annotations_path` and `source`, or neither."
+                "Provide both ``annotations_path`` and ``source``, or neither."
             )
         elif annotations_path is not None:
             self.annotations = Annotations(
@@ -144,24 +144,24 @@ class Slide(OpenSlide):
                 OpenSlide pyramid level index to read the image data from.
             x, y
                 ROI axis specifications in level-0 pixels. Each axis may be:
-                - int: start coordinate (requires corresponding `*_size`)
-                - tuple: (min, max) bounds (size may be inferred if `*_size` is None)
-                If `x` is None, the ROI defaults to the padded annotation border returned
-                by :meth:`get_border` (or the full slide if no annotations exist).
+                - int: start coordinate (requires corresponding ``*_size``)
+                - tuple: (min, max) bounds (size may be inferred if ``*_size`` is None)
+                If ``x`` is None, the ROI defaults to the padded annotation border returned
+                by :meth:``get_border`` (or the full slide if no annotations exist).
             x_size, y_size
                 ROI size in level-0 pixels. Required when the corresponding axis is specified
                 as an int start coordinate.
             scale_border
-                If True, adjust the resolved ROI size using :meth:`Slide.resize_border`.
+                If True, adjust the resolved ROI size using :meth:``Slide.resize_border``.
             factor, threshold, operator
-                Parameters forwarded to :meth:`Slide.resize_border` when `scale_border` is True.
+                Parameters forwarded to :meth:``Slide.resize_border`` when ``scale_border`` is True.
             labels
                 Optional subset of classes to include in the output mask. Elements may be
                 class names (str) or class IDs (int). If None, all available labels are used.
             dtype
                 NumPy dtype of the output mask.
             rounding
-                Used when converting level-0 ROI sizes to `level` pixel dimensions.
+                Used when converting level-0 ROI sizes to ``level`` pixel dimensions.
                 - round: default (nearest pixel grid)
                 - floor: avoids over-requesting pixels
                 - ceil: ensures coverage, may request slightly larger regions
@@ -173,11 +173,11 @@ class Slide(OpenSlide):
         Returns:
             image_rgb
                 RGB region as a NumPy array of shape (H, W, 3), corresponding to the ROI
-                read at pyramid level `level`.
+                read at pyramid level ``level``.
             mask_roi
-                Integer label mask as a NumPy array of shape (H, W), aligned with `image_rgb`.
+                Integer label mask as a NumPy array of shape (H, W), aligned with ``image_rgb``.
                 Background is 0; foreground pixels contain stable class IDs from
-                :attr:`Annotations.class_key`.
+                :attr:``Annotations.class_key``.
         """
         level = self._validate_level(level)
 
@@ -204,7 +204,7 @@ class Slide(OpenSlide):
             round_func = rounding_funcs[rounding]
         except KeyError as exc:
             raise ValueError(
-                f"Invalid `rounding` value {rounding!r}. "
+                f"Invalid ``rounding`` value {rounding!r}. "
                 f"Expected one of {sorted(rounding_funcs)}."
             ) from exc
 
@@ -257,15 +257,15 @@ class Slide(OpenSlide):
             labels:
                 Subset of labels to include. Accepts label names (str) OR class IDs (int).
             level:
-                Output OpenSlide level to generate at. Mutually exclusive with `size`.
+                Output OpenSlide level to generate at. Mutually exclusive with ``size``.
             dtype:
                 dtype of the output mask (default uint16 to avoid overflow >255 classes).
             full_res:
-                If True, allow full-resolution mask generation when neither `size` nor `level`
+                If True, allow full-resolution mask generation when neither ``size`` nor ``level``
                 are provided. If False (default), raise instead of allocating huge arrays.
             preserve_aspect:
-                If True and `size` is provided, validate that requested size preserves slide
-                aspect ratio within `aspect_rtol`. If violated, raise a clear ValueError.
+                If True and ``size`` is provided, validate that requested size preserves slide
+                aspect ratio within ``aspect_rtol``. If violated, raise a clear ValueError.
                 (This avoids geometric distortion of polygons.)
             aspect_rtol:
                 Relative tolerance for aspect ratio validation when preserve_aspect=True.
@@ -277,16 +277,16 @@ class Slide(OpenSlide):
         full_w, full_h = self.dims
 
         if size is not None and level is not None:
-            raise ValueError("Provide only one of `size` or `level`, not both.")
+            raise ValueError("Provide only one of ``size`` or ``level``, not both.")
 
         if size is not None:
             level_w, level_h = size
             if not (isinstance(level_w, int) and isinstance(level_h, int)):
                 raise ValueError(
-                    f"`size` must be (int width, int height), got {size!r}."
+                    f"``size`` must be (int width, int height), got {size!r}."
                 )
             if level_w <= 0 or level_h <= 0:
-                raise ValueError(f"`size` must be positive, got {size!r}.")
+                raise ValueError(f"``size`` must be positive, got {size!r}.")
 
             if preserve_aspect:
                 slide_ar = full_w / full_h
@@ -298,7 +298,7 @@ class Slide(OpenSlide):
                         f"Slide aspect={slide_ar:.6f}, requested aspect={req_ar:.6f}, "
                         f"size={size}, slide_dims={(full_w, full_h)}. "
                         "Provide a size with a matching aspect ratio or set "
-                        "`preserve_aspect=False` to disable this validation."
+                        "``preserve_aspect=False`` to disable this validation."
                     )
 
             sx = level_w / full_w
@@ -315,8 +315,8 @@ class Slide(OpenSlide):
             if not full_res:
                 raise ValueError(
                     "Full-resolution WSI mask generation is disabled by default "
-                    "to prevent excessive memory allocation. Provide `size=(w, h)` "
-                    "or `level=<int>`, or set `full_res=True` to explicitly enable "
+                    "to prevent excessive memory allocation. Provide ``size=(w, h)`` "
+                    "or ``level=<int>``, or set ``full_res=True`` to explicitly enable "
                     "full-resolution mask generation."
                 )
             level_w, level_h = full_w, full_h
@@ -390,7 +390,7 @@ class Slide(OpenSlide):
                 Default is np.uint16 to support more than 255 distinct labels.
             preserve_aspect:
                 If True, validate that the requested size preserves the original
-                aspect ratio within `aspect_rtol` for the slide.
+                aspect ratio within ``aspect_rtol`` for the slide.
             aspect_rtol:
                 Relative tolerance used when validating aspect ratio preservation.
 
@@ -622,19 +622,19 @@ class Slide(OpenSlide):
             Validated magnification level.
         """
         if not isinstance(level, int):
-            raise ValueError(f"`level` must be an int, got {type(level).__name__}.")
+            raise ValueError(f"``level`` must be an int, got {type(level).__name__}.")
 
         n_levels = getattr(self, "level_count", None)
         if n_levels is None:
             raise ValueError(
-                "Slide object has no `level_count`; cannot validate `level`."
+                "Slide object has no ``level_count``; cannot validate ``level``."
             )
 
         if not (0 <= level < n_levels):
             dims = list(getattr(self, "level_dimensions", []))
             downs = list(getattr(self, "level_downsamples", []))
             raise ValueError(
-                f"Invalid `level`={level}. Valid levels are 0..{n_levels - 1}. "
+                f"Invalid ``level``={level}. Valid levels are 0..{n_levels - 1}. "
                 f"Available level_dimensions={dims} and level_downsamples={downs}."
             )
 
@@ -682,7 +682,7 @@ class Slide(OpenSlide):
                 - (min, max) tuple
                 - None
             y
-                ROI specification for the y-axis. Same allowed formats as `x`.
+                ROI specification for the y-axis. Same allowed formats as ``x``.
 
         Returns:
             Tuple (x_spec, y_spec)
@@ -721,7 +721,7 @@ class Slide(OpenSlide):
             v_max
                 Exclusive end coordinate in level-0 pixels.
             size
-                Axis length in level-0 pixels (`v_max - v_min`).
+                Axis length in level-0 pixels (``v_max - v_min``).
         """
         if isinstance(v, tuple):
             v_min, v_max = v
@@ -763,7 +763,7 @@ class Slide(OpenSlide):
         - Infers a default ROI from annotations if none was explicitly provided.
         - Parses axis specifications (int start or (min, max) tuple)
           into explicit (min, size) form.
-        - Optionally adjusts ROI dimensions using `resize_border`.
+        - Optionally adjusts ROI dimensions using ``resize_border``.
         - Clamps the ROI to slide bounds to prevent out-of-range reads.
         - Validates that the resolved ROI has positive dimensions.
 
@@ -779,9 +779,9 @@ class Slide(OpenSlide):
                 ROI size in pixels (level-0 units). Required if the corresponding axis
                 is specified as an int start coordinate.
             scale_border
-                If True, adjust x_size and y_size using :meth:`Slide.resize_border`.
+                If True, adjust x_size and y_size using :meth:``Slide.resize_border``.
             factor, threshold, operator
-                Parameters forwarded to :meth:`Slide.resize_border` when `scale_border` is True.
+                Parameters forwarded to :meth:``Slide.resize_border`` when ``scale_border`` is True.
 
         Returns:
             x_min, y_min, x_size, y_size
@@ -828,7 +828,7 @@ class Slide(OpenSlide):
 
         Converts annotation polygons (in level-0 coordinates) into a discrete label
         mask, aligned pixel-for-pixel with an ROI image read at OpenSlide pyramid
-        level `level`.
+        level ``level``.
 
         Args:
             x_min, y_min
@@ -838,10 +838,10 @@ class Slide(OpenSlide):
             level
                 OpenSlide pyramid level index that defines the target pixel grid.
             out_w, out_h
-                ROI size in the coordinate system of pyramid level `level`.
+                ROI size in the coordinate system of pyramid level ``level``.
                 These are the mask dimensions and must match the ROI image dimensions.
             ds
-                Downsample factor for pyramid level `level` relative to level 0.
+                Downsample factor for pyramid level ``level`` relative to level 0.
             labels
                 Optional subset of labels/IDs to rasterise.
             dtype
@@ -853,7 +853,7 @@ class Slide(OpenSlide):
         """
         expected_ds = float(self.level_downsamples[level])
         if not np.isfinite(ds) or ds <= 0:
-            raise ValueError(f"`ds` must be a positive finite float, got {ds!r}.")
+            raise ValueError(f"``ds`` must be a positive finite float, got {ds!r}.")
         if not np.isclose(ds, expected_ds, rtol=1e-6, atol=0.0):
             raise ValueError(
                 f"Downsample mismatch for level={level}: got ds={ds}, expected {expected_ds}."
@@ -935,17 +935,17 @@ class Slide(OpenSlide):
         """
         Internal implementation for saving slide annotation artifacts.
 
-        See `save()` for the public API documentation.
+        See ``save()`` for the public API documentation.
         """
         if self.annotations is None or not self.annotations.annotations:
             raise ValueError("Cannot save mask artifacts: no annotations loaded.")
 
         if not (isinstance(size, tuple) and len(size) == 2):
-            raise ValueError(f"`size` must be a (width, height) tuple, got {size!r}.")
+            raise ValueError(f"``size`` must be a (width, height) tuple, got {size!r}.")
         if not (isinstance(size[0], int) and isinstance(size[1], int)):
-            raise ValueError(f"`size` must be ints, got {size!r}.")
+            raise ValueError(f"``size`` must be ints, got {size!r}.")
         if size[0] <= 0 or size[1] <= 0:
-            raise ValueError(f"`size` must be positive, got {size!r}.")
+            raise ValueError(f"``size`` must be positive, got {size!r}.")
 
         if not (save_mask or save_vis or save_meta):
             raise ValueError(
@@ -1017,17 +1017,17 @@ class Slide(OpenSlide):
         operator: str = "=>",
     ) -> int:
         """
-        Round `dim` to the nearest multiple of `factor`, subject to a threshold constraint.
+        Round ``dim`` to the nearest multiple of ``factor``, subject to a threshold constraint.
 
-        The function generates multiples of `factor` and selects the one closest to `dim`
-        among those satisfying the constraint defined by (`operator`, `threshold`).
+        The function generates multiples of ``factor`` and selects the one closest to ``dim``
+        among those satisfying the constraint defined by (``operator``, ``threshold``).
 
         The constraint determines which multiples are considered valid:
 
-            ">"        : strictly greater than `threshold`
-            ">=" or "=>": greater than or equal to `threshold`
-            "<"        : strictly less than `threshold`
-            "<=" or "=<": less than or equal to `threshold`
+            ">"        : strictly greater than ``threshold``
+            ">=" or "=>": greater than or equal to ``threshold``
+            "<"        : strictly less than ``threshold``
+            "<=" or "=<": less than or equal to ``threshold``
 
         Args:
             dim:
@@ -1036,14 +1036,14 @@ class Slide(OpenSlide):
                 Positive integer increment defining allowed multiples.
             threshold:
                 Boundary value used to filter valid multiples. If None,
-                defaults to `dim`.
+                defaults to ``dim``.
             operator:
                 String specifying the comparison rule applied between each
-                multiple and `threshold`.
+                multiple and ``threshold``.
 
         Returns:
-                The adjusted dimension, equal to the multiple of `factor`
-                closest to `dim` that satisfies the specified constraint.
+                The adjusted dimension, equal to the multiple of ``factor``
+                closest to ``dim`` that satisfies the specified constraint.
         """
         if threshold is None:
             threshold = dim
@@ -1064,7 +1064,7 @@ class Slide(OpenSlide):
         op_func = operator_dict[operator]
 
         if factor <= 0:
-            raise ValueError(f"`factor` must be positive, got {factor}.")
+            raise ValueError(f"``factor`` must be positive, got {factor}.")
 
         max_i = max(int(max(dim, threshold) / factor) + 100, 100)
         multiples = [factor * i for i in range(max_i) if op_func(factor * i, threshold)]
@@ -1415,7 +1415,7 @@ class Annotations:
         """
         Save annotations as a CSV or GeoJSON file.
 
-        This enforces that `path` has a suffix consistent with `format`.
+        This enforces that ``path`` has a suffix consistent with ``format``.
 
         Args:
             path:
