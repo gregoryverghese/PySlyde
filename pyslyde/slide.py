@@ -34,13 +34,13 @@ class Slide(OpenSlide):
       - save mask/visualisation/metadata artifacts (``save``)
 
     Coordinate conventions:
-      - Annotation vertices are interpreted in level-0 (full-resolution) pixel space as
-        (x, y) pairs, where x is horizontal (column) and y is vertical (row).
+      - Annotation vertices are interpreted in level-0 (full-resolution) pixel
+        space as(x, y) pairs; x is horizontal (column) and y is vertical (row).
       - Returned masks are NumPy arrays with shape (H, W) = (height, width).
 
     Attributes:
         level:
-            Default OpenSlide level index stored on the instance (level 0 is full resolution).
+            Default OpenSlide magnificaiton level index stored on the instance.
         dims:
             Level-0 slide dimensions as (width, height).
         name:
@@ -76,7 +76,6 @@ class Slide(OpenSlide):
                 Path to the whole-slide image file readable by OpenSlide.
             level:
                 OpenSlide pyramid magnificaiton level index.
-                Level 0 is full resolution; increasing levels are downsampled.
             annotations:
                 Pre-loaded ``Annotations`` instance. If provided, ``annotations_path``
                 and ``source`` are ignored.
@@ -140,41 +139,40 @@ class Slide(OpenSlide):
         aligned pixel-for-pixel with the returned image.
 
         Args:
-            level
+            level:
                 OpenSlide pyramid level index to read the image data from.
-            x, y
+            x, y:
                 ROI axis specifications in level-0 pixels. Each axis may be:
                 - int: start coordinate (requires corresponding ``*_size``)
                 - tuple: (min, max) bounds (size may be inferred if ``*_size`` is None)
                 If ``x`` is None, the ROI defaults to the padded annotation border returned
                 by :meth:``get_border`` (or the full slide if no annotations exist).
-            x_size, y_size
+            x_size, y_size:
                 ROI size in level-0 pixels. Required when the corresponding axis is specified
                 as an int start coordinate.
-            scale_border
+            scale_border:
                 If True, adjust the resolved ROI size using :meth:``Slide.resize_border``.
-            factor, threshold, operator
+            factor, threshold, operator:
                 Parameters forwarded to :meth:``Slide.resize_border`` when ``scale_border`` is True.
-            labels
+            labels:
                 Optional subset of classes to include in the output mask. Elements may be
                 class names (str) or class IDs (int). If None, all available labels are used.
-            dtype
+            dtype:
                 NumPy dtype of the output mask.
-            rounding
+            rounding:
                 Used when converting level-0 ROI sizes to ``level`` pixel dimensions.
                 - round: default (nearest pixel grid)
                 - floor: avoids over-requesting pixels
                 - ceil: ensures coverage, may request slightly larger regions
-
             clamp_to_level_bounds:
                 If True, clamps the requested (out_w, out_h) to the available level dimensions
                 to avoid requesting pixels beyond slide bounds.
 
         Returns:
-            image_rgb
+            image_rgb:
                 RGB region as a NumPy array of shape (H, W, 3), corresponding to the ROI
                 read at pyramid level ``level``.
-            mask_roi
+            mask_roi:
                 Integer label mask as a NumPy array of shape (H, W), aligned with ``image_rgb``.
                 Background is 0; foreground pixels contain stable class IDs from
                 :attr:``Annotations.class_key``.
@@ -477,14 +475,24 @@ class Slide(OpenSlide):
         For each detected component, a bounding rectangle is computed in thumbnail
         coordinates and mapped to full-resolution coordinates.
 
+        Args:
+            level:
+                OpenSlide pyramid level used to generate the thumbnail for component detection.
+                Higher levels are more downsampled and thus faster but less precise.
+                Must be a valid level index for the slide.
+            num_component:
+                If provided, keep only the ``num_component`` largest components by contour area
+                (after any ``min_size`` filtering). If ``None``, all detected components are kept.
+            min_size:
+                If provided, discard any component with contour area (in thumbnail pixel units)
+                less than or equal to ``min_size``. If ``None``, no minimum area filtering is applied.
+
         Returns:
             components:
-                list of numpy.ndarray
-                A list of progressively accumulated overlay images
+                A list of progressively accumulated overlay images (numpy.ndarray)
                 where bounding rectangles are drawn around detected components.
                 The last entry contains all detected components.
             borders:
-                list of list of tuple[int, int]
                 A list of bounding box coordinates in level-0 space, formatted as:
                 [[(x1, x2), (y1, y2)], ...]
         """
@@ -548,7 +556,11 @@ class Slide(OpenSlide):
         Generate border around min/max annotation points.
 
         Args:
-            padding (int): Gap between max/min annotation point and border.
+            padding:
+                Gap between max/min annotation point and border.
+            level:
+                If provided, return the border scaled into the
+                coordinate system of this OpenSlide pyramid level.
 
         Returns:
             Border dimensions [(x_min, x_max), (y_min, y_max)].
@@ -618,6 +630,9 @@ class Slide(OpenSlide):
         """
         Validate magnification level index and return it.
 
+        Args:
+            level: OpenSlide magnification level index.
+
         Returns:
             Validated magnification level.
         """
@@ -648,7 +663,7 @@ class Slide(OpenSlide):
         non-area geometries such as LineStrings.
 
         Args:
-            Polygon array.
+            arr: Polygon array.
 
         Returns:
             Cleaned polygon array.
@@ -672,15 +687,15 @@ class Slide(OpenSlide):
         """
         Infer a complete ROI specification when the caller does not fully define one.
 
-        All coordinates are interpreted in level-0 (full-resolution) pixel space.
+        All coordinates are interpreted in full-resolution pixel space.
 
         Args:
-            x
+            x:
                 ROI specification for the x-axis. May be:
                 - int: start coordinate
                 - (min, max) tuple
                 - None
-            y
+            y:
                 ROI specification for the y-axis. Same allowed formats as ``x``.
 
         Returns:
@@ -706,20 +721,20 @@ class Slide(OpenSlide):
         Normalise a single axis ROI specification into explicit bounds and size (at level-0).
 
         Args:
-            v
+            v:
                 Axis ROI specification: an int start coordinate or a (min, max) tuple.
-            size
+            size:
                 Requested axis length in pixels (level-0 units). May be None when v
                 is provided as a (min, max) tuple.
-            axis_name
+            axis_name:
                 Name of the axis (e.g., "x" or "y") used for user-facing error messages.
 
         Returns:
-            v_min
+            v_min:
                 Inclusive start coordinate in level-0 pixels.
-            v_max
+            v_max:
                 Exclusive end coordinate in level-0 pixels.
-            size
+            size:
                 Axis length in level-0 pixels (``v_max - v_min``).
         """
         if isinstance(v, tuple):
@@ -766,20 +781,20 @@ class Slide(OpenSlide):
         - Clamps the ROI to slide bounds to prevent out-of-range reads.
         - Validates that the resolved ROI has positive dimensions.
 
-        All coordinates are expressed in level-0 (full-resolution) pixel space.
+        All coordinates are expressed in full-resolution pixel space.
 
         Args:
-            x, y
+            x, y:
                 ROI axis specifications. Each axis may be:
                 - int: start coordinate in level-0 pixels (requires corresponding *_size)
                 - tuple: (min, max) bounds in level-0 pixels (size may be inferred)
                 - None: allowed only for x; triggers default ROI selection
-            x_size, y_size
+            x_size, y_size:
                 ROI size in pixels (level-0 units). Required if the corresponding axis
                 is specified as an int start coordinate.
-            scale_border
+            scale_border:
                 If True, adjust x_size and y_size using :meth:``Slide.resize_border``.
-            factor, threshold, operator
+            factor, threshold, operator:
                 Parameters forwarded to :meth:``Slide.resize_border`` when ``scale_border`` is True.
 
         Returns:
@@ -830,20 +845,20 @@ class Slide(OpenSlide):
         level ``level``.
 
         Args:
-            x_min, y_min
+            x_min, y_min:
                 ROI origin in level-0 pixels.
-            x_size, y_size
+            x_size, y_size:
                 ROI size in level-0 pixels.
-            level
+            level:
                 OpenSlide pyramid level index that defines the target pixel grid.
-            out_w, out_h
+            out_w, out_h:
                 ROI size in the coordinate system of pyramid level ``level``.
                 These are the mask dimensions and must match the ROI image dimensions.
-            ds
+            ds:
                 Downsample factor for pyramid level ``level`` relative to level 0.
-            labels
+            labels:
                 Optional subset of labels/IDs to rasterise.
-            dtype
+            dtype:
                 NumPy dtype for the output mask (e.g., np.uint16).
 
         Returns:
@@ -1182,9 +1197,8 @@ class Annotations:
         Mapping from annotation labels to integer IDs.
 
         Returns:
-            Dict[str, int]:
-                Mapping of label name (str) -> integer ID (>=1).
-                Empty if no annotations are loaded.
+            Mapping of label name (str) -> integer ID (>=1).
+            Empty if no annotations are loaded.
         """
         if not self._annotations:
             return {}
@@ -1506,7 +1520,8 @@ class Annotations:
         loader = getattr(self, loader_name, None)
         if loader is None:
             raise ValueError(
-                f"Unknown annotation source '{self.source}'. No loader '{loader_name}' found."
+                f"Unknown annotation source '{self.source}'. "
+                f"No loader '{loader_name}' found."
             )
 
         for p in self.paths:
@@ -1514,7 +1529,8 @@ class Annotations:
 
             if not isinstance(loaded, dict):
                 raise ValueError(
-                    f"Loader '{loader_name}' returned {type(loaded).__name__}, expected dict."
+                    f"Loader '{loader_name}' returned {type(loaded).__name__}, "
+                    "expected dict."
                 )
 
             for k, v in loaded.items():
@@ -1757,8 +1773,8 @@ class Annotations:
 
         if not isinstance(json_annotations, dict):
             raise ValueError(
-                f"Invalid JSON annotation format in '{path}': expected a top-level object/dict, "
-                f"got {type(json_annotations).__name__}."
+                f"Invalid JSON annotation format in '{path}': expected a "
+                f"top-level object/dict, got {type(json_annotations).__name__}."
             )
 
         annotations: Dict[str, List[List[List[int]]]] = {}
@@ -1766,8 +1782,9 @@ class Annotations:
         for k, v in json_annotations.items():
             if not isinstance(v, dict):
                 raise ValueError(
-                    f"Invalid JSON annotation format for label='{k}' in '{path}': expected a dict "
-                    f"mapping polygon_id -> list of vertices, got {type(v).__name__}."
+                    f"Invalid JSON annotation format for label='{k}' in '{path}': "
+                    f"expected a dictmapping polygon_id -> list of vertices, "
+                    f"got {type(v).__name__}."
                 )
 
             polygons: List[List[List[int]]] = []
@@ -1775,22 +1792,25 @@ class Annotations:
             for poly_id, v2 in v.items():
                 if not isinstance(v2, list):
                     raise ValueError(
-                        f"Invalid polygon vertex list for label='{k}', polygon_id='{poly_id}' in '{path}': "
-                        f"expected a list of vertices, got {type(v2).__name__}."
+                        f"Invalid polygon vertex list for label='{k}', "
+                        f"polygon_id='{poly_id}' in '{path}': expected "
+                        f"a list of vertices, got {type(v2).__name__}."
                     )
 
                 points: List[List[int]] = []
                 for idx, i in enumerate(v2):
                     if not isinstance(i, dict):
                         raise ValueError(
-                            f"Invalid vertex for label='{k}', polygon_id='{poly_id}' in '{path}': "
-                            f"expected a dict with keys 'x' and 'y', got {type(i).__name__} at vertex index {idx}."
+                            f"Invalid vertex for label='{k}', polygon_id='{poly_id}' "
+                            f"in '{path}': expected a dict with keys 'x' and 'y', "
+                            f"got {type(i).__name__} at vertex index {idx}."
                         )
 
                     if "x" not in i or "y" not in i:
                         raise ValueError(
-                            f"Missing 'x' or 'y' in vertex for label='{k}', polygon_id='{poly_id}' in '{path}': "
-                            f"vertex index {idx}. Found keys: {list(i.keys())}"
+                            f"Missing 'x' or 'y' in vertex for label='{k}', "
+                            f"polygon_id='{poly_id}' in '{path}': vertex index "
+                            f"{idx}. Found keys: {list(i.keys())}"
                         )
 
                     try:
@@ -1798,8 +1818,9 @@ class Annotations:
                         y = self._to_pixel(i["y"])
                     except Exception as e:
                         raise ValueError(
-                            f"Invalid coordinate values for label='{k}', polygon_id='{poly_id}' in '{path}': "
-                            f"vertex index {idx}. x={i.get('x')}, y={i.get('y')}"
+                            f"Invalid coordinate values for label='{k}', "
+                            f"polygon_id='{poly_id}' in '{path}': vertex index "
+                            f"{idx}. x={i.get('x')}, y={i.get('y')}"
                         ) from e
 
                     points.append([x, y])
@@ -2098,7 +2119,8 @@ class Annotations:
         if vertex_df["polygon_id"].isna().any():
             bad_n = int(vertex_df["polygon_id"].isna().sum())
             raise ValueError(
-                f"CSV contains {bad_n} rows with missing polygon_id. polygon_id is mandatory."
+                f"CSV contains {bad_n} rows with missing polygon_id. "
+                "polygon_id is mandatory."
             )
 
         vertex_df["polygon_id"] = vertex_df["polygon_id"].map(self._clean_id)
@@ -2128,8 +2150,8 @@ class Annotations:
             if g["vertex_id"].duplicated().any():
                 dup = g.loc[g["vertex_id"].duplicated(), "vertex_id"].iloc[0]
                 raise ValueError(
-                    f"Duplicate vertex_id={dup} found within label='{lbl}', polygon_id='{pid}'. "
-                    "vertex_id must be unique per polygon."
+                    f"Duplicate vertex_id={dup} found within label='{lbl}', "
+                    f"polygon_id='{pid}'. vertex_id must be unique per polygon."
                 )
 
             g = g.sort_values("vertex_id", kind="mergesort")
