@@ -1811,69 +1811,258 @@ class Annotations:
 
     def _geojson(self, path: str) -> Dict[str, List[List[List[int]]]]:
         """
-        Parse standard GeoJSON FeatureCollection.
+        Parse GeoJSON annotations into the canonical in-memory representation.
 
-        Expected:
-            {
-            "type": "FeatureCollection",
-            "features": [
-                {
-                "type": "Feature",
-                "properties": {"<label>": "..."},
-                "geometry": {"type": "Polygon", "coordinates": [...]}
-                }
-            ]
-            }
+        This loader targets general GeoJSON exported by annotation tools.
+        It accepts either a ``FeatureCollection`` or a single ``Feature``
+        as the top-level container. Each feature is mapped to a label using
+        ``feature.properties["label"]`` (default: ``"undefined"``).
+
+        Supported geometry types are converted into the package's canonical structure:
+
+        - ``Polygon``: exterior ring only (holes are ignored).
+        - ``MultiPolygon``: exterior ring of each polygon only.
+        - ``LineString``: stored as a vertex sequence (not fillable for masks).
+        - ``MultiLineString``: each line stored as a vertex sequence.
+
+        Explicitly ignored geometry types (valid GeoJSON but not processed yet):
+
+        - ``Point`` / ``MultiPoint`` (ignored to avoid surprising border expansion)
+        - ``GeometryCollection`` (ignored; requires recursive policy decisions)
+
+        Args:
+            path: Path to a GeoJSON file.
+
+        Returns:
+            Dict[str, List[List[List[int]]]]
+            Mapping ``label -> [sequence, sequence, ...]`` where each sequence is a list
+            of integer vertices ``[[x, y], ...]``.
         """
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
 
-        if not isinstance(data, dict) or data.get("type") != "FeatureCollection":
-            raise ValueError(f"Invalid GeoJSON file '{path}': not a FeatureCollection.")
+        def _as_feature_list(obj: Any) -> List[Dict[str, Any]]:
+            """
+            Normalise a GeoJSON document into a list of Feature objects.
 
-        features = data.get("features", [])
-        if not isinstance(features, list):
+            Supported containers:
+            - ``FeatureCollection``: returns its ``features`` list.
+            - ``Feature``: wraps it in a list.
+
+            Args:
+                obj: Parsed JSON root object.
+
+            Returns
+                list of dict: List of GeoJSON Feature dicts.
+            """
+            if not isinstance(obj, dict):
+                raise ValueError(
+                    f"Invalid GeoJSON file '{path}': expected a JSON object/dict."
+                )
+
+            obj_type = obj.get("type")
+            if obj_type == "FeatureCollection":
+                feats = obj.get("features", [])
+                if not isinstance(feats, list):
+                    raise ValueError(
+                        f"Invalid GeoJSON file '{path}': 'features' must be a list."
+                    )
+                return feats
+
+            if obj_type == "Feature":
+                return [obj]
+
             raise ValueError(
-                f"Invalid GeoJSON file '{path}': 'features' must be a list."
+                f"Invalid GeoJSON file '{path}': expected 'FeatureCollection' or 'Feature', "
+                f"got {obj_type!r}."
             )
 
+        def _parse_point(coord: Any, *, feature_index: int) -> List[int]:
+            """
+            Parse a GeoJSON position into an integer pixel coordinate.
+
+            GeoJSON positions are typically ``[x, y]`` and may optionally include additional
+            elements (e.g., z). This parser uses the first two elements.
+
+            Args:
+                coord:
+                    GeoJSON position (list/tuple with length >= 2).
+                feature_index:
+                    Feature index for error reporting.
+
+            Returns
+                list[int]: Two-element integer coordinate ``[x, y]``.
+            """
+            if not isinstance(coord, (list, tuple)) or len(coord) < 2:
+                raise ValueError(
+                    f"Invalid coordinate in feature index {feature_index} in '{path}': "
+                    f"expected [x, y], got {coord!r}."
+                )
+            return [self._to_pixel(coord[0]), self._to_pixel(coord[1])]
+
+        def _parse_linestring(coords: Any, *, feature_index: int) -> List[List[int]]:
+            """
+            Parse GeoJSON LineString coordinates into a vertex sequence.
+
+            Args:
+                coords:
+                    List of GeoJSON positions.
+                feature_index:
+                    Feature index for error reporting.
+
+            Returns
+                list[list[int]]: Vertex sequence ``[[x, y], ...]``.
+            """
+            if not isinstance(coords, list):
+                raise ValueError(
+                    f"Invalid coordinates for LineString in feature index {feature_index} "
+                    f"in '{path}': expected a list, got {type(coords).__name__}."
+                )
+            return [_parse_point(c, feature_index=feature_index) for c in coords]
+
+        def _parse_polygon_exterior(
+            coords: Any, *, feature_index: int
+        ) -> List[List[int]]:
+            """
+            Parse GeoJSON Polygon coordinates and return the exterior ring only.
+
+            GeoJSON Polygon coordinates are ``[ring0, ring1, ...]`` where ring0 is the
+            exterior ring and ring1..n are interior rings (holes). This loader ignores
+            holes and returns ring0 only.
+
+            Args:
+                coords:
+                    Polygon coordinates (non-empty list of rings).
+                feature_index:
+                    Feature index for error reporting.
+
+            Returns:
+                list[list[int]]: Exterior ring as a vertex sequence ``[[x, y], ...]``.
+            """
+            if not isinstance(coords, list) or not coords:
+                raise ValueError(
+                    f"Invalid coordinates for Polygon in feature index {feature_index} "
+                    f"in '{path}':expected a non-empty list of rings."
+                )
+            ring0 = coords[0]
+            if not isinstance(ring0, list):
+                raise ValueError(
+                    f"Invalid exterior ring for Polygon in feature index {feature_index} "
+                    f"in '{path}':expected a list, got {type(ring0).__name__}."
+                )
+            return [_parse_point(c, feature_index=feature_index) for c in ring0]
+
+        def _extract_sequences(
+            gtype: str,
+            coords: Any,
+            *,
+            feature_index: int,
+        ) -> List[List[List[int]]]:
+            """
+            Convert a supported geometry into one or more vertex sequences.
+
+            Some geometry types map to multiple sequences (e.g., MultiPolygon), so the
+            return type is always a list of sequences.
+
+            Supported:
+            - Polygon: [exterior_ring]
+            - MultiPolygon: [exterior_ring_0, exterior_ring_1, ...]
+            - LineString: [line]
+            - MultiLineString: [line_0, line_1, ...]
+
+            Explicitly ignored (returns empty list):
+            - Point, MultiPoint, GeometryCollection
+
+            Args:
+                gtype:
+                    Geometry type string from ``geometry["type"]``.
+                coords:
+                    Geometry coordinate payload from ``geometry["coordinates"]``.
+                feature_index:
+                    Feature index for error reporting.
+
+            Returns:
+                list[list[list[int]]]: List of vertex sequences.
+            """
+            if gtype == "Polygon":
+                return [_parse_polygon_exterior(coords, feature_index=feature_index)]
+
+            if gtype == "MultiPolygon":
+                if not isinstance(coords, list):
+                    raise ValueError(
+                        f"Invalid coordinates for MultiPolygon in feature index {feature_index} "
+                        f"in '{path}':expected a list, got {type(coords).__name__}."
+                    )
+                return [
+                    _parse_polygon_exterior(poly, feature_index=feature_index)
+                    for poly in coords
+                ]
+
+            if gtype == "LineString":
+                return [_parse_linestring(coords, feature_index=feature_index)]
+
+            if gtype == "MultiLineString":
+                if not isinstance(coords, list):
+                    raise ValueError(
+                        f"Invalid coordinates for MultiLineString in feature index {feature_index} "
+                        f"in '{path}': expected a list, got {type(coords).__name__}."
+                    )
+                return [
+                    _parse_linestring(line, feature_index=feature_index)
+                    for line in coords
+                ]
+
+            if gtype in {"Point", "MultiPoint", "GeometryCollection"}:
+                return []
+
+            raise ValueError(
+                f"Unsupported geometry type '{gtype}' in feature index {feature_index} in '{path}'."
+            )
+
+        features = _as_feature_list(data)
         annotations: Dict[str, List[List[List[int]]]] = {}
 
         for idx, feature in enumerate(features):
             if not isinstance(feature, dict):
                 raise ValueError(f"Invalid feature at index {idx} in '{path}'.")
 
-            properties = feature.get("properties", {})
+            if feature.get("type") != "Feature":
+                raise ValueError(
+                    f"Invalid GeoJSON feature at index {idx} in '{path}': "
+                    " expected type='Feature'."
+                )
+
+            properties = feature.get("properties", {}) or {}
+            if not isinstance(properties, dict):
+                raise ValueError(
+                    f"Invalid properties in feature index {idx} in '{path}': "
+                    "expected an object/dict."
+                )
+
             label = properties.get("label", "undefined")
-            label = str(label).strip()
+            label = str(label).strip() if label is not None else "undefined"
 
             geometry = feature.get("geometry")
             if not isinstance(geometry, dict):
-                raise ValueError(f"Missing geometry in feature index {idx}.")
+                raise ValueError(
+                    f"Missing/invalid geometry in feature index {idx} in '{path}'."
+                )
 
             gtype = geometry.get("type")
+            if gtype is None:
+                raise ValueError(
+                    f"Missing geometry.type in feature index {idx} in '{path}'."
+                )
+
             coords = geometry.get("coordinates")
-
-            if gtype != "Polygon":
+            if str(gtype) != "GeometryCollection" and coords is None:
                 raise ValueError(
-                    f"Unsupported geometry type '{gtype}' in feature index {idx}."
+                    f"Missing geometry.coordinates in feature index {idx} in '{path}'."
                 )
 
-            if not isinstance(coords, list) or not coords:
-                raise ValueError(f"Invalid coordinates in feature index {idx}.")
-
-            ring = coords[0]
-            points = [[self._to_pixel(x), self._to_pixel(y)] for x, y in ring]
-
-            if len(points) >= 2 and points[0] == points[-1]:
-                points = points[:-1]
-
-            if len(points) < 3:
-                raise ValueError(
-                    f"Polygon too small in feature index {idx} (need >=3 vertices)."
-                )
-
-            annotations.setdefault(label, []).append(points)
+            sequences = _extract_sequences(str(gtype), coords, feature_index=idx)
+            for seq in sequences:
+                annotations.setdefault(label, []).append(seq)
 
         return annotations
 
