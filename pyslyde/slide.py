@@ -357,7 +357,8 @@ class Slide(OpenSlide):
                 arr[:, 0] = np.clip(arr[:, 0], 0, level_w - 1)
                 arr[:, 1] = np.clip(arr[:, 1], 0, level_h - 1)
 
-                if arr.shape[0] >= 3:
+                arr = self._validate_contour(arr)
+                if arr is not None:
                     scaled_polys.append(arr)
 
             if scaled_polys:
@@ -639,6 +640,31 @@ class Slide(OpenSlide):
 
         return level
 
+    def _validate_contour(self, arr: np.ndarray) -> Optional[np.ndarray]:
+        """
+        Clean and validate a contour for cv2.fillPoly.
+
+        Removes explicit ring closure if present and rejects
+        non-area geometries such as LineStrings.
+
+        Args:
+            Polygon array.
+
+        Returns:
+            Cleaned polygon array.
+
+        """
+        if arr.shape[0] >= 2 and np.array_equal(arr[0], arr[-1]):
+            arr = arr[:-1]
+
+        if arr.shape[0] < 3:
+            return None
+
+        if cv2.contourArea(arr) <= 0:
+            return None
+
+        return arr
+
     def _infer_default_roi(
         self,
         x: Optional[Union[int, Tuple[int, int]]],
@@ -862,7 +888,7 @@ class Slide(OpenSlide):
             if k is None:
                 continue
 
-            local_polys: List[np.ndarray] = []
+            scaled_polys: List[np.ndarray] = []
 
             for poly in polys:
                 arr = np.asarray(poly, dtype=np.float32)
@@ -884,11 +910,12 @@ class Slide(OpenSlide):
                 arr[:, 0] = np.clip(arr[:, 0], 0, out_w - 1)
                 arr[:, 1] = np.clip(arr[:, 1], 0, out_h - 1)
 
-                if arr.shape[0] >= 3:
-                    local_polys.append(arr)
+                arr = self._validate_contour(arr)
+                if arr is not None:
+                    scaled_polys.append(arr)
 
-            if local_polys:
-                cv2.fillPoly(mask_roi, local_polys, color=(int(k),))
+            if scaled_polys:
+                cv2.fillPoly(mask_roi, scaled_polys, color=(int(k),))
 
         return mask_roi
 
