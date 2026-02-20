@@ -652,7 +652,6 @@ class Slide(OpenSlide):
 
         Returns:
             Cleaned polygon array.
-
         """
         if arr.shape[0] >= 2 and np.array_equal(arr[0], arr[-1]):
             arr = arr[:-1]
@@ -847,7 +846,7 @@ class Slide(OpenSlide):
             dtype
                 NumPy dtype for the output mask (e.g., np.uint16).
 
-        Returns
+        Returns:
             Integer label mask of shape (out_h, out_w). Background is 0 and
             foreground pixels are assigned class IDs.
         """
@@ -1276,7 +1275,7 @@ class Annotations:
 
         Returns:
             GeoJSON dict with structure:
-                {"type": "FeatureCollection", "features": [...]}
+            {"type": "FeatureCollection", "features": [...]}
         """
         if not self._annotations:
             return {"type": "FeatureCollection", "features": []}
@@ -1819,14 +1818,12 @@ class Annotations:
         ``feature.properties["label"]`` (default: ``"undefined"``).
 
         Supported geometry types are converted into the package's canonical structure:
-
-        - ``Polygon``: exterior ring only (holes are ignored).
+        - ``Polygon``: exterior ring only.
         - ``MultiPolygon``: exterior ring of each polygon only.
-        - ``LineString``: stored as a vertex sequence (not fillable for masks).
+        - ``LineString``: stored as a vertex sequence.
         - ``MultiLineString``: each line stored as a vertex sequence.
 
         Explicitly ignored geometry types (valid GeoJSON but not processed yet):
-
         - ``Point`` / ``MultiPoint`` (ignored to avoid surprising border expansion)
         - ``GeometryCollection`` (ignored; requires recursive policy decisions)
 
@@ -1835,8 +1832,8 @@ class Annotations:
 
         Returns:
             Dict[str, List[List[List[int]]]]
-            Mapping ``label -> [sequence, sequence, ...]`` where each sequence is a list
-            of integer vertices ``[[x, y], ...]``.
+                Mapping ``label -> [sequence, sequence, ...]``, each sequence
+                is a list of integer vertices ``[[x, y], ...]``.
         """
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
@@ -1852,7 +1849,7 @@ class Annotations:
             Args:
                 obj: Parsed JSON root object.
 
-            Returns
+            Returns:
                 list of dict: List of GeoJSON Feature dicts.
             """
             if not isinstance(obj, dict):
@@ -1890,7 +1887,7 @@ class Annotations:
                 feature_index:
                     Feature index for error reporting.
 
-            Returns
+            Returns:
                 list[int]: Two-element integer coordinate ``[x, y]``.
             """
             if not isinstance(coord, (list, tuple)) or len(coord) < 2:
@@ -1910,7 +1907,7 @@ class Annotations:
                 feature_index:
                     Feature index for error reporting.
 
-            Returns
+            Returns:
                 list[list[int]]: Vertex sequence ``[[x, y], ...]``.
             """
             if not isinstance(coords, list):
