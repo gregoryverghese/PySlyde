@@ -180,7 +180,7 @@ class TissueDetect:
         
         if isinstance(slide, str):
             self.slide = OpenSlide(slide)
-        elif (isinstance(slide, OpenSlide) or isinstance(slide, np.array)):
+        elif isinstance(slide, OpenSlide) or hasattr(slide, "shape"):
             self.slide = slide
         else:
             raise TypeError("Slide must be of type OpenSlide, numpy array or string path to OpenSlide")
