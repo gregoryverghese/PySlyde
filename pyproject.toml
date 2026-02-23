@@ -24,6 +24,7 @@ dependencies = [
     "webdataset",
     "transformers",
     "tf-keras",
+    "gdown"
 ]
 requires-python = ">= 3.8"
 authors = [
