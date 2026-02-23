@@ -12,8 +12,8 @@ The fixture root directory (referred to here as ``PARENT``) must contain:
 PARENT
 ├── annotations
 │   ├── asap.xml
-│   ├── csv.txt
-│   ├── geojson.txt
+│   ├── name.csv
+│   ├── geojson.json or .geojson
 │   ├── imagej.xml
 │   └── qupath.json
 └── wsi
