@@ -92,7 +92,7 @@ The integration data directory must have the following structure:
     └── wsi/
         └── wsi.ndpi
 
-Notes:
+**Notes:**
 
 -   The `annotations` directory may contain additional files.
 -   Tests select the first matching file for each supported format.
