@@ -101,7 +101,7 @@ The integration data directory must have the following structure:
 
 ##### Providing integration data
 
-The fixture root is resolved in the following order of precedence:
+The fixture root is resolved in the following order of precedence (highest to lowest):
 
 1.  **Local directory or archive**
 
@@ -127,7 +127,10 @@ Optional integrity verification:
 PYSLYDE_IT_DATA_URL=<archive_url> PYSLYDE_IT_DATA_SHA256=<sha256> pytest test/test_slide_integration.py
 ```
 
-3.  If neither is provided, the tests skip automatically.
+3. **Default remote archive**
+If neither is provided, tests will default to `DEFAULT_DATA_URL` set in `conftest.py` 
+
+4. If neither is set, the tests skip automatically with explanations.
 
 ##### Temporary directory
 
