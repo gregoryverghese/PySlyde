@@ -87,7 +87,7 @@ def convert(imageFiles, maskFiles, tfRecordPath, dim=None):
         maskFiles: maskfile paths
         tfRecordPath: path to save tfrecords
     '''
-
+    os.makedirs(os.path.dirname(tfRecordPath), exist_ok=True)
     numImgs = len(imageFiles)
     check=[]
     with tf.io.TFRecordWriter(tfRecordPath) as writer:

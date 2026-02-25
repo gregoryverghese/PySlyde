@@ -12,7 +12,6 @@ from typing import List, Tuple, Optional, Union, Any, Dict
 
 import cv2
 import numpy as np
-import xml.etree.ElementTree as ET
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib as mpl 
@@ -20,7 +19,9 @@ from openslide import OpenSlide
 import matplotlib.patches as patches
 from skimage.color import rgb2gray
 from skimage.filters import threshold_otsu
-from skimage.morphology import square, closing, opening
+from skimage.morphology import footprint_rectangle, closing, opening, disk
+from skimage.filters.rank import entropy as skimage_entropy
+
 #import staintools
 
 def mask2rgb(mask: np.ndarray) -> np.ndarray:
@@ -63,7 +64,7 @@ def draw_boundary(annotations: Dict[str, List[List[List[int]]]],
     return boundaries
 
 
-def oneHotToMask(onehot: np.ndarray) -> np.ndarray:
+def oneHotToMask(onehot: np.ndarray, background: str | None = None) -> np.ndarray:
     """
     Convert one-hot encoded mask to RGB mask.
     
@@ -76,8 +77,18 @@ def oneHotToMask(onehot: np.ndarray) -> np.ndarray:
     n_classes = onehot.shape[-1]
     idx = np.argmax(onehot, axis=-1)
     colors = sns.color_palette('hls', n_classes)
+    
     multimask = np.take(colors, idx, axis=0)
-    multimask = np.where(multimask[:, :, :] == colors[0], 0, multimask[:, :, :])
+    
+    # Apply background override (class 0 only)
+    if background is not None:
+        if background.lower() == "black":
+            multimask[idx == 0] = (0, 0, 0)
+        elif background.lower() == "white":
+            multimask[idx == 0] = (255, 255, 255)
+        else:
+            raise ValueError("background must be 'black', 'white', or None")
+
     return multimask
 
 
@@ -169,7 +180,7 @@ class TissueDetect:
         
         if isinstance(slide, str):
             self.slide = OpenSlide(slide)
-        elif (isinstance(slide, OpenSlide) or isinstance(slide, np.array)):
+        elif isinstance(slide, OpenSlide) or hasattr(slide, "shape"):
             self.slide = slide
         else:
             raise TypeError("Slide must be of type OpenSlide, numpy array or string path to OpenSlide")
@@ -220,10 +231,26 @@ class TissueDetect:
             return None
         
         mask = self.contour_mask if mask is None else mask
-        mask = cv2.resize(mask, self.slide.dimensions)
-       
+        if mask is None:
+            return None
+            
+        # Determine slide dimensions safely
+        if isinstance(self.slide, OpenSlide):
+            width, height = self.slide.dimensions
+        else:
+            height, width = self.slide.shape[:2]
+            
+        # cv2.resize expects (width, height)
+        mask_resized = cv2.resize(mask.astype(np.uint8), (width, height))
+               
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-
+        
+        if not contours:
+            # No contours found, return full image as default border or None
+            self._border = ((0, 0), (width, height))
+            return self._border
+        
+        
         x, y, w, h = cv2.boundingRect(np.concatenate(contours))
         self._border = ((x, y), (x + w, y + h))
         return self._border
@@ -240,21 +267,24 @@ class TissueDetect:
             level = ds.index(32) if 32 in ds else ds.index(int(ds[-1]))
             image = self.slide.get_thumbnail(self.slide.level_dimensions[level]) 
             image = np.array(image.convert('RGB'))
-            dims = self.slide.dimensions
+            width, height = self.slide.dimensions
         else:
             image = self.slide
-            dims = self.slide.shape
-
+            height, width = self.slide.shape[:2]  # only H, W
+        
         gray = rgb2gray(image)
         gray_f = gray.flatten()
-
+        
         pixels_int = gray_f[np.logical_and(gray_f > 0.1, gray_f < 0.98)]
         t = threshold_otsu(pixels_int)
         thresh = np.logical_and(gray_f < t, gray_f > 0.1).reshape(gray.shape)
         
-        mask = opening(closing(thresh, footprint=square(2)), footprint=square(2))
+        
+        mask = opening(
+                closing(thresh, footprint=footprint_rectangle((2, 2))),
+                footprint=footprint_rectangle((2, 2)))
         self.tissue_mask = mask.astype(np.uint8)
-        return cv2.resize(mask.astype(np.uint8),dims)
+        return cv2.resize(mask.astype(np.uint8), (width, height))
 
     def _generate_tissue_contour(self):
         
@@ -378,14 +408,14 @@ def visualise_wsi_tiling(
     plt.close()
 
 
-def entropy(tile, threshold):
+def low_entropy(tile, threshold):
     avg_entropy=image_entropy(tile)
     if avg_entropy<threshold:
         return True
 
 
-def image_entropy(gray):
-    entr=entropy(np.array(gray),disk(10))
+def image_entropy(gray, neighborhood=10):
+    entr=skimage_entropy(np.array(gray), disk(neighborhood))
     avg_entr=np.mean(entr)
     return avg_entr
 
