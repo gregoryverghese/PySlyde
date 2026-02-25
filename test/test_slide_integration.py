@@ -37,9 +37,9 @@ The fixture root is resolved using the following precedence:
    - Download an archive and extract it.
    - Optional integrity check via ``PYSLYDE_IT_DATA_SHA256``.
 
-3) Fall back on ``PYSLYDE_IT_DATA_URL`` set in confest.py.
+3) Fall back on ``DEFAULT_DATA_URL`` set in ``confest.py``.
 
-If neither is provided, tests will skip cleanly with an explanation.
+4) If neither is provided, tests will skip cleanly with an explanation.
 
 Google Drive
 ------------
@@ -619,7 +619,7 @@ def test_detect_components_returns_valid_borders(
 
     Ensures the image-processing pipeline runs end-to-end and returns valid
     bounding boxes (mapped into level-0 coordinates). The test is tolerant
-    to “no contours found”.
+    to "no contours found".
 
     Args:
         integration_data_dir:

@@ -74,7 +74,6 @@ class Slide(OpenSlide):
             [(x_min, x_max), (y_min, y_max)].
     """
 
-    MAG_FACTORS: Dict[int, int] = {0: 1, 1: 2, 2: 4, 3: 8, 4: 16, 5: 32}
     MASK_SIZE: Tuple[int, int] = (2000, 2000)
 
     def __init__(

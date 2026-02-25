@@ -181,7 +181,7 @@ def integration_data_dir(tmp_path_factory: pytest.TempPathFactory) -> Path | Non
     Priority (highest to lowest):
     1. PYSLYDE_IT_DATA_DIR environment variable
     2. PYSLYDE_IT_DATA_URL environment variable
-    3. DEFAULT_DATA_URL (if PYSLYDE_IT_DATA_URL is not set)
+    3. DEFAULT_DATA_URL
     4. None (if no sources are configured)
 
     - PYSLYDE_IT_DATA_DIR: Path to a local directory or archive file
