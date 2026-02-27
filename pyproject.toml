@@ -14,7 +14,7 @@ dependencies = [
     "opencv-python",
     "openslide-python",
     "pandas",
-    "PIL",
+    "pillow",
     "rasterio",
     "seaborn",
     "scikit-image",
