@@ -14,16 +14,16 @@ from pyslyde.slide import Annotations, Slide
 
 class TestSlide(unittest.TestCase):
     """Test cases for the Slide class."""
-    
+
     @classmethod
     def setUpClass(cls) -> None:
         """Set up test class with file paths."""
-        cls.ndpi_path = '14.90610 C L2.11.ndpi'
-        cls.json_path = '14.90610 C L2.11.json'
+        cls.ndpi_path = "14.90610 C L2.11.ndpi"
+        cls.json_path = "14.90610 C L2.11.json"
 
     def setUp(self) -> None:
         """Set up each test case."""
-        ann_obj = Annotations(self.json_path, source='json')
+        ann_obj = Annotations(self.json_path, source="json")
         self.annotations = ann_obj.annotations
         self.slide_obj = Slide(self.ndpi_path, annotations=self.annotations)
 
@@ -77,10 +77,10 @@ class TestAnnotations(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         """Set up test class with annotation file paths."""
-        cls.imagej_path = 'data/annotations/imagej_annotations.xml'
-        cls.asap_path = 'data/annotations/asap_annotations.xml'
-        cls.json_path = 'data/annotations/json_annotations.json'
-        cls.csv_path = 'data/annotations/csv_annotations.csv'
+        cls.imagej_path = "data/annotations/imagej_annotations.xml"
+        cls.asap_path = "data/annotations/asap_annotations.xml"
+        cls.json_path = "data/annotations/json_annotations.json"
+        cls.csv_path = "data/annotations/csv_annotations.csv"
 
     def setUp(self) -> None:
         """Set up each test case."""
@@ -88,7 +88,7 @@ class TestAnnotations(unittest.TestCase):
 
     def test_imagej(self) -> None:
         """Test ImageJ annotation parsing."""
-        annotations = self.ann_obj(self.imagej_path, source='imagej')._imagej()
+        annotations = self.ann_obj(self.imagej_path, source="imagej")._imagej()
         self.assertEqual(list(annotations.keys()), [0, 1, 2, 3, 4])
         self.assertTrue(len(annotations), 5)
 
@@ -97,7 +97,7 @@ class TestAnnotations(unittest.TestCase):
 
     def test_asap(self) -> None:
         """Test ASAP annotation parsing."""
-        annotations = self.ann_obj(self.asap_path, source='asap')._asap()
+        annotations = self.ann_obj(self.asap_path, source="asap")._asap()
         self.assertEqual(list(annotations.keys()), [0, 1])
         self.assertEqual(len(annotations), 2)
 
@@ -106,16 +106,16 @@ class TestAnnotations(unittest.TestCase):
 
     def test_json(self) -> None:
         """Test JSON annotation parsing."""
-        annotations = self.ann_obj(self.json_path, source='json')._json()
+        annotations = self.ann_obj(self.json_path, source="json")._json()
         self.assertEqual(list(annotations.keys()), [0, 1, 2])
         self.assertEqual(len(annotations), 3)
 
         sizes = [len(annotations[a]) for a in annotations.keys()]
-        print('sizes', sizes)
+        print("sizes", sizes)
 
     def test_csv(self) -> None:
         """Test CSV annotation parsing."""
-        annotations = self.ann_obj(self.csv_path, source='csv')._csv()
+        annotations = self.ann_obj(self.csv_path, source="csv")._csv()
         self.assertEqual(list(annotations.keys()), [0, 1, 2, 3, 4])
         self.assertEqual(len(annotations), 5)
 
@@ -123,8 +123,5 @@ class TestAnnotations(unittest.TestCase):
         self.assertEqual(sizes, {11538, 4, 6721, 2002, 7129})
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
-
-
-

@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.decomposition import NMF
 from scipy.optimize import nnls
 
+
 class VahadaneStainNormalizer(StainNormalizer):
     """
     Vahadane et al. (2016) stain normalization using Sparse NMF.
@@ -28,13 +29,13 @@ class VahadaneStainNormalizer(StainNormalizer):
 
     def __init__(
         self,
-        alpha: float = 1e-3, #0.1,
+        alpha: float = 1e-3,  # 0.1,
         l1_ratio: float = 0.5,
         max_iter: int = 2000,
         n_stains: int = 2,
         verbose: bool = False,
     ):
-        super().__init__()   # calls StainNormalizer.__init__
+        super().__init__()  # calls StainNormalizer.__init__
         # ---- validate n_stains ----
         if not isinstance(n_stains, int) or n_stains < 2:
             raise ValueError(f"n_stains must be an integer >= 2. Got {n_stains}.")
@@ -78,10 +79,12 @@ class VahadaneStainNormalizer(StainNormalizer):
 
         if np.allclose(C, 0):
             if self.verbose:
-                print("[Vahadane] All-zero concentrations – falling back to eosin-only projection.")
+                print(
+                    "[Vahadane] All-zero concentrations – falling back to eosin-only projection."
+                )
             OD = self.rgb2od(source_tile).reshape(-1, 3)
-            eosin_vec = self.W_target[:, 1] # column 1 = eosin
-           # project onto eosin vector (non-negative)
+            eosin_vec = self.W_target[:, 1]  # column 1 = eosin
+            # project onto eosin vector (non-negative)
             eosin_conc = np.maximum(OD @ eosin_vec, 0.0)
 
             # rebuild C with only eosin
@@ -91,11 +94,11 @@ class VahadaneStainNormalizer(StainNormalizer):
         # Reconstruct OD using target basis
         OD_norm = C @ self.W_target.T
 
-        rgb = self.od2rgb(OD_norm.reshape(source_tile.shape),
-                          ref_dtype=source_tile.dtype)
+        rgb = self.od2rgb(
+            OD_norm.reshape(source_tile.shape), ref_dtype=source_tile.dtype
+        )
 
         return rgb
-
 
     def get_profile(self) -> Dict[str, Any]:
         return {
@@ -147,14 +150,21 @@ class VahadaneStainNormalizer(StainNormalizer):
             random_state=42,
         )
         if self.verbose:
-            print("[Vahadane] OD shape:", OD.shape, "OD mean:", OD.mean(), "OD std:", OD.std())
-        _ = model.fit_transform(OD)   # (n_pixels, k), not used
-        H = model.components_         # (k, 3)
+            print(
+                "[Vahadane] OD shape:",
+                OD.shape,
+                "OD mean:",
+                OD.mean(),
+                "OD std:",
+                OD.std(),
+            )
+        _ = model.fit_transform(OD)  # (n_pixels, k), not used
+        H = model.components_  # (k, 3)
 
         # Stain basis = transpose to (3, k), then normalize columns
         W_est = H.T
         W_est = W_est / (np.linalg.norm(W_est, axis=0, keepdims=True) + 1e-12)
-   
+
         # --- DEBUG: show vector norms ---
         norms = np.linalg.norm(W_est, axis=0)
         if self.verbose:
@@ -164,14 +174,18 @@ class VahadaneStainNormalizer(StainNormalizer):
         if self.n_stains == 2:
             if np.allclose(W_est[:, 1], 0):
                 if self.verbose:
-                    print("[Vahadane] Second stain collapsed, using orthogonal fallback.")
+                    print(
+                        "[Vahadane] Second stain collapsed, using orthogonal fallback."
+                    )
                 v1 = W_est[:, 0]
                 v2p = np.array([-v1[1], v1[0], 0], dtype=np.float32)
-                v2p /= (np.linalg.norm(v2p) + 1e-12)
+                v2p /= np.linalg.norm(v2p) + 1e-12
                 W_est[:, 1] = v2p
 
-            cos_sim = float(np.dot(W_est[:, 0], W_est[:, 1]) /
-                            (np.linalg.norm(W_est[:, 0]) * np.linalg.norm(W_est[:, 1]) + 1e-12))
+            cos_sim = float(
+                np.dot(W_est[:, 0], W_est[:, 1])
+                / (np.linalg.norm(W_est[:, 0]) * np.linalg.norm(W_est[:, 1]) + 1e-12)
+            )
             if self.verbose:
                 print(f"[Vahadane] cosine similarity: {cos_sim:.3f}")
 
@@ -180,13 +194,15 @@ class VahadaneStainNormalizer(StainNormalizer):
 
         return W_est
 
-
-
-    def _concentrations(self, I: np.ndarray, W: np.ndarray, beta: float = 0.15) -> np.ndarray:
+    def _concentrations(
+        self, I: np.ndarray, W: np.ndarray, beta: float = 0.15
+    ) -> np.ndarray:
         if W is None or not isinstance(W, np.ndarray):
             raise ValueError("Estimated stain matrix W is invalid.")
         if W.shape[0] != 3 or W.shape[1] != self.n_stains:
-            raise ValueError(f"Unexpected W shape {W.shape}, expected (3, {self.n_stains})")
+            raise ValueError(
+                f"Unexpected W shape {W.shape}, expected (3, {self.n_stains})"
+            )
 
         # Flatten image → optical density
         OD = self.rgb2od(I).reshape(-1, 3)  # (n_pixels, 3)
@@ -197,7 +213,6 @@ class VahadaneStainNormalizer(StainNormalizer):
             print("[Vahadane] OD mean (background candidate):", OD[:100].mean())
 
         mask = np.linalg.norm(OD, axis=1) > beta
-
 
         # Solve NNLS for each pixel
         C = np.zeros((OD.shape[0], self.n_stains), dtype=np.float32)

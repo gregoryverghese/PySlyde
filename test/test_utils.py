@@ -17,7 +17,6 @@ from openslide import OpenSlide
 from PIL import Image
 
 
-
 @pytest.fixture
 def sample_onehot():
     onehot = np.zeros((2, 2, 3))
@@ -39,6 +38,7 @@ def dummy_patch():
             self.step = step
             self._patches = [f"patch_{i}" for i in range(10)]
             self.patches = []
+
     return DummyPatch("slide_1", (64, 64), 20, 4, 2)
 
 
@@ -49,13 +49,13 @@ def dummy_slide(as_pil=True):
     mock_slide.level_dimensions = [(100, 100)] * 6
     mock_slide.shape = [100, 100, 3]
     dummy_image = np.ones((100, 100, 3), dtype=np.uint8) * 128
-    
+
     if as_pil:
         pil_image = Image.fromarray(dummy_image)
         mock_slide.get_thumbnail.return_value = pil_image
     else:
         mock_slide.get_thumbnail.return_value = dummy_image
-        
+
     return mock_slide
 
 
@@ -63,7 +63,7 @@ def dummy_slide(as_pil=True):
 def dummy_slide_OpenSlide():
     def _factory(as_pil=True):
         slide = MagicMock()
-        slide.__class__ = OpenSlide   # ✅ makes isinstance work
+        slide.__class__ = OpenSlide  # ✅ makes isinstance work
 
         slide.level_downsamples = [1, 2, 4, 8, 16, 32]
         slide.level_dimensions = [(100, 100)] * 6
@@ -73,43 +73,39 @@ def dummy_slide_OpenSlide():
         slide.get_thumbnail.return_value = Image.fromarray(dummy_image)
 
         return slide
-    return _factory
 
+    return _factory
 
 
 ### ---------- TEST: mask2rgb ----------
 def test_mask2rgb_shape_and_values():
-    
+
     # Create a mask with 3 classes: 0 (background), 1, 2
-    mask = np.array([
-        [0, 1, 2],
-        [2, 1, 0],
-        [1, 2, 0]
-    ])
-    
+    mask = np.array([[0, 1, 2], [2, 1, 0], [1, 2, 0]])
+
     rgb = utilities.mask2rgb(mask)
-    
-    # Checking the values 
+
+    # Checking the values
     n_classes = len(np.unique(mask))
-    palette = sns.color_palette('hls', n_classes)
+    palette = sns.color_palette("hls", n_classes)
     expected = np.zeros_like(rgb)
     expected[mask == 1] = palette[1]
     expected[mask == 2] = palette[2]
     # class 0 (background) remains black [0,0,0]
-    
+
     # Assert all values match
-    colors = sns.color_palette('hls', 3)  # 3 classes
+    colors = sns.color_palette("hls", 3)  # 3 classes
     expected_rgb = np.zeros(mask.shape + (3,), dtype=float)
-    
+
     # Map classes 1 and 2 to colors; class 0 stays black
     expected_rgb[mask == 1] = colors[0]  # class 1
     expected_rgb[mask == 2] = colors[1]  # class 2
-    
+
     np.testing.assert_allclose(rgb, expected_rgb, atol=1e-6)
-    
+
     # Check shape
     assert rgb.shape == (3, 3, 3)
-    
+
     # Should not be all zeros
     assert not np.all(rgb == 0)
 
@@ -127,95 +123,94 @@ def test_mask2rgb_foreground():
     mask = np.ones((2, 2), dtype=int)
     rgb = utilities.mask2rgb(mask)
     assert rgb.shape == (2, 2, 3)
-    assert not np.all(rgb == 0)  
+    assert not np.all(rgb == 0)
 
 
 ### ---------- TEST: oneHotToMask ----------
 def test_oneHotToMask_output_black_background(sample_onehot):
     onehot = sample_onehot
-    
+
     # Reference colors from seaborn (scaled to uint8)
-    colors = np.array(sns.color_palette('hls', 3))
-    
+    colors = np.array(sns.color_palette("hls", 3))
+
     # ---------------- black background ----------------
     mask_black = utilities.oneHotToMask(onehot, background="black")
     expected_black = np.zeros_like(mask_black)
-    expected_black[0, 0] = (0, 0, 0)       # background forced to black
-    expected_black[0, 1] = colors[1]       # class 1
-    expected_black[1, 0] = colors[2]       # class 2
-    expected_black[1, 1] = colors[1]       # class 1
-    
+    expected_black[0, 0] = (0, 0, 0)  # background forced to black
+    expected_black[0, 1] = colors[1]  # class 1
+    expected_black[1, 0] = colors[2]  # class 2
+    expected_black[1, 1] = colors[1]  # class 1
+
     np.testing.assert_array_equal(mask_black, expected_black)
     np.testing.assert_allclose(mask_black, expected_black, atol=1e-6)
-    
+
     # Check shape and dtype
     assert mask_black.shape == (2, 2, 3)
-    
+
     # Should not be all zeros
     assert not np.all(mask_black == 0)
 
 
-def test_oneHotToMask_output_white_background(sample_onehot):    
+def test_oneHotToMask_output_white_background(sample_onehot):
     onehot = sample_onehot
-    
+
     # ---------------- white background ----------------
     mask_white = utilities.oneHotToMask(onehot, background="white")
-    
+
     expected_white = mask_white.copy()
     expected_white[0, 0] = (255, 255, 255)  # background forced to white
-    
+
     np.testing.assert_array_equal(mask_white, expected_white)
     np.testing.assert_allclose(mask_white, expected_white, atol=1e-6)
-    
+
     # Check shape and dtype
     assert mask_white.shape == (2, 2, 3)
-    
+
     # Should not be all zeros
     assert not np.all(mask_white == 0)
 
 
-def test_oneHotToMask_output_palette_background(sample_onehot): 
+def test_oneHotToMask_output_palette_background(sample_onehot):
     onehot = sample_onehot
-    
-    colors = np.array(sns.color_palette('hls', 3))
-    
+
+    colors = np.array(sns.color_palette("hls", 3))
+
     mask_palette = utilities.oneHotToMask(onehot, background=None)
     expected_palette = np.zeros_like(mask_palette)
-    expected_palette[0, 0] = colors[0]       # background
-    expected_palette[0, 1] = colors[1]       # class 1
-    expected_palette[1, 0] = colors[2]       # class 2
-    expected_palette[1, 1] = colors[1]       # class 1
-    
+    expected_palette[0, 0] = colors[0]  # background
+    expected_palette[0, 1] = colors[1]  # class 1
+    expected_palette[1, 0] = colors[2]  # class 2
+    expected_palette[1, 1] = colors[1]  # class 1
+
     mask_palette = utilities.oneHotToMask(onehot, background=None)
-    
+
     np.testing.assert_array_equal(mask_palette, expected_palette)
     np.testing.assert_allclose(mask_palette, expected_palette, atol=1e-6)
-    
+
     # Check shape and dtype
     assert mask_palette.shape == (2, 2, 3)
-    
+
     # Should not be all zeros
     assert not np.all(mask_palette == 0)
 
-        
+
 def test_oneHotToMask_invalid_background(sample_onehot):
     onehot = sample_onehot
-    
-    with pytest.raises(ValueError, match="background must be 'black', 'white', or None"):
+
+    with pytest.raises(
+        ValueError, match="background must be 'black', 'white', or None"
+    ):
         utilities.oneHotToMask(onehot, background="blue")
 
 
 ### ---------- TEST: draw_boundary ----------
 def test_draw_boundary_output():
-    annotations = {
-        "region1": [[[10, 10], [20, 20]]],
-        "region2": [[[30, 30], [40, 40]]]
-    }
+    annotations = {"region1": [[[10, 10], [20, 20]]], "region2": [[[30, 30], [40, 40]]]}
     bounds = utilities.draw_boundary(annotations, offset=5)
     assert isinstance(bounds, list)
     assert len(bounds) == 2
     assert bounds[0][0] <= bounds[0][1]  # x-min < x-max
-    
+
     result = utilities.draw_boundary(annotations, offset=5)
     assert result == [(5, 45), (5, 45)]
 
@@ -242,42 +237,47 @@ def test_get_size_scaling():
 
 
 ### ---------- TEST: calculate_std_mean ----------
-@patch('cv2.imread')
-@patch('glob.glob')
-
+@patch("cv2.imread")
+@patch("glob.glob")
 def test_calculate_std_mean(mock_glob, mock_imread):
     # Prepare fake image patches
     patches_rgb = [
         np.ones((4, 4, 3), dtype=np.uint8) * 50,
         np.ones((4, 4, 3), dtype=np.uint8) * 100,
-        np.ones((4, 4, 3), dtype=np.uint8) * 150
+        np.ones((4, 4, 3), dtype=np.uint8) * 150,
     ]
 
     # Function to mock cv2.imread
     def fake_imread(path):
         mapping = {
-            'patch1.png': patches_rgb[0],
-            'patch2.png': patches_rgb[1],
-            'patch3.png': patches_rgb[2],
+            "patch1.png": patches_rgb[0],
+            "patch2.png": patches_rgb[1],
+            "patch3.png": patches_rgb[2],
         }
         return mapping[path].copy()
 
     # Patch glob.glob to return fake file paths, and cv2.imread to return the fake images
-    with patch('glob.glob', return_value=['patch1.png', 'patch2.png', 'patch3.png']), \
-         patch('cv2.imread', side_effect=fake_imread):
-        
-        mean, std = utilities.calculate_std_mean('dummy_path', channel=True, norm=True)
+    with patch(
+        "glob.glob", return_value=["patch1.png", "patch2.png", "patch3.png"]
+    ), patch("cv2.imread", side_effect=fake_imread):
+        mean, std = utilities.calculate_std_mean("dummy_path", channel=True, norm=True)
 
     # Expected values
-    expected_mean = np.array([100/255]*3)
-    expected_std = np.sqrt(np.mean([(50/255-100/255)**2,
-                                    (100/255-100/255)**2,
-                                    (150/255-100/255)**2])) * np.ones(3)
+    expected_mean = np.array([100 / 255] * 3)
+    expected_std = np.sqrt(
+        np.mean(
+            [
+                (50 / 255 - 100 / 255) ** 2,
+                (100 / 255 - 100 / 255) ** 2,
+                (150 / 255 - 100 / 255) ** 2,
+            ]
+        )
+    ) * np.ones(3)
 
     assert np.allclose(mean, expected_mean, atol=1e-6)
     assert np.allclose(std, expected_std, atol=1e-6)
-  
-    
+
+
 def test_entropy_functions():
     """Combined tests for image_entropy and entropy functions."""
     blank_tile = np.zeros((50, 50), dtype=np.uint8)
@@ -288,54 +288,63 @@ def test_entropy_functions():
     avg_entropy_blank = utilities.image_entropy(blank_tile)
     avg_entropy_white = utilities.image_entropy(white_tile)
     avg_entropy_random = utilities.image_entropy(random_tile)
-    
 
     assert avg_entropy_blank < 0.1
     assert avg_entropy_white < 0.1
     assert avg_entropy_random > 0.5
 
     # --- entropy (low-information detection) tests ---
-    assert  utilities.low_entropy(blank_tile, threshold=0.1)
-    assert not  utilities.low_entropy(random_tile, threshold=0.1)
+    assert utilities.low_entropy(blank_tile, threshold=0.1)
+    assert not utilities.low_entropy(random_tile, threshold=0.1)
 
 
 def test_tile_intensity_grayscale_blank():
     """Tests for the tile_intensity function."""
 
     blank_tile = np.zeros((50, 50), dtype=np.uint8)
-    
-    assert not utilities.tile_intensity(blank_tile, threshold=10), "Blank tile should be below threshold"
- 
+
+    assert not utilities.tile_intensity(blank_tile, threshold=10), (
+        "Blank tile should be below threshold"
+    )
+
 
 def test_tile_intensity_grayscale_random():
-    
+
     random_tile = np.random.randint(0, 256, (50, 50), dtype=np.uint8)
-   
-    assert utilities.tile_intensity(random_tile, threshold=0), "Random tile should be above threshold"
+
+    assert utilities.tile_intensity(random_tile, threshold=0), (
+        "Random tile should be above threshold"
+    )
 
 
 def test_tile_intensity_color_channels():
     # Color tile
     color_tile = np.random.randint(0, 256, (50, 50, 3), dtype=np.uint8)
-    
+
     # --- Color channel tests ---
     for c in range(3):
-        assert utilities.tile_intensity(color_tile, threshold=0, channel=c), f"Channel {c} should be above threshold"
+        assert utilities.tile_intensity(color_tile, threshold=0, channel=c), (
+            f"Channel {c} should be above threshold"
+        )
 
 
 def test_tile_intensity_color_full_tile():
     # Color tile
     color_tile = np.random.randint(0, 256, (50, 50, 3), dtype=np.uint8)
-    
+
     # --- No channel, full tile mean ---
-    assert utilities.tile_intensity(color_tile, threshold=0), "Mean of color tile should be above threshold"
+    assert utilities.tile_intensity(color_tile, threshold=0), (
+        "Mean of color tile should be above threshold"
+    )
 
 
 def test_tile_intensity_color_zero_tile():
     # Zero tile
-    zero_tile = np.zeros((50,50,3), dtype=np.uint8)
-    
-    assert not utilities.tile_intensity(zero_tile, threshold=0.1), "Zero tile should be below threshold"
+    zero_tile = np.zeros((50, 50, 3), dtype=np.uint8)
+
+    assert not utilities.tile_intensity(zero_tile, threshold=0.1), (
+        "Zero tile should be below threshold"
+    )
 
 
 def test_calculate_std_mean_rgb_normalized():
@@ -343,55 +352,64 @@ def test_calculate_std_mean_rgb_normalized():
     patches_rgb = [
         np.ones((4, 4, 3), dtype=np.uint8) * 50,
         np.ones((4, 4, 3), dtype=np.uint8) * 100,
-        np.ones((4, 4, 3), dtype=np.uint8) * 150
+        np.ones((4, 4, 3), dtype=np.uint8) * 150,
     ]
 
     # Function to mock cv2.imread
     def fake_imread(path):
         mapping = {
-            'patch1.png': patches_rgb[0],
-            'patch2.png': patches_rgb[1],
-            'patch3.png': patches_rgb[2],
+            "patch1.png": patches_rgb[0],
+            "patch2.png": patches_rgb[1],
+            "patch3.png": patches_rgb[2],
         }
         return mapping[path].copy()
 
     # Patch glob.glob to return fake file paths, and cv2.imread to return the fake images
-    with patch('glob.glob', return_value=['patch1.png', 'patch2.png', 'patch3.png']), \
-         patch('cv2.imread', side_effect=fake_imread):
-        
-        mean, std = utilities.calculate_std_mean('dummy_path', channel=True, norm=True)
+    with patch(
+        "glob.glob", return_value=["patch1.png", "patch2.png", "patch3.png"]
+    ), patch("cv2.imread", side_effect=fake_imread):
+        mean, std = utilities.calculate_std_mean("dummy_path", channel=True, norm=True)
 
     # Expected values
-    expected_mean = np.array([100/255]*3)
-    expected_std = np.sqrt(np.mean([(50/255-100/255)**2,
-                                    (100/255-100/255)**2,
-                                    (150/255-100/255)**2])) * np.ones(3)
+    expected_mean = np.array([100 / 255] * 3)
+    expected_std = np.sqrt(
+        np.mean(
+            [
+                (50 / 255 - 100 / 255) ** 2,
+                (100 / 255 - 100 / 255) ** 2,
+                (150 / 255 - 100 / 255) ** 2,
+            ]
+        )
+    ) * np.ones(3)
 
     assert np.allclose(mean, expected_mean, atol=1e-6)
     assert np.allclose(std, expected_std, atol=1e-6)
+
 
 def test_calculate_std_mean_grayscale_non_normalized():
     # Grayscale images without normalization -----
     # Prepare fake grayscale patches
     imgs_gray = [
         np.ones((4, 4, 1), dtype=np.uint8) * 20,
-        np.ones((4, 4, 1), dtype=np.uint8) * 40
+        np.ones((4, 4, 1), dtype=np.uint8) * 40,
     ]
 
     # Function to mock cv2.imread
     def fake_imread(path):
         mapping = {
-            'patch1.png': imgs_gray[0],
-            'patch2.png': imgs_gray[1],
+            "patch1.png": imgs_gray[0],
+            "patch2.png": imgs_gray[1],
         }
         # If the path isn't in mapping, return the first image as fallback
         return mapping.get(path, imgs_gray[0]).copy()
 
     # Patch glob.glob to return 2 paths (simulate 2 patches)
-    with patch('glob.glob', return_value=['patch1.png', 'patch2.png']), \
-         patch('cv2.imread', side_effect=fake_imread):
-        
-        mean, std = utilities.calculate_std_mean('dummy_path', channel=False, norm=False)
+    with patch("glob.glob", return_value=["patch1.png", "patch2.png"]), patch(
+        "cv2.imread", side_effect=fake_imread
+    ):
+        mean, std = utilities.calculate_std_mean(
+            "dummy_path", channel=False, norm=False
+        )
 
     # Expected mean and std (no normalization)
     expected_mean = np.array([30.0])
@@ -401,27 +419,27 @@ def test_calculate_std_mean_grayscale_non_normalized():
     assert np.allclose(mean, expected_mean, atol=1e-6)
     assert np.allclose(std, expected_std, atol=1e-6)
 
+
 def test_get_pca():
 
     # ----- Prepare fake .npy data -----
     fake_arrays = [
         np.random.rand(5, 3),
-        np.random.rand(3),       # 1D array
-        np.zeros((4, 3)),        # zero array, should be skipped
-        np.random.rand(5, 3)
+        np.random.rand(3),  # 1D array
+        np.zeros((4, 3)),  # zero array, should be skipped
+        np.random.rand(5, 3),
     ]
-    fake_files = ['a.npy', 'b.npy', 'c.npy', 'd.npy']
+    fake_files = ["a.npy", "b.npy", "c.npy", "d.npy"]
 
-    with patch('glob.glob', return_value=fake_files), \
-         patch('numpy.load', side_effect=fake_arrays), \
-         patch('builtins.print'):
-
+    with patch("glob.glob", return_value=fake_files), patch(
+        "numpy.load", side_effect=fake_arrays
+    ), patch("builtins.print"):
         # Call function
         ipca = utilities.get_pca()
 
         # Should return IncrementalPCA
         assert isinstance(ipca, IncrementalPCA)
-        
+
 
 def test_sample_patches_without_replacement(dummy_patch):
     # ----- Without replacement -----
@@ -447,29 +465,31 @@ def test_sample_patches_with_replacement(dummy_patch):
 
 
 def test_sample_patches_independence(dummy_patch):
-    
+
     new_patch = utilities.sample_patches(dummy_patch, n=5, replacement=False)
     new_patch2 = utilities.sample_patches(dummy_patch, n=7, replacement=True)
-    
+
     # ----- Ensure independence -----
     assert new_patch is not new_patch2
     assert dummy_patch.patches == []
 
+
 def test_visualise_wsi_tiling(tmp_path):
-    
+
     tmp_path = Path(tmp_path)
     save_path = tmp_path / "output.png"
 
     # ----- Dummy WSI -----
     class DummyImage:
         def convert(self, mode):
-            assert mode == 'RGB'
+            assert mode == "RGB"
             return np.zeros((100, 100, 3), dtype=np.uint8)
 
     class DummyWSI:
         def __init__(self):
             self.level_dimensions = [(1000, 1000)] * 4
             self.level_downsamples = [1, 2, 4, 8]
+
         def get_thumbnail(self, dim):
             return DummyImage()
 
@@ -484,45 +504,47 @@ def test_visualise_wsi_tiling(tmp_path):
     tiler = DummyTiler()
 
     # ----- Patch objects in the module where the function is defined (utilities.py) -----
-    with patch("pyslyde.util.utilities.patches.Rectangle") as mock_rect, \
-     patch("pyslyde.util.utilities.plt") as mock_plt, \
-     patch("pyslyde.util.utilities.mpl") as mock_mpl:
-
+    with patch("pyslyde.util.utilities.patches.Rectangle") as mock_rect, patch(
+        "pyslyde.util.utilities.plt"
+    ) as mock_plt, patch("pyslyde.util.utilities.mpl") as mock_mpl:
         utilities.visualise_wsi_tiling(
             wsi=wsi,
             tiler=tiler,
             save_path=str(save_path),
             viewing_res=3,
-            plot_args={'color': 'red', 'size': (12, 12), 'title': ''}
+            plot_args={"color": "red", "size": (12, 12), "title": ""},
         )
 
     # ----- Assertions -----
-    mock_mpl.use.assert_called_once_with('Agg')  # Matplotlib backend set to Agg
-    mock_plt.figure.assert_called_once()          # Figure created
-    mock_plt.imshow.assert_called_once()          # Thumbnail plotted
+    mock_mpl.use.assert_called_once_with("Agg")  # Matplotlib backend set to Agg
+    mock_plt.figure.assert_called_once()  # Figure created
+    mock_plt.imshow.assert_called_once()  # Thumbnail plotted
     mock_plt.savefig.assert_called_once_with(str(save_path))  # Image saved
-    mock_plt.close.assert_called_once()           # Figure closed
+    mock_plt.close.assert_called_once()  # Figure closed
 
 
 #####################################################################
 #####################   class TissueDetect ##########################
 #####################################################################
 
+
 def test_TissueDetect_with_numpy_slide(dummy_slide):
-    
+
     # --- slide is a NumPy array (not OpenSlide) ---
     slide_obj = dummy_slide
-    
+
     td = utilities.TissueDetect(slide_obj)
-    assert td.slide == slide_obj   # same object
+    assert td.slide == slide_obj  # same object
     assert td.slide.level_downsamples == [1, 2, 4, 8, 16, 32]
     assert td.slide.level_dimensions == [(100, 100)] * 6
     assert td.slide.shape == [100, 100, 3]
-    assert np.array_equal(td.slide.get_thumbnail(), np.ones((100, 100, 3), dtype=np.uint8) * 128)
+    assert np.array_equal(
+        td.slide.get_thumbnail(), np.ones((100, 100, 3), dtype=np.uint8) * 128
+    )
     assert td.tissue_mask is None
     assert td.contour_mask is None
-    
-    
+
+
 def test_detect_tissue_OpenSlide_slide(dummy_slide_OpenSlide):
     # --- slide is OpenSlide mock ---
     slide_os = dummy_slide_OpenSlide(as_pil=True)
@@ -541,6 +563,7 @@ def test_detect_tissue_OpenSlide_slide(dummy_slide_OpenSlide):
 
     # --- call detect_tissue and test output ---
     from openslide import OpenSlide as RealOpenSlide
+
     utilities.OpenSlide = RealOpenSlide
 
     mask_os = td_os.detect_tissue()
@@ -552,13 +575,13 @@ def test_detect_tissue_OpenSlide_slide(dummy_slide_OpenSlide):
     assert td_os.tissue_mask.shape == expected_shape
 
     # Mask values should be 0 or 1
-    assert set(np.unique(mask_os)).issubset({0, 1})   
- 
-    
+    assert set(np.unique(mask_os)).issubset({0, 1})
+
+
 def test_mask_image_with_numpy_slide(dummy_slide):
-    
+
     d_slide = dummy_slide
-    
+
     # --- slide is a NumPy array (not OpenSlide) ---
     td = utilities.TissueDetect(d_slide())
     td.contour_mask = np.ones((100, 100), dtype=np.uint8)
@@ -568,7 +591,7 @@ def test_mask_image_with_numpy_slide(dummy_slide):
     assert masked.shape == thumb.shape
 
 
-def test_mask_image_with_OpenSlide_slide(dummy_slide_OpenSlide): 
+def test_mask_image_with_OpenSlide_slide(dummy_slide_OpenSlide):
     # --- slide is OpenSlide ---
     td_op = utilities.TissueDetect(dummy_slide_OpenSlide())
     td_op.contour_mask = np.ones((100, 100), dtype=np.uint8)
@@ -589,7 +612,7 @@ def test_detect_tissue_numpy():
     mask_np = td_np.detect_tissue()
 
     assert isinstance(mask_np, np.ndarray)
-    
+
     # mask should be 2D (height, width)
     assert mask_np.shape == slide_np.shape[:2]
 
@@ -601,7 +624,6 @@ def test_detect_tissue_numpy():
     assert set(unique_values).issubset({0, 1})
 
 
-
 def test_generate_tissue_contour_numpy():
     # NumPy array slide
     slide_np = np.ones((100, 100, 3), dtype=np.uint8) * 128
@@ -609,7 +631,7 @@ def test_generate_tissue_contour_numpy():
     contours_np = td_np._generate_tissue_contour()
 
     # Check that contours is iterable
-    assert hasattr(contours_np, '__iter__')
+    assert hasattr(contours_np, "__iter__")
     assert td_np.contour_mask is not None
     assert td_np.contour_mask.shape[:2] == slide_np.shape[:2]
 
@@ -623,7 +645,7 @@ def test_generate_tissue_contour_OpenSlide_slide(dummy_slide_OpenSlide):
     slide_os = dummy_slide_OpenSlide(as_pil=True)
     td_os = utilities.TissueDetect(slide_os)
     contours_os = td_os._generate_tissue_contour()
-    assert hasattr(contours_os, '__iter__')
+    assert hasattr(contours_os, "__iter__")
     assert td_os.contour_mask is not None
     assert td_os.contour_mask.shape[:2] == slide_os.dimensions
     for c in contours_os:
@@ -636,7 +658,7 @@ def test_border_numpy():
     slide_np = np.ones((100, 100, 3), dtype=np.uint8) * 128
     td_np = utilities.TissueDetect(slide_np)
     td_np._generate_tissue_contour()
-    
+
     border_coords = td_np.border()
     assert isinstance(border_coords, tuple)
     assert len(border_coords) == 2
@@ -652,7 +674,7 @@ def test_border_OpenSlide_slide(dummy_slide_OpenSlide):
     slide_os = dummy_slide_OpenSlide(as_pil=True)  # PIL mock, has .dimensions
     td_os = utilities.TissueDetect(slide_os)
     td_os._generate_tissue_contour()
-    
+
     border_coords_os = td_os.border()
     assert isinstance(border_coords_os, tuple)
     assert len(border_coords_os) == 2
@@ -666,26 +688,39 @@ def test_border_OpenSlide_slide(dummy_slide_OpenSlide):
 def test_tissue_thumbnail():
     # Mock slide
     mock_slide = MagicMock()
-    
+
     # Mock slide.level_downsamples and level_dimensions
     mock_slide.level_downsamples = [1, 2, 4, 8, 16, 32]
-    mock_slide.level_dimensions = [(256, 256), (128, 128), (64, 64), (32, 32), (16, 16), (8, 8)]
-    
+    mock_slide.level_dimensions = [
+        (256, 256),
+        (128, 128),
+        (64, 64),
+        (32, 32),
+        (16, 16),
+        (8, 8),
+    ]
+
     # Mock get_thumbnail to return a PIL Image with correct size
     from PIL import Image
-    mock_slide.get_thumbnail.side_effect = lambda size: Image.fromarray(np.zeros((size[1], size[0], 3), dtype=np.uint8))
-    
+
+    mock_slide.get_thumbnail.side_effect = lambda size: Image.fromarray(
+        np.zeros((size[1], size[0], 3), dtype=np.uint8)
+    )
+
     # Instantiate TissueDetect with the mock slide
     td = utilities.TissueDetect(mock_slide)
-    
+
     # Mock _generate_tissue_contour to return a simple contour
-    td._generate_tissue_contour = MagicMock(return_value=[np.array([[0,0],[0,10],[10,10],[10,0]])])
-    
+    td._generate_tissue_contour = MagicMock(
+        return_value=[np.array([[0, 0], [0, 10], [10, 10], [10, 0]])]
+    )
+
     # Call the property
     thumbnail = td.tissue_thumbnail
-    
+
     # Assertions
     assert isinstance(thumbnail, np.ndarray), "Thumbnail should be a numpy array"
     assert thumbnail.shape[2] == 3, "Thumbnail should have 3 channels (RGB)"
-    assert np.all(thumbnail >= 0) and np.all(thumbnail <= 255), "Pixel values should be in 0-255 range"
-   
+    assert np.all(thumbnail >= 0) and np.all(thumbnail <= 255), (
+        "Pixel values should be in 0-255 range"
+    )
