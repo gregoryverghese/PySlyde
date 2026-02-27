@@ -53,6 +53,7 @@ classifiers = [
 [project.optional-dependencies]
 test = [
     "pytest",
+    "pytest-cov",
     "scikit-learn"
 ]
 dev = [
