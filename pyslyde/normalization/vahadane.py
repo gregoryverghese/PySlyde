@@ -190,7 +190,7 @@ class VahadaneStainNormalizer(StainNormalizer):
                 print(f"[Vahadane] cosine similarity: {cos_sim:.3f}")
 
             if cos_sim > 0.95 and self.verbose:
-                print(f"[Vahadane] Warning: stain basis nearly collinear")
+                print("[Vahadane] Warning: stain basis nearly collinear")
 
         return W_est
 

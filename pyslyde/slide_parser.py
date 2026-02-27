@@ -1,19 +1,12 @@
 """Whole Slide Image (WSI) parser and stitching utilities for PySlyde."""
 
 import os
-import glob
-import json
 import random
-import operator as op
 from typing import List, Tuple, Optional, Generator, Callable, Dict, Any
-from itertools import chain
 
 import numpy as np
 import cv2
-import seaborn as sns
-from matplotlib.path import Path
 from openslide import OpenSlide
-from openslide.deepzoom import DeepZoomGenerator
 import pandas as pd
 
 from pyslyde.io.lmdb_io import LMDBWrite
@@ -207,7 +200,7 @@ class WSIParser:
             Tuple of tile coordinates and feature vector.
         """
         encode = FeatureGenerator(model_name, model_path)
-        print(f"Extracting features...")
+        print("Extracting features...")
         print(f"checking again... {len(self.tiles)}")
 
         for i, t in enumerate(self.tiles):

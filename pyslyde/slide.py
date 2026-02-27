@@ -8,21 +8,16 @@ Annotations class: Parses annotation files from QuPath, ImageJ, and ASAP.
 """
 
 import os
-import glob
 import json
-import itertools
 import operator as op
 import xml.etree.ElementTree as ET
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable, Sequence
+from typing import Dict, List, Optional, Tuple, Union, Callable
 from itertools import chain
 
 import numpy as np
 import cv2
-import openslide
 from openslide import OpenSlide
 import pandas as pd
-from matplotlib.path import Path
-import seaborn as sns
 
 from pyslyde.util.utilities import mask2rgb
 
@@ -59,7 +54,7 @@ class Slide(OpenSlide):
         super().__init__(filename)
 
         # Check magnification level
-        if not mag in list(Slide.MAG_FACTORS.keys()):
+        if mag not in list(Slide.MAG_FACTORS.keys()):
             raise KeyError(f"mag must be in {list(Slide.MAG_FACTORS.keys())}")
 
         self.mag: int = mag
@@ -286,7 +281,7 @@ class Slide(OpenSlide):
         """
 
         # Check valid magnification
-        if not mag in list(self.MAG_FACTORS.keys()):
+        if mag not in list(self.MAG_FACTORS.keys()):
             raise KeyError(f"mag must be in {list(Slide.MAG_FACTORS.keys())}")
 
         x_min: int = 0
@@ -482,7 +477,7 @@ class Annotations:
             the current self._annotations.
 
         """
-        invalid_labels = [lab for lab in labels if not lab in self._annotations.keys()]
+        invalid_labels = [lab for lab in labels if lab not in self._annotations.keys()]
         if invalid_labels:
             raise KeyError(f"Labels {invalid_labels} are not present in annotations")
 

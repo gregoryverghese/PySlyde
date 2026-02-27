@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 from skimage.morphology import disk
 from skimage.filters.rank import entropy as skimage_entropy
-from typing import Optional, List, Tuple, Any
+from typing import Optional, List, Any
 
 
 def image_entropy(patch: np.ndarray) -> float:

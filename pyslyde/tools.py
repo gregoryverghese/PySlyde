@@ -9,9 +9,7 @@ import numpy as np
 import geopandas as gpd
 from shapely.geometry import Polygon, shape
 from skimage import measure
-import matplotlib.pyplot as plt
 from scipy.ndimage import binary_fill_holes
-from shapely.validation import make_valid
 import rasterio
 from rasterio.features import rasterize, shapes
 from scipy import ndimage as ndi

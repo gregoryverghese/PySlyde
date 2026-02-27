@@ -21,7 +21,6 @@ from pyslyde.io.disk_io import DiskWrite
 from pyslyde.io.tfrecords_io import TFRecordWrite
 from pyslyde.io.tfrecord_write import (
     getShardNumber,
-    printProgress,
     wrapInt64,
     wrapFloat,
     wrapBytes,

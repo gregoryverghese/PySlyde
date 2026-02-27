@@ -1,14 +1,10 @@
 """LMDB I/O utilities for PySlyde."""
 
-import os
-import glob
 import pickle
-from typing import Generator, Tuple, List, Optional, Any
-from PIL import Image
+from typing import Generator, Tuple, List, Optional
 
 import lmdb
 import numpy as np
-from torch.utils.data import DataLoader, Dataset
 
 
 class NpyObject:

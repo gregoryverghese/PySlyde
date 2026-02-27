@@ -1,10 +1,6 @@
 """Unit tests for PySlyde package."""
 
-import os
-import json
-import xml.etree.ElementTree as ET
 import unittest
-from typing import Dict, List, Any
 
 import numpy as np
 from itertools import chain

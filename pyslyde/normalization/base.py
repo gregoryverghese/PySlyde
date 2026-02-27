@@ -9,7 +9,7 @@ date: 09/09/2025
 import json
 import numpy as np
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 try:
     import cv2  # optional, only for load/save helpers

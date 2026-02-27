@@ -1,11 +1,6 @@
 import os
 import sys
-import json
-import glob
-import argparse
-import math
 
-import cv2
 import numpy as np
 import tensorflow as tf
 
