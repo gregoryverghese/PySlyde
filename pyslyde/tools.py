@@ -59,7 +59,7 @@ def polygons_from_mask(mask):
                 poly_min = poly.convex_hull
                 polygons.append(poly_min)
 
-            elif poly.is_valid == False and poly.area > 0:
+            elif not poly.is_valid and poly.area > 0:
                 resolution = 1  # cell size
                 minx, miny, maxx, maxy = poly.bounds
                 width = int((maxx - minx) / resolution)

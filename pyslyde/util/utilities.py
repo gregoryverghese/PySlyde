@@ -374,7 +374,10 @@ def get_size(slide, size_from, level_from, level_to, integer=True):
     if integer:
         func_round = round
     else:
-        func_round = lambda x: x
+
+        def func_round(x):
+            return x
+
     size_x_new = func_round(float(size_x) * scal)
     size_y_new = func_round(float(size_y) * scal)
     size_to = size_x_new, size_y_new

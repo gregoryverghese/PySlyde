@@ -108,11 +108,11 @@ class Slide(OpenSlide):
         if labels:
             # Convert string labels to integer keys if needed
             label_keys = []
-            for l in labels:
-                if isinstance(l, str) and l in self.annotations.class_key:
-                    label_keys.append(self.annotations.class_key[l])
-                elif isinstance(l, int):
-                    label_keys.append(l)
+            for label in labels:
+                if isinstance(label, str) and label in self.annotations.class_key:
+                    label_keys.append(self.annotations.class_key[label])
+                elif isinstance(label, int):
+                    label_keys.append(label)
             labels = label_keys
         else:
             labels = keys
@@ -186,12 +186,21 @@ class Slide(OpenSlide):
             else:
                 coordinates = list(chain(*list(coordinates.values())))
                 coordinates = list(chain(*coordinates))
-                f = lambda x: (min(x) - space, max(x) + space)
-                self._border = list(map(f, list(zip(*coordinates))))
+
+                self._border = list(
+                    map(
+                        lambda x: (min(x) - space, max(x) + space),
+                        list(zip(*coordinates)),
+                    )
+                )
 
         mag_factor = Slide.MAG_FACTORS[self.mag]
-        f = lambda x: (int(x[0] / mag_factor), int(x[1] / mag_factor))
-        self._border = list(map(f, self._border))
+
+        self._border = list(
+            map(
+                lambda x: (int(x[0] / mag_factor), int(x[1] / mag_factor)), self._border
+            )
+        )
 
         return self._border
 
@@ -429,7 +438,7 @@ class Annotations:
     def class_key(self) -> Dict[str, int]:
         if self.labels is None:
             self.labels = list(self._annotations.keys()) if self._annotations else []
-        class_key = {l: i + 1 for i, l in enumerate(self.labels)}
+        class_key = {label: i + 1 for i, label in enumerate(self.labels)}
         return class_key
 
     @property
@@ -553,7 +562,7 @@ class Annotations:
         anns = root.findall("Annotation")
         labels = list(root.iter("Annotation"))
         labels = list(set([i.attrib["Name"] for i in labels]))
-        annotations = {l: [] for l in labels}
+        annotations = {label: [] for label in labels}
         for i in anns:
             label = i.attrib["Name"]
             instances = list(i.iter("Vertices"))
@@ -586,7 +595,7 @@ class Annotations:
         ns = root[0].findall("Annotation")
         labels = list(root.iter("Annotation"))
         labels = list(set([i.attrib["PartOfGroup"] for i in labels]))
-        annotations = {l: [] for l in labels}
+        annotations = {label: [] for label in labels}
         for i in ns:
             coordinates = list(i.iter("Coordinate"))
             coordinates = [
@@ -668,9 +677,9 @@ class Annotations:
         anns_df.set_index("labels", drop=True, inplace=True)
         self.labels = list(set(anns_df.index))
         annotations: Dict[str, List[List[List[int]]]] = {}
-        for l in self.labels:
-            coords = list(zip(anns_df.loc[l].x, anns_df.loc[l].y))
-            annotations[l] = [[[int(x), int(y)] for x, y in coords]]
+        for label in self.labels:
+            coords = list(zip(anns_df.loc[label].x, anns_df.loc[label].y))
+            annotations[label] = [[[int(x), int(y)] for x, y in coords]]
 
         self._annotations = annotations
 
@@ -696,9 +705,9 @@ class Annotations:
         anns_df.set_index("labels", drop=True, inplace=True)
         labels = list(set(anns_df.index))
         annotations: Dict[str, List[List[List[int]]]] = {}
-        for l in labels:
-            coords = list(zip(anns_df.loc[l].x, anns_df.loc[l].y))
-            annotations[l] = [[[int(x), int(y)] for x, y in coords]]
+        for label in labels:
+            coords = list(zip(anns_df.loc[label].x, anns_df.loc[label].y))
+            annotations[label] = [[[int(x), int(y)] for x, y in coords]]
 
         self._annotations = annotations
         return annotations
@@ -712,7 +721,10 @@ class Annotations:
         """
         if self._annotations is None:
             return pd.DataFrame()
-        labels = [[l] * len(self._annotations[l][0]) for l in self._annotations.keys()]
+        labels = [
+            [label] * len(self._annotations[label][0])
+            for label in self._annotations.keys()
+        ]
         labels = list(chain(*labels))
         x_values = [xi[0] for x in list(self._annotations.values()) for xi in x[0]]
         y_values = [yi[1] for y in list(self._annotations.values()) for yi in y[0]]
