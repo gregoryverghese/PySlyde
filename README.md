@@ -201,7 +201,7 @@ If you use PySlyde in your research, please cite:
 ```bibtex
 @software{pyslyde2024,
   title={PySlyde: A Lightweight, Open-Source Toolkit for Pathology Preprocessing},
-  authors={Gregory Verghese, Anthony Baptista, Chima Eke, Holly Rafique, Liz Ing-Simmons, Enrico Parisini, Mengyuan Li, Fathima Mohamed, Ananya Bhalla, Lucy Ryan, Michael Pitcher, Concetta Piazzese, Dinis Calado, Christopher Banerji, Anita Grigoriadis},
+  authors={Gregory Verghese, Anthony Baptista, Chima Eke, Holly Rafique, Liz Ing-Simmons, Enrico Parisini, Mengyuan Li, Fathima Mohamed, Ananya Bhalla, Lucy Ryan, Michael Pitcher, Concetta Piazzese, James Graham, Dinis Calado, Christopher Banerji, Anita Grigoriadis},
   year={2024},
   url={https://github.com/PharosKCL/pyslyde}
 }
