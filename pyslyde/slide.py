@@ -8,27 +8,22 @@ Annotations class: Parses annotation files from QuPath, ImageJ, and ASAP.
 """
 
 import os
-import glob
 import json
-import itertools
 import operator as op
 import xml.etree.ElementTree as ET
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable, Sequence
+from typing import Dict, List, Optional, Tuple, Union, Callable
 from itertools import chain
 
 import numpy as np
 import cv2
-import openslide
 from openslide import OpenSlide
 import pandas as pd
-from matplotlib.path import Path
-import seaborn as sns
 
 from pyslyde.util.utilities import mask2rgb
 
 
-__author__ = 'Gregory Verghese'
-__email__ = 'gregory.verghese@gmail.com'
+__author__ = "Gregory Verghese"
+__email__ = "gregory.verghese@gmail.com"
 
 
 class Slide(OpenSlide):
@@ -43,36 +38,36 @@ class Slide(OpenSlide):
         draw_border (bool): Whether to generate border based on annotations.
         _border (list): List of border coordinates [(x1, y1), (x2, y2)].
     """
+
     MAG_FACTORS: Dict[int, int] = {0: 1, 1: 2, 2: 4, 3: 8, 4: 16, 5: 32}
     MASK_SIZE: Tuple[int, int] = (2000, 2000)
 
-    def __init__(self,
-                 filename: str,
-                 mag: int = 0,
-                 annotations: Optional['Annotations'] = None,
-                 annotations_path: Optional[Union[str, List[str]]] = None,
-                 labels: Optional[List[str]] = None,
-                 source: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        filename: str,
+        mag: int = 0,
+        annotations: Optional["Annotations"] = None,
+        annotations_path: Optional[Union[str, List[str]]] = None,
+        labels: Optional[List[str]] = None,
+        source: Optional[str] = None,
+    ) -> None:
         super().__init__(filename)
-        
+
         # Check magnification level
-        if not mag in list(Slide.MAG_FACTORS.keys()):
+        if mag not in list(Slide.MAG_FACTORS.keys()):
             raise KeyError(f"mag must be in {list(Slide.MAG_FACTORS.keys())}")
-        
+
         self.mag: int = mag
         self.dims: Tuple[int, int] = self.dimensions
         self.name: str = os.path.basename(filename)
         self._border: Optional[List[Tuple[int, int]]] = None
-        self.annotations: Optional['Annotations'] = None
+        self.annotations: Optional["Annotations"] = None
 
         if annotations is not None:
             self.annotations = annotations
         elif annotations_path is not None and source is not None:
             self.annotations = Annotations(
-                annotations_path,
-                source=source,
-                labels=labels,
-                encode=True
+                annotations_path, source=source, labels=labels, encode=True
             )
 
     @property
@@ -82,8 +77,11 @@ class Slide(OpenSlide):
         mask = mask2rgb(mask)
         return mask
 
-    def generate_mask(self, size: Optional[Tuple[int, int]] = None, 
-                     labels: Optional[List[Union[int, str]]] = None) -> np.ndarray:
+    def generate_mask(
+        self,
+        size: Optional[Tuple[int, int]] = None,
+        labels: Optional[List[Union[int, str]]] = None,
+    ) -> np.ndarray:
         """
         Generate a mask representation of annotations.
 
@@ -95,44 +93,45 @@ class Slide(OpenSlide):
             np.ndarray: Single-channel mask with integer for each class.
         """
         x, y = self.dims[0], self.dims[1]
-    
+
         slide_mask = np.zeros((y, x), dtype=np.uint8)
-        
+
         if self.annotations is None:
             return slide_mask
-        
+
         self.annotations.encode = True
         coordinates = self.annotations.annotations
         if coordinates is None:
             return slide_mask
-            
+
         keys = sorted(list(coordinates.keys()))
         if labels:
             # Convert string labels to integer keys if needed
             label_keys = []
-            for l in labels:
-                if isinstance(l, str) and l in self.annotations.class_key:
-                    label_keys.append(self.annotations.class_key[l])
-                elif isinstance(l, int):
-                    label_keys.append(l)
+            for label in labels:
+                if isinstance(label, str) and label in self.annotations.class_key:
+                    label_keys.append(self.annotations.class_key[label])
+                elif isinstance(label, int):
+                    label_keys.append(label)
             labels = label_keys
         else:
             labels = keys
-        
+
         for k in keys:
             if k in labels:
                 v = coordinates[k]
                 v = [np.array(a) for a in v]
                 cv2.fillPoly(slide_mask, v, color=(int(k),))
-        
+
         if size is not None:
             slide_mask = cv2.resize(slide_mask, size)
-    
+
         return slide_mask
 
     @staticmethod
-    def resize_border(dim: int, factor: int = 1, threshold: Optional[int] = None, 
-                     operator: str = '=>') -> int:
+    def resize_border(
+        dim: int, factor: int = 1, threshold: Optional[int] = None, operator: str = "=>"
+    ) -> int:
         """
         Resize and redraw annotation border. Useful to trim WSI and mask to a specific size.
 
@@ -148,13 +147,20 @@ class Slide(OpenSlide):
         if threshold is None:
             threshold = dim
 
-        operator_dict: Dict[str, Callable] = {'>': op.gt, '=>': op.ge, '<': op.lt, '=<': op.lt}
-        
+        operator_dict: Dict[str, Callable] = {
+            ">": op.gt,
+            "=>": op.ge,
+            "<": op.lt,
+            "=<": op.lt,
+        }
+
         # Check valid operator
         try:
             op_func = operator_dict[operator]
         except KeyError:
-            raise KeyError(f"Operation '{operator}' invalid. Must be one of {list(operator_dict.keys())}")
+            raise KeyError(
+                f"Operation '{operator}' invalid. Must be one of {list(operator_dict.keys())}"
+            )
         multiples = [factor * i for i in range(100000)]
         multiples = [m for m in multiples if op_func(m, threshold)]
         diff = list(map(lambda x: abs(dim - x), multiples))
@@ -180,17 +186,30 @@ class Slide(OpenSlide):
             else:
                 coordinates = list(chain(*list(coordinates.values())))
                 coordinates = list(chain(*coordinates))
-                f = lambda x: (min(x) - space, max(x) + space)
-                self._border = list(map(f, list(zip(*coordinates))))
+
+                self._border = list(
+                    map(
+                        lambda x: (min(x) - space, max(x) + space),
+                        list(zip(*coordinates)),
+                    )
+                )
 
         mag_factor = Slide.MAG_FACTORS[self.mag]
-        f = lambda x: (int(x[0] / mag_factor), int(x[1] / mag_factor))
-        self._border = list(map(f, self._border))
+
+        self._border = list(
+            map(
+                lambda x: (int(x[0] / mag_factor), int(x[1] / mag_factor)), self._border
+            )
+        )
 
         return self._border
 
-    def detect_components(self, level_dims: int = 6, num_component: Optional[int] = None, 
-                         min_size: Optional[int] = None) -> Tuple[List[np.ndarray], List[List[Tuple[int, int]]]]:
+    def detect_components(
+        self,
+        level_dims: int = 6,
+        num_component: Optional[int] = None,
+        min_size: Optional[int] = None,
+    ) -> Tuple[List[np.ndarray], List[List[Tuple[int, int]]]]:
         """
         Find the largest section on the slide.
 
@@ -220,13 +239,13 @@ class Slide(OpenSlide):
         borders: List[List[Tuple[int, int]]] = []
         components: List[np.ndarray] = []
         image_new = image.copy()
-        
+
         for c in contours:
             if isinstance(c, (list, np.ndarray)):
                 x, y, w, h = cv2.boundingRect(np.array(c))
             else:
                 continue
-                
+
             x_scale = self.dims[0] / new_dims[0]
             y_scale = self.dims[1] / new_dims[1]
             x1 = round(x_scale * x)
@@ -240,16 +259,18 @@ class Slide(OpenSlide):
 
         return components, borders
 
-    def generate_region(self,
-                        mag: int = 0,
-                        x: Optional[Union[int, Tuple[int, int]]] = None,
-                        y: Optional[Union[int, Tuple[int, int]]] = None,
-                        x_size: Optional[int] = None,
-                        y_size: Optional[int] = None,
-                        scale_border: bool = False,
-                        factor: int = 1,
-                        threshold: Optional[int] = None,
-                        operator: str = '=>') -> Tuple[np.ndarray, np.ndarray]:
+    def generate_region(
+        self,
+        mag: int = 0,
+        x: Optional[Union[int, Tuple[int, int]]] = None,
+        y: Optional[Union[int, Tuple[int, int]]] = None,
+        x_size: Optional[int] = None,
+        y_size: Optional[int] = None,
+        scale_border: bool = False,
+        factor: int = 1,
+        threshold: Optional[int] = None,
+        operator: str = "=>",
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Extract a specific region of the slide.
 
@@ -267,44 +288,42 @@ class Slide(OpenSlide):
         Returns:
             tuple: (Extracted region as RGB ndarray, mask)
         """
-        
+
         # Check valid magnification
-        if not mag in list(self.MAG_FACTORS.keys()):
+        if mag not in list(self.MAG_FACTORS.keys()):
             raise KeyError(f"mag must be in {list(Slide.MAG_FACTORS.keys())}")
-        
+
         x_min: int = 0
         y_min: int = 0
         x_max: int = 0
         y_max: int = 0
-        
+
         if x is None:
             border = self.get_border()
             if border and len(border) >= 2:
                 x, y = border[0], border[1]
             else:
                 x, y = (0, self.dims[0]), (0, self.dims[1])
-                
+
         if x is not None:
             if isinstance(x, tuple):
                 if x_size is None:
                     x_min, x_max = x
                     x_size = x_max - x_min
-                    
+
                 elif x_size is not None:
                     x_min = x[0]
                     x_max = x_min + x_size
             elif isinstance(x, int):
                 x_min = x
                 x_max = x + (x_size or 0)
-                
+
         if y is not None:
             if isinstance(y, tuple):
                 if y_size is None:
                     y_min, y_max = y
                     y_size = y_max - y_min
-                    
-                    
-                        
+
                 elif y_size is not None:
                     y_min = y[0]
                     y_max = y_min + y_size
@@ -314,14 +333,14 @@ class Slide(OpenSlide):
 
         # Check values lie within the WSI border
         if x_min < 0 or x_max > self.dims[0]:
-            raise ValueError(f'x values ({x_min}, {x_max}) are outside WSI boundary')
+            raise ValueError(f"x values ({x_min}, {x_max}) are outside WSI boundary")
         if y_min < 0 or y_max > self.dims[0]:
-            raise ValueError(f'y values ({y_min}, {y_max}) are outside WSI boundary')
+            raise ValueError(f"y values ({y_min}, {y_max}) are outside WSI boundary")
 
         if scale_border and x_size is not None and y_size is not None:
             x_size = Slide.resize_border(x_size, factor, threshold, operator)
             y_size = Slide.resize_border(y_size, factor, threshold, operator)
-            
+
         if x_size is not None and (x_min + x_size) > self.dimensions[0]:
             x_size = self.dimensions[0] - x_min
         if y_size is not None and (y_min + y_size) > self.dimensions[1]:
@@ -333,11 +352,13 @@ class Slide(OpenSlide):
         x_size_adj = int(x_size / Slide.MAG_FACTORS[mag])
         y_size_adj = int(y_size / Slide.MAG_FACTORS[mag])
         region = self.read_region((x_min, y_min), mag, (x_size_adj, y_size_adj))
-        mask = self.generate_mask()[y_min:y_min + y_size, x_min:x_min + x_size]
+        mask = self.generate_mask()[y_min : y_min + y_size, x_min : x_min + x_size]
 
-        return np.array(region.convert('RGB')), mask
+        return np.array(region.convert("RGB")), mask
 
-    def save(self, path: str, size: Tuple[int, int] = (2000, 2000), mask: bool = False) -> None:
+    def save(
+        self, path: str, size: Tuple[int, int] = (2000, 2000), mask: bool = False
+    ) -> None:
         """
         Save a thumbnail of the slide as an image file.
 
@@ -350,7 +371,7 @@ class Slide(OpenSlide):
             cv2.imwrite(path, self.slide_mask)
         else:
             image = self.get_thumbnail(size)
-            image = image.convert('RGB')
+            image = image.convert("RGB")
             image = np.array(image)
             cv2.imwrite(path, image)
 
@@ -367,16 +388,21 @@ class Annotations:
         encode (bool): Whether to encode labels as integers.
     """
 
-    def __init__(self, path: Union[str, List[str]], source: str, 
-                 labels: Optional[List[str]] = None, encode: bool = False) -> None:
-        
+    def __init__(
+        self,
+        path: Union[str, List[str]],
+        source: str,
+        labels: Optional[List[str]] = None,
+        encode: bool = False,
+    ) -> None:
+
         self.paths: List[str] = path if isinstance(path, list) else [path]
         self.source: str = source
         self.labels: Optional[List[str]] = labels
         self.encode: bool = encode
         self._annotations: Optional[Dict[Union[str, int], List[List[List[int]]]]] = None
         self._generate_annotations()
-        
+
         # Check labels exist in annotation file
         self._check_labels(self.labels)
 
@@ -412,7 +438,7 @@ class Annotations:
     def class_key(self) -> Dict[str, int]:
         if self.labels is None:
             self.labels = list(self._annotations.keys()) if self._annotations else []
-        class_key = {l: i + 1 for i, l in enumerate(self.labels)}
+        class_key = {label: i + 1 for i, label in enumerate(self.labels)}
         return class_key
 
     @property
@@ -431,8 +457,8 @@ class Annotations:
             self._paths = [self.paths]
         if self.source is not None:
             for p in self.paths:
-                annotations = getattr(self, '_' + self.source)(p)
-                
+                annotations = getattr(self, "_" + self.source)(p)
+
                 for k, v in annotations.items():
                     if k in self._annotations:
                         self._annotations[k].append(v)
@@ -460,11 +486,13 @@ class Annotations:
             the current self._annotations.
 
         """
-        invalid_labels = [lab for lab in labels if not lab in self._annotations.keys()]
+        invalid_labels = [lab for lab in labels if lab not in self._annotations.keys()]
         if invalid_labels:
             raise KeyError(f"Labels {invalid_labels} are not present in annotations")
 
-    def filter_labels(self, labels: List[str]) -> Dict[Union[str, int], List[List[List[int]]]]:
+    def filter_labels(
+        self, labels: List[str]
+    ) -> Dict[Union[str, int], List[List[List[int]]]]:
         """
         Remove labels from annotations.
 
@@ -473,14 +501,14 @@ class Annotations:
 
         Returns:
             dict: Filtered annotation dictionary.
-        """     
+        """
         # Check labels exist in annotations
         self._check_labels(labels)
-        
+
         self.labels = labels
         if self._annotations is None:
             return {}
-        
+
         keys = list(self._annotations.keys())
         for k in keys:
             if k not in labels:
@@ -496,7 +524,7 @@ class Annotations:
         """
         # Check all labels to rename already exist in annotations
         self._check_labels(list(names.keys()))
-        
+
         if self._annotations is None:
             return
         for k, v in names.items():
@@ -529,21 +557,23 @@ class Annotations:
             tree = ET.parse(path)
         except ET.ParseError as e:
             raise ET.ParseError(f"Unable to decode {path} as XML: {e}")
-        
+
         root = tree.getroot()
-        anns = root.findall('Annotation')
-        labels = list(root.iter('Annotation'))
-        labels = list(set([i.attrib['Name'] for i in labels]))
-        annotations = {l: [] for l in labels}
+        anns = root.findall("Annotation")
+        labels = list(root.iter("Annotation"))
+        labels = list(set([i.attrib["Name"] for i in labels]))
+        annotations = {label: [] for label in labels}
         for i in anns:
-            label = i.attrib['Name']
-            instances = list(i.iter('Vertices'))
+            label = i.attrib["Name"]
+            instances = list(i.iter("Vertices"))
             for j in instances:
-                coordinates = list(j.iter('Vertex'))
-                coordinates = [[c.attrib['X'], c.attrib['Y']] for c in coordinates]
-                coordinates = [[round(float(c[0])), round(float(c[1]))] for c in coordinates]
+                coordinates = list(j.iter("Vertex"))
+                coordinates = [[c.attrib["X"], c.attrib["Y"]] for c in coordinates]
+                coordinates = [
+                    [round(float(c[0])), round(float(c[1]))] for c in coordinates
+                ]
                 annotations[label] = annotations[label] + [coordinates]
-                
+
         return annotations
 
     def _asap(self, path: str) -> Dict[str, List[List[List[int]]]]:
@@ -560,17 +590,19 @@ class Annotations:
             tree = ET.parse(path)
         except ET.ParseError as e:
             raise ET.ParseError(f"Unable to decode {path} as XML: {e}")
-            
+
         root = tree.getroot()
-        ns = root[0].findall('Annotation')
-        labels = list(root.iter('Annotation'))
-        labels = list(set([i.attrib['PartOfGroup'] for i in labels]))
-        annotations = {l: [] for l in labels}
+        ns = root[0].findall("Annotation")
+        labels = list(root.iter("Annotation"))
+        labels = list(set([i.attrib["PartOfGroup"] for i in labels]))
+        annotations = {label: [] for label in labels}
         for i in ns:
-            coordinates = list(i.iter('Coordinate'))
-            coordinates = [[float(c.attrib['X']), float(c.attrib['Y'])] for c in coordinates]
+            coordinates = list(i.iter("Coordinate"))
+            coordinates = [
+                [float(c.attrib["X"]), float(c.attrib["Y"])] for c in coordinates
+            ]
             coordinates = [[round(c[0]), round(c[1])] for c in coordinates]
-            label = i.attrib['PartOfGroup']
+            label = i.attrib["PartOfGroup"]
             annotations[label] = annotations[label] + [coordinates]
         return annotations
 
@@ -589,11 +621,13 @@ class Annotations:
             try:
                 j = json.load(json_file)
             except json.JSONDecodeError as e:
-                raise json.JSONDecodeError(f"Unable to decode {path} as JSON: {e}", e.doc, e.pos)
+                raise json.JSONDecodeError(
+                    f"Unable to decode {path} as JSON: {e}", e.doc, e.pos
+                )
         for a in j:
-            c = a['properties']['classification']['name']
-            geometry = a['geometry']['type']
-            coordinates = a['geometry']['coordinates']
+            c = a["properties"]["classification"]["name"]
+            geometry = a["geometry"]["type"]
+            coordinates = a["geometry"]["coordinates"]
             if c not in annotations:
                 annotations[c] = []
             if geometry == "LineString":
@@ -622,13 +656,15 @@ class Annotations:
         """
         with open(path) as json_file:
             json_annotations = json.load(json_file)
-        
+
         labels = list(json_annotations.keys())
         if self.labels is None:
             self.labels = []
         self.labels.extend(labels)
-        annotations = {k: [[[int(i['x']), int(i['y'])] for i in v2] 
-                       for v2 in v.values()] for k, v in json_annotations.items()}
+        annotations = {
+            k: [[[int(i["x"]), int(i["y"])] for i in v2] for v2 in v.values()]
+            for k, v in json_annotations.items()
+        }
         return annotations
 
     def _dataframe(self, path: str) -> None:
@@ -636,14 +672,14 @@ class Annotations:
         Parse a DataFrame with a specific structure.
         """
         anns_df = pd.read_csv(path)
-            
-        anns_df.fillna('undefined', inplace=True)
-        anns_df.set_index('labels', drop=True, inplace=True)
+
+        anns_df.fillna("undefined", inplace=True)
+        anns_df.set_index("labels", drop=True, inplace=True)
         self.labels = list(set(anns_df.index))
         annotations: Dict[str, List[List[List[int]]]] = {}
-        for l in self.labels:
-            coords = list(zip(anns_df.loc[l].x, anns_df.loc[l].y))
-            annotations[l] = [[[int(x), int(y)] for x, y in coords]]
+        for label in self.labels:
+            coords = list(zip(anns_df.loc[label].x, anns_df.loc[label].y))
+            annotations[label] = [[[int(x), int(y)] for x, y in coords]]
 
         self._annotations = annotations
 
@@ -658,18 +694,20 @@ class Annotations:
             dict: Annotations dictionary.
         """
         anns_df = pd.read_csv(path)
-        
+
         # Check necessary columns exist
-        if not all(col in anns_df.columns for col in ['labels', 'x', 'y']):
-            raise KeyError("Invalid csv file structure: must contain columns 'label', 'x' and 'y'")
-        
-        anns_df.fillna('undefined', inplace=True)
-        anns_df.set_index('labels', drop=True, inplace=True)
+        if not all(col in anns_df.columns for col in ["labels", "x", "y"]):
+            raise KeyError(
+                "Invalid csv file structure: must contain columns 'label', 'x' and 'y'"
+            )
+
+        anns_df.fillna("undefined", inplace=True)
+        anns_df.set_index("labels", drop=True, inplace=True)
         labels = list(set(anns_df.index))
         annotations: Dict[str, List[List[List[int]]]] = {}
-        for l in labels:
-            coords = list(zip(anns_df.loc[l].x, anns_df.loc[l].y))
-            annotations[l] = [[[int(x), int(y)] for x, y in coords]]
+        for label in labels:
+            coords = list(zip(anns_df.loc[label].x, anns_df.loc[label].y))
+            annotations[label] = [[[int(x), int(y)] for x, y in coords]]
 
         self._annotations = annotations
         return annotations
@@ -683,11 +721,14 @@ class Annotations:
         """
         if self._annotations is None:
             return pd.DataFrame()
-        labels = [[l] * len(self._annotations[l][0]) for l in self._annotations.keys()]
+        labels = [
+            [label] * len(self._annotations[label][0])
+            for label in self._annotations.keys()
+        ]
         labels = list(chain(*labels))
         x_values = [xi[0] for x in list(self._annotations.values()) for xi in x[0]]
         y_values = [yi[1] for y in list(self._annotations.values()) for yi in y[0]]
-        df = pd.DataFrame({'labels': list(labels), 'x': x_values, 'y': y_values})
+        df = pd.DataFrame({"labels": list(labels), "x": x_values, "y": y_values})
 
         return df
 
@@ -699,6 +740,3 @@ class Annotations:
             save_path (str): Path to save the annotations.
         """
         self.df().to_csv(save_path)
-
-
-

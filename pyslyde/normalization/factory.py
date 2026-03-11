@@ -13,6 +13,7 @@ _REGISTRY: Dict[str, Type[StainNormalizer]] = {
     "reinhard": ReinhardStainNormalizer,
 }
 
+
 def make_normalizer(method: str, **kwargs) -> StainNormalizer:
     """
     Factory for creating a stain normalizer.
@@ -33,7 +34,6 @@ def make_normalizer(method: str, **kwargs) -> StainNormalizer:
         cls = _REGISTRY[method.lower()]
     except KeyError:
         raise ValueError(
-            f"Unknown method '{method}'. "
-            f"Available: {list(_REGISTRY.keys())}"
+            f"Unknown method '{method}'. Available: {list(_REGISTRY.keys())}"
         )
     return cls(**kwargs)

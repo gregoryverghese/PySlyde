@@ -1,20 +1,21 @@
 """
-    Stain Normalisation abstract base class
-    Code inspired by staintools and tiatoolbox TODO - add references here
+Stain Normalisation abstract base class
+Code inspired by staintools and tiatoolbox TODO - add references here
 
-    author: Holly Rafique
-    date: 09/09/2025
+author: Holly Rafique
+date: 09/09/2025
 """
+
 import json
 import numpy as np
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 try:
     import cv2  # optional, only for load/save helpers
 except Exception:
     cv2 = None
-    
+
 
 class StainNormalizer(ABC):
     """
@@ -25,6 +26,7 @@ class StainNormalizer(ABC):
       - normalize(source_tile)
       - get_profile() / set_profile(profile)  (for serialization)
     """
+
     def __init__(self) -> None:
         self._fitted: bool = False
 
@@ -43,7 +45,7 @@ class StainNormalizer(ABC):
     def is_fitted(self) -> bool:
         """Whether the normalizer has been fitted with a target."""
         return self._fitted
-    
+
     # ----- Serialization hooks -----
 
     @abstractmethod
@@ -69,12 +71,12 @@ class StainNormalizer(ABC):
     # ----- Shared small utilities -----
 
     @staticmethod
-    def rgb2od(I: np.ndarray, 
-               I0: float | None = None,
-               beta: float | None = None)  -> np.ndarray:
+    def rgb2od(
+        I: np.ndarray, I0: float | None = None, beta: float | None = None
+    ) -> np.ndarray:
         """
         Convert RGB to optical density (OD).
-        
+
         Parameters
         ----------
         I : np.ndarray
@@ -98,13 +100,13 @@ class StainNormalizer(ABC):
         if beta is not None:
             mask = np.linalg.norm(OD, axis=-1) > beta
             return OD[mask]
-        
+
         return OD
 
     @staticmethod
-    def od2rgb(OD: np.ndarray, 
-               I0: float | None = None, 
-               ref_dtype: np.dtype = np.uint8)  -> np.ndarray:
+    def od2rgb(
+        OD: np.ndarray, I0: float | None = None, ref_dtype: np.dtype = np.uint8
+    ) -> np.ndarray:
         """
         Convert optical density (OD) back to RGB.
 
@@ -119,16 +121,16 @@ class StainNormalizer(ABC):
             - np.uint8 → output in [0, 255]
             - np.float32/64 → output in [0, 1]
         """
-        #print("OD max:",OD.max())
+        # print("OD max:",OD.max())
         # Auto-select I0 if not provided: 1.0 for float images in [0,1], else 255.0
         if I0 is None:
-            #print("autoselect I0")
+            # print("autoselect I0")
             I0 = 255.0 if ref_dtype == np.uint8 else 1.0
-            #print("I0",I0)
+            # print("I0",I0)
 
-        #I = I0 * np.exp(-OD) #I = I0 * np.exp(-np.clip(OD, 0, 2.5))
+        # I = I0 * np.exp(-OD) #I = I0 * np.exp(-np.clip(OD, 0, 2.5))
         I = I0 * np.exp(-np.clip(OD, 0, 2.5))
-      
+
         # --- Convert to expected dtype ---
         if ref_dtype == np.uint8:
             return np.clip(I, 0.0, 255.0).astype(np.uint8)
@@ -139,7 +141,7 @@ class StainNormalizer(ABC):
     def _normalize_columns(M: np.ndarray, eps: float = 1e-8) -> np.ndarray:
         norms = np.linalg.norm(M, axis=0) + eps
         return M / norms
-    
+
     @staticmethod
     def tissue_mask(OD: np.ndarray, beta: float = 0.15) -> np.ndarray:
         """Return mask of tissue pixels, ignoring white background."""

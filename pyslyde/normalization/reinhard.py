@@ -7,6 +7,7 @@ from .base import StainNormalizer
 # Try to import OpenCV (optional speed-up)
 try:
     import cv2
+
     _HAS_CV2 = True
 except ImportError:
     _HAS_CV2 = False
@@ -34,26 +35,29 @@ class ReinhardStainNormalizer(StainNormalizer):
         backend: str = "auto",
         verbose: bool = False,
     ):
-        super().__init__()   # calls StainNormalizer.__init__
+        super().__init__()  # calls StainNormalizer.__init__
         if eps <= 0:
             raise ValueError(f"eps must be > 0. Got {eps}")
         self.eps = float(eps)
 
-
         self.clip_rgb = bool(clip_rgb)
         self.verbose = bool(verbose)
-        self.mu_lab: Optional[np.ndarray] = None   # (3,)
+        self.mu_lab: Optional[np.ndarray] = None  # (3,)
         self.std_lab: Optional[np.ndarray] = None  # (3,)
 
         if backend not in ("auto", "numpy", "opencv"):
-            raise ValueError(f"backend must be 'auto', 'numpy', or 'opencv'. Got {backend}")
+            raise ValueError(
+                f"backend must be 'auto', 'numpy', or 'opencv'. Got {backend}"
+            )
         # Choose backend
         if backend == "auto":
             self.backend = "opencv" if _HAS_CV2 else "numpy"
         else:
             self.backend = backend
             if backend == "opencv" and not _HAS_CV2:
-                raise ImportError("OpenCV not available but backend='opencv' was requested.")
+                raise ImportError(
+                    "OpenCV not available but backend='opencv' was requested."
+                )
         if self.verbose:
             print(f"[Reinhard] Using backend: {self.backend}")
 
@@ -64,9 +68,11 @@ class ReinhardStainNormalizer(StainNormalizer):
         mask = self._tissue_mask(target_tile)
 
         if not np.any(mask):
-            raise ValueError("No tissue pixels found in target_tile for Reinhard fitting.") 
-        #mu = lab.reshape(-1, 3).mean(axis=0)
-        #sd = lab.reshape(-1, 3).std(axis=0)
+            raise ValueError(
+                "No tissue pixels found in target_tile for Reinhard fitting."
+            )
+        # mu = lab.reshape(-1, 3).mean(axis=0)
+        # sd = lab.reshape(-1, 3).std(axis=0)
         mu = lab[mask].mean(axis=0)
         sd = lab[mask].std(axis=0)
 
@@ -80,22 +86,25 @@ class ReinhardStainNormalizer(StainNormalizer):
         self._fitted = True
         return self
 
-
     def normalize(self, source_tile: np.ndarray) -> np.ndarray:
         if self.mu_lab is None or self.std_lab is None:
-            raise RuntimeError("Not fitted. Call fit(target_tile) first or use fit_normalize().")
-        
+            raise RuntimeError(
+                "Not fitted. Call fit(target_tile) first or use fit_normalize()."
+            )
+
         lab = self._rgb_to_lab(source_tile)
         mask = self._tissue_mask(source_tile)
 
         if not np.any(mask):
             if self.verbose:
-                print("[Reinhard] Warning: no tissue pixels found in source, returning original.")
+                print(
+                    "[Reinhard] Warning: no tissue pixels found in source, returning original."
+                )
             return source_tile
-    
+
         # Source stats
-        #mu_s = lab.reshape(-1, 3).mean(axis=0)
-        #std_s = lab.reshape(-1, 3).std(axis=0) + self.eps
+        # mu_s = lab.reshape(-1, 3).mean(axis=0)
+        # std_s = lab.reshape(-1, 3).std(axis=0) + self.eps
         mu_s = lab[mask].mean(axis=0)
         std_s = lab[mask].std(axis=0) + self.eps
 
@@ -110,7 +119,6 @@ class ReinhardStainNormalizer(StainNormalizer):
             return rgb.astype(np.uint8)
         else:
             return (rgb.astype(np.float32) / 255.0).clip(0.0, 1.0)
-      
 
     # ---------- Serialization ----------
 
@@ -129,15 +137,13 @@ class ReinhardStainNormalizer(StainNormalizer):
         if eps_val <= 0:
             raise ValueError(f"eps must be > 0. Got {eps_val}")
         self.eps = eps_val
-        
+
         self.clip_rgb = bool(profile.get("clip_rgb", self.clip_rgb))
         self.backend = profile.get("backend", self.backend)
         mu = profile.get("mu_lab")
         sd = profile.get("std_lab")
         self.mu_lab = None if mu is None else np.asarray(mu, dtype=np.float32)
         self.std_lab = None if sd is None else np.asarray(sd, dtype=np.float32)
-
-
 
     # ---------- color space backends ----------
 
@@ -167,10 +173,7 @@ class ReinhardStainNormalizer(StainNormalizer):
             return rgb
         else:
             return self._lab_to_rgb_numpy(lab)
-        
 
-
-        
     # ---------- Color space utilities (NumPy fallback) ----------
 
     @staticmethod
@@ -186,7 +189,6 @@ class ReinhardStainNormalizer(StainNormalizer):
         x = np.clip(x, 0, 1)
         return np.where(x <= 0.0031308, 12.92 * x, (1 + a) * (x ** (1 / 2.4)) - a)
 
-
     @staticmethod
     def _rgb_to_xyz(rgb: np.ndarray) -> np.ndarray:
         # Expect HxWx3, uint8 or float. Convert to float32 in [0,1] sRGB.
@@ -198,9 +200,14 @@ class ReinhardStainNormalizer(StainNormalizer):
         x = ReinhardStainNormalizer._srgb_to_linear(x)
 
         # sRGB D65 transform
-        M = np.array([[0.4124564, 0.3575761, 0.1804375],
-                      [0.2126729, 0.7151522, 0.0721750],
-                      [0.0193339, 0.1191920, 0.9503041]], dtype=np.float32)
+        M = np.array(
+            [
+                [0.4124564, 0.3575761, 0.1804375],
+                [0.2126729, 0.7151522, 0.0721750],
+                [0.0193339, 0.1191920, 0.9503041],
+            ],
+            dtype=np.float32,
+        )
         xyz = np.tensordot(x, M.T, axes=1)
         # Scale to typical Lab reference (Y scaled to 100)
         return xyz * 100.0
@@ -209,9 +216,14 @@ class ReinhardStainNormalizer(StainNormalizer):
     def _xyz_to_rgb(xyz: np.ndarray, clip: bool = True) -> np.ndarray:
         # xyz with Y~[0,100], convert back to sRGB uint8
         xyz = xyz / 100.0
-        M_inv = np.array([[ 3.2404542, -1.5371385, -0.4985314],
-                          [-0.9692660,  1.8760108,  0.0415560],
-                          [ 0.0556434, -0.2040259,  1.0572252]], dtype=np.float32)
+        M_inv = np.array(
+            [
+                [3.2404542, -1.5371385, -0.4985314],
+                [-0.9692660, 1.8760108, 0.0415560],
+                [0.0556434, -0.2040259, 1.0572252],
+            ],
+            dtype=np.float32,
+        )
         lin_rgb = np.tensordot(xyz, M_inv.T, axes=1)
         srgb = ReinhardStainNormalizer._linear_to_srgb(lin_rgb)
 
@@ -224,13 +236,13 @@ class ReinhardStainNormalizer(StainNormalizer):
     def _f_lab(t: np.ndarray) -> np.ndarray:
         # Helper for XYZ->Lab
         delta = 6.0 / 29.0
-        return np.where(t > (delta ** 3), np.cbrt(t), (t / (3 * delta ** 2)) + (4.0 / 29.0))
+        return np.where(t > (delta**3), np.cbrt(t), (t / (3 * delta**2)) + (4.0 / 29.0))
 
     @staticmethod
     def _finv_lab(t: np.ndarray) -> np.ndarray:
         # Helper for Lab->XYZ
         delta = 6.0 / 29.0
-        return np.where(t > delta, t ** 3, 3 * (delta ** 2) * (t - 4.0 / 29.0))
+        return np.where(t > delta, t**3, 3 * (delta**2) * (t - 4.0 / 29.0))
 
     @staticmethod
     def _xyz_to_lab(xyz: np.ndarray) -> np.ndarray:
@@ -278,7 +290,7 @@ class ReinhardStainNormalizer(StainNormalizer):
 
     def _lab_to_rgb_numpy(self, lab: np.ndarray) -> np.ndarray:
         return self._xyz_to_rgb(self._lab_to_xyz(lab), clip=self.clip_rgb)
-    
+
     @staticmethod
     def _tissue_mask(rgb: np.ndarray, thresh: int = 220) -> np.ndarray:
         """Return boolean mask of non-background pixels.

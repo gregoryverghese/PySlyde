@@ -8,6 +8,3 @@ __author__ = "Gregory Verghese"
 __email__ = "gregory.verghese@gmail.com"
 
 __all__ = ["Slide", "Annotations", "WSIParser", "Stitching"]
-
-
-

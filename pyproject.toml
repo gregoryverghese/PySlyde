@@ -6,8 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "PySlyde"
 version = "0.1.0"
 dependencies = [
-    "einops",
-    "h5py",
+    "geopandas",
     "huggingface_hub",
     "lmdb",
     "matplotlib",
@@ -15,13 +14,17 @@ dependencies = [
     "opencv-python",
     "openslide-python",
     "pandas",
-    "scipy",
+    "pillow",
+    "rasterio",
     "seaborn",
     "scikit-image",
+    "scipy",
+    "shapely",
     "tensorflow",
     "timm",
     "torch",
-    "webdataset",
+    "torchvision",
+    "tqdm",
     "transformers",
     "tf-keras",
 ]
@@ -48,13 +51,15 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-dev = [
+test = [
     "pytest",
     "pytest-cov",
+    "scikit-learn"
+]
+dev = [
     "ruff",
     "mypy",
-    "pre-commit",
-    "scikit-learn"
+    "pre-commit" 
 ]
 docs = [
     "sphinx>=4.0.0",
