@@ -487,7 +487,7 @@ def test_visualise_wsi_tiling(tmp_path):
             wsi=wsi,
             tiler=tiler,
             save_path=str(save_path),
-            viewing_res=3,
+            level=3,
             plot_args={"color": "red", "size": (12, 12), "title": ""},
         )
 
@@ -504,18 +504,13 @@ def test_visualise_wsi_tiling(tmp_path):
 #####################################################################
 
 
-def test_TissueDetect_with_numpy_slide(dummy_slide):
+def test_TissueDetect_with_numpy_slide():
     # --- slide is a NumPy array (not OpenSlide) ---
-    slide_obj = dummy_slide
+    slide_np = np.ones((100, 100, 3), dtype=np.uint8) * 128
 
-    td = utilities.TissueDetect(slide_obj)
-    assert td.slide == slide_obj  # same object
-    assert td.slide.level_downsamples == [1, 2, 4, 8, 16, 32]
-    assert td.slide.level_dimensions == [(100, 100)] * 6
-    assert td.slide.shape == [100, 100, 3]
-    assert np.array_equal(
-        td.slide.get_thumbnail(), np.ones((100, 100, 3), dtype=np.uint8) * 128
-    )
+    td = utilities.TissueDetect(slide_np)
+    assert td.slide is slide_np  # same object
+    assert td.slide.shape == (100, 100, 3)
     assert td.tissue_mask is None
     assert td.contour_mask is None
 
@@ -553,11 +548,11 @@ def test_detect_tissue_OpenSlide_slide(dummy_slide_OpenSlide):
     assert set(np.unique(mask_os)).issubset({0, 1})
 
 
-def test_mask_image_with_numpy_slide(dummy_slide):
-    d_slide = dummy_slide
+def test_mask_image_with_numpy_slide():
+    slide_np = np.ones((100, 100, 3), dtype=np.uint8) * 128
 
     # --- slide is a NumPy array (not OpenSlide) ---
-    td = utilities.TissueDetect(d_slide())
+    td = utilities.TissueDetect(slide_np)
     td.contour_mask = np.ones((100, 100), dtype=np.uint8)
     thumb = np.ones((100, 100, 3), dtype=np.uint8) * 100
     masked = td.mask_image(thumb)
@@ -636,7 +631,7 @@ def test_border_numpy():
     border_coords = td_np.border()
     assert isinstance(border_coords, tuple)
     assert len(border_coords) == 2
-    (x_min, y_min), (x_max, y_max) = border_coords
+    (x_min, x_max), (y_min, y_max) = border_coords
     # Use slide_np.shape[:2] for height, width
     height, width = slide_np.shape[:2]
     assert 0 <= x_min < x_max <= width
@@ -652,47 +647,24 @@ def test_border_OpenSlide_slide(dummy_slide_OpenSlide):
     border_coords_os = td_os.border()
     assert isinstance(border_coords_os, tuple)
     assert len(border_coords_os) == 2
-    (x_min, y_min), (x_max, y_max) = border_coords_os
+    (x_min, x_max), (y_min, y_max) = border_coords_os
     # Use mock slide dimensions
     width, height = slide_os.dimensions
     assert 0 <= x_min < x_max <= width
     assert 0 <= y_min < y_max <= height
 
 
-def test_tissue_thumbnail():
-    # Mock slide
-    mock_slide = MagicMock()
+def test_tissue_thumbnail(dummy_slide_OpenSlide):
+    slide_os = dummy_slide_OpenSlide(as_pil=True)
 
-    # Mock slide.level_downsamples and level_dimensions
-    mock_slide.level_downsamples = [1, 2, 4, 8, 16, 32]
-    mock_slide.level_dimensions = [
-        (256, 256),
-        (128, 128),
-        (64, 64),
-        (32, 32),
-        (16, 16),
-        (8, 8),
-    ]
+    td = utilities.TissueDetect(slide_os)
 
-    # Mock get_thumbnail to return a PIL Image with correct size
-    from PIL import Image
-
-    mock_slide.get_thumbnail.side_effect = lambda size: Image.fromarray(
-        np.zeros((size[1], size[0], 3), dtype=np.uint8)
-    )
-
-    # Instantiate TissueDetect with the mock slide
-    td = utilities.TissueDetect(mock_slide)
-
-    # Mock _generate_tissue_contour to return a simple contour
     td._generate_tissue_contour = MagicMock(
         return_value=[np.array([[0, 0], [0, 10], [10, 10], [10, 0]])]
     )
 
-    # Call the property
     thumbnail = td.tissue_thumbnail
 
-    # Assertions
     assert isinstance(thumbnail, np.ndarray), "Thumbnail should be a numpy array"
     assert thumbnail.shape[2] == 3, "Thumbnail should have 3 channels (RGB)"
     assert np.all(thumbnail >= 0) and np.all(thumbnail <= 255), (

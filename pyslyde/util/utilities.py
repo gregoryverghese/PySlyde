@@ -466,7 +466,7 @@ class TissueDetect:
         )
 
         if not contours:
-            self._border = [(0, width), (0, height)]
+            self._border = ((0, width), (0, height))
             return self._border
 
         x, y, w, h = cv2.boundingRect(np.concatenate(contours))

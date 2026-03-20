@@ -80,10 +80,12 @@ class LMDBWrite:
         Args:
             parser: Generator that yields (coordinates, tile) tuples.
         """
-        print("Beginning writing to db ...")
+        print("Beginning writing to lmdb ...")
         txn = self.env.begin(write=True)
 
+        count = 0
         for i, (p, tile) in enumerate(parser):
+            count += 1
             x, y = p
             key = coord_to_name(x, y)
             value = NpyObject(tile)
@@ -93,7 +95,7 @@ class LMDBWrite:
                 txn = self.env.begin(write=True)
         txn.commit()
         self.env.close()
-        print(f"Finished writing {i + 1} items to LMDB")
+        print(f"Finished writing to lmdb ({count} items).")
 
     def write_image(self, image: np.ndarray, name: str) -> None:
         """

@@ -157,7 +157,7 @@ class TestDiskWrite(unittest.TestCase):
             self.assertEqual(meta["dtype"], expected.dtype)
 
         out = f.getvalue()
-        self.assertIn("Finished writing tiles to disk.", out)
+        self.assertIn("Finished writing to disk", out)
 
     def test_write_batches_with_frequency(self):
         """
@@ -324,8 +324,8 @@ class TestLMDBReadWrite(unittest.TestCase):
             writer.write(gen())
 
         out = f.getvalue()
-        self.assertIn("Beginning writing to db ...", out)
-        self.assertIn("Writing to db done", out)
+        self.assertIn("Beginning writing to lmdb", out)
+        self.assertIn("Finished writing to lmdb", out)
 
         reader = LMDBRead(self.db_path)
         self.assertEqual(reader.num_keys, len(self.coords))

@@ -49,7 +49,9 @@ class DiskWrite:
         tile_buffer: List[Tuple[str, np.ndarray]] = []
         meta_buffer: List[Tuple[str, Dict[str, Any]]] = []
 
+        count = 0
         for i, (p, tile) in enumerate(parser):
+            count += 1
             x, y = p
             name = coord_to_name(x, y)
             tile_path = os.path.join(self.path, f"{name}.npy")
@@ -64,7 +66,7 @@ class DiskWrite:
         if tile_buffer:
             self._write_buffer(tile_buffer, meta_buffer)
 
-        print(f"\nFinished writing {i + 1} items to disk.")
+        print(f"Finished writing to disk ({count} items).")
 
     def _write_buffer(
         self,

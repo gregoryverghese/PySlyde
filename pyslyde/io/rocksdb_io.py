@@ -120,7 +120,7 @@ class RocksDBWrite:
             total_written += self._flush_buffer(buffer)
             buffer.clear()
 
-        print(f"Finished writing {total_written} items to RocksDB.")
+        print(f"Finished writing to rocksdb ({total_written} items).")
 
     def write_image(self, image: np.ndarray, name: str) -> None:
         """
