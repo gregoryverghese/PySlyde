@@ -2,48 +2,53 @@
 Unit tests for DiskWrite, LMDB IO, RocksDB IO, TFRecordWrite, and tfrecord_write helpers.
 Covers batching, path handling, metadata integrity, overwrite behavior, and basic TFRecords round-trips.
 """
-import os
+
 import io
 import json
-import shutil
+import os
 import pickle
+import shutil
 import tempfile
 import unittest
-import pytest
 from contextlib import redirect_stdout
 from pathlib import Path
 
 import numpy as np
+import pytest
 import tensorflow as tf
 
 from pyslyde.io.disk_io import DiskWrite
-from pyslyde.io.tfrecords_io import TFRecordWrite
 from pyslyde.io.tfrecord_write import (
-    getShardNumber,
-    printProgress,
-    wrapInt64,
-    wrapFloat,
-    wrapBytes,
     convert,
     doConversion,
     getFiles,
+    getShardNumber,
+    wrapBytes,
+    wrapFloat,
+    wrapInt64,
 )
+from pyslyde.io.tfrecords_io import TFRecordWrite
+from pyslyde.util.utilities import coord_to_name, name_to_coord
 
 ##################################################################
 # Check dependencies (LMDB, RocksDB)
-# Capture both import failures for lmdb and rocksdb, 
+# Capture both import failures for lmdb and rocksdb,
 # as well as missing lmdb_io and rocksdb_io scripts if API changes.
 # Assume tf is correctly installed.
 ##################################################################
 try:
-    from pyslyde.io.lmdb_io import NpyObject as LMDBNpyObject, LMDBWrite, LMDBRead
+    from pyslyde.io.lmdb_io import LMDBRead, LMDBWrite
+    from pyslyde.io.lmdb_io import NpyObject as LMDBNpyObject
+
     HAS_LMDB = True
 except Exception:
     LMDBNpyObject = LMDBWrite = LMDBRead = None
     HAS_LMDB = False
 
 try:
-    from pyslyde.io.rocksdb_io import NpyObject as RocksNpyObject, RocksDBWrite, RocksDBRead
+    from pyslyde.io.rocksdb_io import NpyObject as RocksNpyObject
+    from pyslyde.io.rocksdb_io import RocksDBRead, RocksDBWrite
+
     HAS_ROCKSDB = True
 except Exception:
     RocksNpyObject = RocksDBWrite = RocksDBRead = None
@@ -54,12 +59,13 @@ except Exception:
 # Helpers
 ##################################################################
 
+
 def _synthetic_parser(coords, shape=(8, 8, 3), dtype=np.uint8):
     """
     Yield deterministic ((x, y), tile) pairs for the given coordinates.
     Each tile is a constant array whose value depends on the coordinate, enabling content checks.
     """
-    for (x, y) in coords:
+    for x, y in coords:
         if np.issubdtype(dtype, np.integer):
             val = (x + 2 * y) % np.iinfo(dtype).max
             tile = np.full(shape, val, dtype=dtype)
@@ -72,6 +78,7 @@ def _synthetic_parser(coords, shape=(8, 8, 3), dtype=np.uint8):
 ##################################################################
 # Tests for pyslyde/io/disk_io.py
 ##################################################################
+
 
 @pytest.mark.disk
 class TestDiskWrite(unittest.TestCase):
@@ -102,15 +109,15 @@ class TestDiskWrite(unittest.TestCase):
 
     def _tile_path(self, base, x, y):
         """
-        Return the expected .npy path for a tile saved by DiskWrite (y_x.npy naming).
+        Return the expected .npy path for a tile saved by DiskWrite (x_y.npy naming).
         """
-        return os.path.join(base, f"{y}_{x}.npy")
+        return os.path.join(base, f"{coord_to_name(x, y)}.npy")
 
     def _meta_path(self, base, x, y):
         """
-        Return the expected metadata pickle path for a tile (y_x_meta.pkl naming).
+        Return the expected metadata pickle path for a tile (x_y_meta.pkl naming).
         """
-        return os.path.join(base, f"{y}_{x}_meta.pkl")
+        return os.path.join(base, f"{coord_to_name(x, y)}_meta.pkl")
 
     def test_repr_includes_path(self):
         """
@@ -131,7 +138,7 @@ class TestDiskWrite(unittest.TestCase):
         with redirect_stdout(f):
             dw.write(parser)
 
-        for (x, y) in self.coords_small:
+        for x, y in self.coords_small:
             tpath = self._tile_path(self.tmp, x, y)
             mpath = self._meta_path(self.tmp, x, y)
             self.assertTrue(os.path.isfile(tpath), f"Missing tile {tpath}")
@@ -141,7 +148,9 @@ class TestDiskWrite(unittest.TestCase):
             with open(mpath, "rb") as fh:
                 meta = pickle.load(fh)
 
-            expected = next(_synthetic_parser([(x, y)], shape=(8, 8, 3), dtype=np.uint8))[1]
+            expected = next(
+                _synthetic_parser([(x, y)], shape=(8, 8, 3), dtype=np.uint8)
+            )[1]
             self.assertEqual(tuple(tile_loaded.shape), (8, 8, 3))
             self.assertTrue(np.array_equal(tile_loaded, expected))
             self.assertEqual(tuple(meta["size"]), (8, 8, 3))
@@ -158,7 +167,7 @@ class TestDiskWrite(unittest.TestCase):
         parser = _synthetic_parser(self.coords_many, shape=(10, 10, 3), dtype=np.uint8)
         dw.write(parser)
 
-        for (x, y) in self.coords_many:
+        for x, y in self.coords_many:
             tpath = self._tile_path(self.tmp, x, y)
             mpath = self._meta_path(self.tmp, x, y)
             self.assertTrue(os.path.exists(tpath))
@@ -234,12 +243,14 @@ class TestDiskWrite(unittest.TestCase):
 # Tests for pyslyde/io/lmdb_io.py
 ##################################################################
 
+
 @pytest.mark.lmdb
 @unittest.skipUnless(HAS_LMDB, "lmdb (and lmdb_io import) not available")
 class TestNpyObject_LMDB(unittest.TestCase):
     """
     Tests for LMDB NpyObject wrapper to ensure dtype and shape are preserved across serialization.
     """
+
     def test_roundtrip_uint8(self):
         """
         NpyObject should reconstruct the original uint8 array with identical shape and values.
@@ -269,6 +280,7 @@ class TestLMDBReadWrite(unittest.TestCase):
     """
     Integration tests for LMDBWrite/LMDBRead: writing tiles/images, counting keys, and reading back arrays.
     """
+
     def setUp(self):
         """
         Create a temporary LMDB database directory and common test coordinates.
@@ -297,16 +309,18 @@ class TestLMDBReadWrite(unittest.TestCase):
 
     def test_write_tiles_and_read_back(self):
         """
-        Writer should store all tiles under y_x keys; reader should return correct counts, keys, and data.
+        Writer should store all tiles under canonical x_y keys; reader should return correct counts, keys, and data.
         """
         writer = LMDBWrite(self.db_path, map_size=self.map_size, write_frequency=2)
         tiles = list(_synthetic_parser(self.coords, shape=(10, 10, 3), dtype=np.uint8))
 
         f = io.StringIO()
         with redirect_stdout(f):
+
             def gen():
                 for item in tiles:
                     yield item
+
             writer.write(gen())
 
         out = f.getvalue()
@@ -321,14 +335,15 @@ class TestLMDBReadWrite(unittest.TestCase):
         self.assertEqual(len(keys), len(self.coords))
         self.assertTrue(all(isinstance(k, bytes) for k in keys))
 
-        expected_names = {f"{y}_{x}".encode("ascii") for (x, y), _ in tiles}
+        expected_names = {coord_to_name(x, y).encode("ascii") for (x, y), _ in tiles}
         self.assertSetEqual(set(keys), expected_names)
 
         sample_key = next(iter(expected_names))
         arr = reader.read_image(sample_key)
-        y_str, x_str = sample_key.decode("ascii").split("_")
-        x, y = int(x_str), int(y_str)
-        expected = next(_synthetic_parser([(x, y)], shape=(10, 10, 3), dtype=np.uint8))[1]
+        x, y = name_to_coord(sample_key.decode("ascii"))
+        expected = next(_synthetic_parser([(x, y)], shape=(10, 10, 3), dtype=np.uint8))[
+            1
+        ]
         self.assertEqual(tuple(arr.shape), tuple(expected.shape))
         self.assertEqual(str(arr.dtype), str(expected.dtype))
         self.assertTrue(np.array_equal(arr, expected))
@@ -364,12 +379,14 @@ class TestLMDBReadWrite(unittest.TestCase):
 # Tests for pyslyde/io/rocksdb_io.py
 ##################################################################
 
+
 @pytest.mark.rocksdb
 @unittest.skipUnless(HAS_ROCKSDB, "rocksdb (and rocksdb_io import) not available")
 class TestNpyObject_RocksDB(unittest.TestCase):
     """
     Tests for RocksDB NpyObject wrapper to ensure dtype and shape are preserved across serialization.
     """
+
     def test_roundtrip_uint8(self):
         """
         NpyObject should reconstruct the original uint8 array with identical shape and values.
@@ -399,6 +416,7 @@ class TestRocksDBReadWrite(unittest.TestCase):
     """
     Integration tests for RocksDBWrite/RocksDBRead: writing tiles/images, counting keys, and reading back arrays.
     """
+
     def setUp(self):
         """
         Create a temporary RocksDB database directory and common test coordinates.
@@ -425,13 +443,13 @@ class TestRocksDBReadWrite(unittest.TestCase):
 
     def test_write_tiles_and_read_back(self):
         """
-        Writer should store all tiles under y_x string keys; reader should return correct counts, keys, and data.
+        Writer should store all tiles under canonical x_y keys; reader should return correct counts, keys, and data.
         """
         writer = RocksDBWrite(self.db_path, write_frequency=2)
 
-        # Pass a list (re-iterable) because write() pre-counts with sum(1 for _ in parser).
         tiles = list(_synthetic_parser(self.coords, shape=(10, 10, 3), dtype=np.uint8))
         writer.write(tiles)
+        writer.close()
 
         reader = RocksDBRead(self.db_path)
         self.assertEqual(reader.num_keys, len(self.coords))
@@ -441,14 +459,15 @@ class TestRocksDBReadWrite(unittest.TestCase):
         self.assertEqual(len(keys), len(self.coords))
         self.assertTrue(all(isinstance(k, str) for k in keys))
 
-        expected_names = {f"{y}_{x}" for (x, y), _ in tiles}
+        expected_names = {coord_to_name(x, y) for (x, y), _ in tiles}
         self.assertSetEqual(set(keys), expected_names)
 
         sample_key = next(iter(expected_names))
         arr = reader.read_image(sample_key)
-        y_str, x_str = sample_key.split("_")
-        x, y = int(x_str), int(y_str)
-        expected = next(_synthetic_parser([(x, y)], shape=(10, 10, 3), dtype=np.uint8))[1]
+        x, y = name_to_coord(sample_key)
+        expected = next(_synthetic_parser([(x, y)], shape=(10, 10, 3), dtype=np.uint8))[
+            1
+        ]
         self.assertEqual(tuple(arr.shape), tuple(expected.shape))
         self.assertEqual(str(arr.dtype), str(expected.dtype))
         self.assertTrue(np.array_equal(arr, expected))
@@ -458,7 +477,7 @@ class TestRocksDBReadWrite(unittest.TestCase):
         write_image should store a single image under a given key retrievable by RocksDBRead.read_image.
         """
         writer = RocksDBWrite(self.db_path, write_frequency=10)
-        image = (np.arange(16, dtype=np.uint16).reshape(4, 4) * 2)
+        image = np.arange(16, dtype=np.uint16).reshape(4, 4) * 2
         writer.write_image(image, name="custom_key")
         writer.close()
 
@@ -485,11 +504,13 @@ class TestRocksDBReadWrite(unittest.TestCase):
 # Tests for pyslyde/io/tfrecords_io.py
 ##################################################################
 
+
 @pytest.mark.tfrecords
 class TestTFRecordWrite(unittest.TestCase):
     """
     Tests for TFRecordWrite: shard/size properties and TFRecord round-trip with a dummy patcher.
     """
+
     def setUp(self):
         """
         Create a temporary output directory and a dummy patch provider with deterministic tiles.
@@ -498,6 +519,7 @@ class TestTFRecordWrite(unittest.TestCase):
 
         class DummyPatch:
             """Lightweight patch-like provider exposing extract_patches(), _patches, and size."""
+
             def __init__(self, patches, size=(16, 16)):
                 self._patches = patches  # list of (np.ndarray, {'name': str})
                 self.size = size
@@ -507,12 +529,12 @@ class TestTFRecordWrite(unittest.TestCase):
                 for img, info in self._patches:
                     yield img, info
 
-        # Build 4 tiny RGB tiles with names y_x
+        # Build 4 tiny RGB tiles with names x_y
         coords = [(0, 0), (1, 2), (2, 1), (3, 3)]
         patches = []
-        for (x, y) in coords:
+        for x, y in coords:
             img = np.full((16, 16, 3), (x + 2 * y) % 255, dtype=np.uint8)
-            patches.append((img, {'name': f'{y}_{x}'}))
+            patches.append((img, {"name": coord_to_name(x, y)}))
         self.patch = DummyPatch(patches)
 
     def tearDown(self):
@@ -526,36 +548,40 @@ class TestTFRecordWrite(unittest.TestCase):
         Read back TFRecord examples into a list of dicts with decoded PNGs and fields.
         """
         feats = {
-            'image': tf.io.FixedLenFeature([], tf.string),
-            'dims': tf.io.FixedLenFeature([], tf.int64),
+            "image": tf.io.FixedLenFeature([], tf.string),
+            "dims": tf.io.FixedLenFeature([], tf.int64),
         }
         if has_mask:
-            feats['mask'] = tf.io.FixedLenFeature([], tf.string)
-            feats['imageName'] = tf.io.FixedLenFeature([], tf.string)
-            feats['maskName'] = tf.io.FixedLenFeature([], tf.string)
+            feats["mask"] = tf.io.FixedLenFeature([], tf.string)
+            feats["imageName"] = tf.io.FixedLenFeature([], tf.string)
+            feats["maskName"] = tf.io.FixedLenFeature([], tf.string)
         else:
-            feats['name'] = tf.io.FixedLenFeature([], tf.string)
+            feats["name"] = tf.io.FixedLenFeature([], tf.string)
 
         out = []
         for raw in tf.data.TFRecordDataset([tfrecord_path]):
             ex = tf.io.parse_single_example(raw, feats)
             if has_mask:
-                img = tf.image.decode_png(ex['image'])
-                msk = tf.image.decode_png(ex['mask'])
-                out.append({
-                    'image': img.numpy(),
-                    'mask': msk.numpy(),
-                    'dims': int(ex['dims'].numpy()),
-                    'imageName': ex['imageName'].numpy(),
-                    'maskName': ex['maskName'].numpy(),
-                })
+                img = tf.image.decode_png(ex["image"])
+                msk = tf.image.decode_png(ex["mask"])
+                out.append(
+                    {
+                        "image": img.numpy(),
+                        "mask": msk.numpy(),
+                        "dims": int(ex["dims"].numpy()),
+                        "imageName": ex["imageName"].numpy(),
+                        "maskName": ex["maskName"].numpy(),
+                    }
+                )
             else:
-                img = tf.image.decode_png(ex['image'])
-                out.append({
-                    'image': img.numpy(),
-                    'dims': int(ex['dims'].numpy()),
-                    'name': ex['name'].numpy(),
-                })
+                img = tf.image.decode_png(ex["image"])
+                out.append(
+                    {
+                        "image": img.numpy(),
+                        "dims": int(ex["dims"].numpy()),
+                        "name": ex["name"].numpy(),
+                    }
+                )
         return out
 
     def test_properties_and_convert_single_shard(self):
@@ -568,26 +594,28 @@ class TestTFRecordWrite(unittest.TestCase):
         self.assertEqual(writer.img_num_per_shard, len(self.patch._patches) // 1)
 
         writer.convert()
-        rec = os.path.join(self.tmp, '0.tfrecords')
+        rec = os.path.join(self.tmp, "0.tfrecords")
         self.assertTrue(os.path.isfile(rec))
 
         examples = self._parse_examples(rec, has_mask=False)
         self.assertEqual(len(examples), len(self.patch._patches))
         for ex, (_, info) in zip(examples, self.patch._patches):
-            self.assertEqual(ex['dims'], self.patch.size[0])
-            self.assertEqual(ex['name'], info['name'].encode('utf8'))
-            self.assertEqual(tuple(ex['image'].shape[:2]), tuple(self.patch.size))
+            self.assertEqual(ex["dims"], self.patch.size[0])
+            self.assertEqual(ex["name"], info["name"].encode("utf8"))
+            self.assertEqual(tuple(ex["image"].shape[:2]), tuple(self.patch.size))
 
 
 ##################################################################
 # Tests for pyslyde/io/tfrecord_write.py
 ##################################################################
 
+
 @pytest.mark.tfrecord_write
 class TestTFRecordWriteScript(unittest.TestCase):
     """
     Tests for tfrecord_write helpers: wrapping utilities, conversion functions, and simple end-to-end sharding.
     """
+
     def setUp(self):
         """
         Create a temporary dataset of small PNG images and masks plus an output directory.
@@ -637,24 +665,26 @@ class TestTFRecordWriteScript(unittest.TestCase):
         Parse TFRecord examples with image/mask and return decoded numpy arrays and fields.
         """
         feats = {
-            'image': tf.io.FixedLenFeature([], tf.string),
-            'mask': tf.io.FixedLenFeature([], tf.string),
-            'imageName': tf.io.FixedLenFeature([], tf.string),
-            'maskName': tf.io.FixedLenFeature([], tf.string),
-            'dims': tf.io.FixedLenFeature([], tf.int64),
+            "image": tf.io.FixedLenFeature([], tf.string),
+            "mask": tf.io.FixedLenFeature([], tf.string),
+            "imageName": tf.io.FixedLenFeature([], tf.string),
+            "maskName": tf.io.FixedLenFeature([], tf.string),
+            "dims": tf.io.FixedLenFeature([], tf.int64),
         }
         out = []
         for raw in tf.data.TFRecordDataset([tfrecord_path]):
             ex = tf.io.parse_single_example(raw, feats)
-            img = tf.image.decode_png(ex['image'])
-            msk = tf.image.decode_png(ex['mask'])
-            out.append({
-                'image': img.numpy(),
-                'mask': msk.numpy(),
-                'imageName': ex['imageName'].numpy(),
-                'maskName': ex['maskName'].numpy(),
-                'dims': int(ex['dims'].numpy()),
-            })
+            img = tf.image.decode_png(ex["image"])
+            msk = tf.image.decode_png(ex["mask"])
+            out.append(
+                {
+                    "image": img.numpy(),
+                    "mask": msk.numpy(),
+                    "imageName": ex["imageName"].numpy(),
+                    "maskName": ex["maskName"].numpy(),
+                    "dims": int(ex["dims"].numpy()),
+                }
+            )
         return out
 
     def test_wrap_helpers(self):
@@ -683,9 +713,9 @@ class TestTFRecordWriteScript(unittest.TestCase):
         # Some masks may be skipped if missing; ensure at least one example exists
         self.assertGreaterEqual(len(exs), 1)
         for ex in exs:
-            self.assertEqual(tuple(ex['image'].shape[:2]), (12, 12))
-            self.assertEqual(tuple(ex['mask'].shape[:2]), (12, 12))
-            self.assertEqual(ex['dims'], 12)
+            self.assertEqual(tuple(ex["image"].shape[:2]), (12, 12))
+            self.assertEqual(tuple(ex["mask"].shape[:2]), (12, 12))
+            self.assertEqual(ex["dims"], 12)
 
     def test_doConversion_one_shard(self):
         """
@@ -693,15 +723,17 @@ class TestTFRecordWriteScript(unittest.TestCase):
         """
         shard_num, per = getShardNumber(self.images, self.masks, shardSize=0.1)
         self.assertGreaterEqual(shard_num, 1)
-        doConversion(self.images, self.masks, shard_num, per, self.out_path, 'train')
-        files = self._collect_tfrecords('train')
+        doConversion(self.images, self.masks, shard_num, per, self.out_path, "train")
+        files = self._collect_tfrecords("train")
         self.assertGreaterEqual(len(files), 1)
 
     def test_getFiles_end_to_end(self):
         """
         getFiles() should read config and write TFRecords to train/validation/test subdirectories.
         """
-        getFiles(self.img_dir, self.msk_dir, self.out_path, self.cfg_path, shardSize=0.1)
-        self.assertGreaterEqual(len(self._collect_tfrecords('train')), 1)
-        self.assertGreaterEqual(len(self._collect_tfrecords('validation')), 1)
-        self.assertGreaterEqual(len(self._collect_tfrecords('test')), 1)
+        getFiles(
+            self.img_dir, self.msk_dir, self.out_path, self.cfg_path, shardSize=0.1
+        )
+        self.assertGreaterEqual(len(self._collect_tfrecords("train")), 1)
+        self.assertGreaterEqual(len(self._collect_tfrecords("validation")), 1)
+        self.assertGreaterEqual(len(self._collect_tfrecords("test")), 1)
