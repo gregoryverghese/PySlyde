@@ -62,7 +62,7 @@ docs = [
     "myst-parser>=0.18.0",
     "sphinx-autodoc-typehints>=1.12.0"
 ]
-rocksdb =  ["rocksdb"]
+rocksdb =  ["rocksdict>=0.3.24"]
 
 
 [project.urls]
@@ -85,4 +85,6 @@ markers = [
   "tfrecord_write: tests for tfrecord_write helpers",
   "integration: slow tests that load real feature extractor models and run real forward passes",
   "network: tests that may access the internet (downloads, HF hub, etc.)",  
+  "pca: tests for PCA utility functions",
+  "slide_parser: tests for pyslyde.slide_parser",
 ]
