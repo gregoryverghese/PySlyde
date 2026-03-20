@@ -1,98 +1,216 @@
+"""RocksDB I/O utilities for PySlyde using rocksdict."""
+
 import pickle
-import rocksdb
+from typing import Dict, Generator, List, Optional, Tuple
+
 import numpy as np
 
+from pyslyde.util.utilities import coord_to_name
 
-class NpyObject():
-    def __init__(self, ndarray):
+try:
+    from rocksdict import Options, Rdict
+except ImportError as e:
+    raise ImportError(
+        "RocksDB support requires the optional dependency 'rocksdict'. "
+        "Install it with: pip install 'PySlyde[rocksdb]'"
+    ) from e
+
+
+class NpyObject:
+    """
+    Wrapper class for numpy arrays to be stored in RocksDB.
+
+    This class serializes numpy arrays into raw bytes together with
+    shape and dtype metadata so they can be reconstructed later.
+    """
+
+    def __init__(self, ndarray: np.ndarray) -> None:
+        """
+        Initialize the wrapper.
+
+        Args:
+            ndarray: Numpy array to store.
+        """
         self.ndarray = ndarray.tobytes()
         self.size = ndarray.shape
         self.dtype = ndarray.dtype
 
-    def get_ndarray(self):
+    def get_ndarray(self) -> np.ndarray:
+        """
+        Reconstruct the stored numpy array.
+
+        Returns:
+            np.ndarray: Reconstructed array.
+        """
         ndarray = np.frombuffer(self.ndarray, dtype=self.dtype)
         return ndarray.reshape(self.size)
 
 
-class RocksDBWrite():
-    def __init__(self, db_path, write_frequency=10):
+class RocksDBWrite:
+    """
+    RocksDB writer for saving tiles or feature arrays.
+
+    Arrays are stored under coordinate-based keys derived from `(x, y)`
+    tile coordinates using the shared package naming convention.
+    """
+
+    def __init__(self, db_path: str, write_frequency: int = 10) -> None:
+        """
+        Initialize the RocksDB writer.
+
+        Args:
+            db_path:
+                Path to the RocksDB database.
+            write_frequency:
+                Number of items to buffer in Python before writing to the DB.
+        """
         self.db_path = db_path
+        self.write_frequency = write_frequency
         print(f"DB Path: {self.db_path}")
 
-        # Configure RocksDB options
-        options = rocksdb.Options()
-        options.create_if_missing = True
-        options.write_buffer_size = 64 * 1024 * 1024  # 64MB
-        options.max_write_buffer_number = 3
-        options.target_file_size_base = 64 * 1024 * 1024
-        self.db = rocksdb.DB(self.db_path, options)
-        self.write_frequency = write_frequency
+        options = Options(raw_mode=True)
+        self.db = Rdict(self.db_path, options=options)
 
-    def __repr__(self):
-        return f'RocksDBWrite(path: {self.db_path})'
+    def __repr__(self) -> str:
+        """Return string representation of the writer."""
+        return f"RocksDBWrite(path: {self.db_path})"
 
-    def _print_progress(self, i, total):
-        complete = float(i) / total
-        print(f'\r- Progress: {complete:.1%}', end='\r')
+    def _flush_buffer(self, buffer: Dict[bytes, bytes]) -> int:
+        """
+        Flush a buffered set of key/value pairs to RocksDB.
 
-    def write(self, parser):
-        batch = rocksdb.WriteBatch()
-        total = sum(1 for _ in parser)
+        Args:
+            buffer: Mapping of serialized keys to serialized values.
 
-        for i, (p, tile) in enumerate(parser):
-            name = str(p[1]) + '_' + str(p[0])
-            key = f"{name}".encode("ascii")
-            value = NpyObject(tile)
-            batch.put(key, pickle.dumps(value))
+        Returns:
+            int: Number of items written.
+        """
+        for key, value in buffer.items():
+            self.db[key] = value
+        return len(buffer)
 
-            # Commit every write_frequency entries
-            if i % self.write_frequency == 0:
-                self.db.write(batch)
-                batch.clear()
-                self._print_progress(i, total)
+    def write(
+        self,
+        parser: Generator[Tuple[Tuple[int, int], np.ndarray], None, None],
+    ) -> None:
+        """
+        Write arrays from a generator into RocksDB.
 
-        # Commit any remaining items in the batch
-        self.db.write(batch)
+        Each yielded item must be of the form:
+            ((x, y), array)
 
-    def write_image(self, image, name):
-        key = f"{name}".encode('ascii')
-        value = NpyObject(image)
-        self.db.put(key, pickle.dumps(value))
+        Args:
+            parser: Generator yielding `(coordinates, array)` tuples.
+        """
+        print("Beginning writing to RocksDB...")
 
-    def close(self):
-        del self.db  # Close RocksDB by deleting the DB instance
+        buffer: Dict[bytes, bytes] = {}
+        total_written = 0
+
+        for (x, y), tile in parser:
+            key = coord_to_name(x, y).encode("ascii")
+            value = pickle.dumps(NpyObject(tile))
+            buffer[key] = value
+
+            if len(buffer) >= self.write_frequency:
+                total_written += self._flush_buffer(buffer)
+                buffer.clear()
+
+        if buffer:
+            total_written += self._flush_buffer(buffer)
+            buffer.clear()
+
+        print(f"Finished writing {total_written} items to RocksDB.")
+
+    def write_image(self, image: np.ndarray, name: str) -> None:
+        """
+        Write a single array using a caller-provided key name.
+
+        Args:
+            image:
+                Array to store.
+            name:
+                Database key name.
+        """
+        key = name.encode("ascii")
+        value = pickle.dumps(NpyObject(image))
+        self.db[key] = value
+
+    def close(self) -> None:
+        """
+        Close the RocksDB handle if supported.
+
+        rocksdict manages resources internally, but if a close()
+        method is available we call it explicitly.
+        """
+        close_fn = getattr(self.db, "close", None)
+        if callable(close_fn):
+            close_fn()
+        del self.db
 
 
-class RocksDBRead():
-    def __init__(self, db_path):
+class RocksDBRead:
+    """
+    RocksDB reader for reading stored arrays from RocksDB.
+    """
+
+    def __init__(self, db_path: str) -> None:
+        """
+        Initialize the RocksDB reader.
+
+        Args:
+            db_path: Path to the RocksDB database.
+        """
         self.db_path = db_path
-        options = rocksdb.Options()
-        options.create_if_missing = False
-        self.db = rocksdb.DB(self.db_path, options, read_only=True)
+        options = Options(raw_mode=True)
+        self.db = Rdict(self.db_path, options=options)
 
     @property
-    def num_keys(self):
-        # Counting keys in RocksDB requires iterating through the database
-        it = self.db.iterkeys()
-        it.seek_to_first()
-        return sum(1 for _ in it)
+    def num_keys(self) -> int:
+        """
+        Count the number of keys in the database.
 
-    def __repr__(self):
-        return f'RocksDBRead(path: {self.db_path})'
+        Returns:
+            int: Number of stored entries.
+        """
+        return sum(1 for _ in self.db.keys())  # len(self.db)
 
-    def get_keys(self):
-        keys = []
-        it = self.db.iterkeys()
-        it.seek_to_first()
-        for key in it:
-            keys.append(key.decode('ascii'))
-        return keys
+    def __repr__(self) -> str:
+        """Return string representation of the reader."""
+        return f"RocksDBRead(path: {self.db_path})"
 
-    def read_image(self, key):
-        value = self.db.get(key.encode('ascii'))
-        if value:
-            image = pickle.loads(value)
-            return image.get_ndarray()
-        else:
+    def get_keys(self) -> List[str]:
+        """
+        Return all keys stored in the database.
+
+        Returns:
+            List[str]: Decoded key strings.
+        """
+        return [key.decode("ascii") for key in self.db.keys()]
+
+    def read_image(self, key: str) -> Optional[np.ndarray]:
+        """
+        Read an array from the database by key.
+
+        Args:
+            key: Database key string.
+
+        Returns:
+            Optional[np.ndarray]:
+                Reconstructed numpy array if found, otherwise None.
+        """
+        value = self.db.get(key.encode("ascii"))
+        if value is None:
             return None
 
+        image = pickle.loads(value)
+        return image.get_ndarray()
+
+    def close(self) -> None:
+        """
+        Close the RocksDB handle if supported.
+        """
+        close_fn = getattr(self.db, "close", None)
+        if callable(close_fn):
+            close_fn()
+        del self.db
