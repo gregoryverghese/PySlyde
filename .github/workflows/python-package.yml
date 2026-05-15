@@ -39,7 +39,7 @@ jobs:
         python -m pip install .[dev]
     - name: Test with pytest (exclude integration-marked tests)
       run: |
-        python -m pytest -m "not integration" --ignore=test/test_pyslide.py --ignore=test/test_patching.py
+        python -m pytest -m "not integration"
 
   lint:
     runs-on: ubuntu-latest
