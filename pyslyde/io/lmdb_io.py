@@ -83,19 +83,23 @@ class LMDBWrite:
         print("Beginning writing to lmdb ...")
         txn = self.env.begin(write=True)
 
-        count = 0
+        n_itenms = 0
+
         for i, (p, tile) in enumerate(parser):
-            count += 1
             x, y = p
             key = coord_to_name(x, y)
             value = NpyObject(tile)
             txn.put(key.encode("ascii"), pickle.dumps(value))
+            n_items = i + 1
+
             if i % self.write_frequency == 0:
                 txn.commit()
                 txn = self.env.begin(write=True)
+
         txn.commit()
         self.env.close()
-        print(f"Finished writing to lmdb ({count} items).")
+
+        print(f"Finished writing to lmdb ({n_items} items).")
 
     def write_image(self, image: np.ndarray, name: str) -> None:
         """
