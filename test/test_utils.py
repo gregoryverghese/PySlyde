@@ -484,7 +484,7 @@ def test_visualise_wsi_tiling(tmp_path):
     tiler = DummyTiler()
 
     # ----- Patch objects in the module where the function is defined (utilities.py) -----
-    with patch("pyslyde.util.utilities.patches.Rectangle") as mock_rect, \
+    with patch("pyslyde.util.utilities.patches.Rectangle"), \
      patch("pyslyde.util.utilities.plt") as mock_plt, \
      patch("pyslyde.util.utilities.mpl") as mock_mpl:
 
