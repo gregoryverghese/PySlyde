@@ -83,16 +83,17 @@ class LMDBWrite:
         print("Beginning writing to lmdb ...")
         txn = self.env.begin(write=True)
 
-        n_itenms = 0
+        n_items = 0
 
         for i, (p, tile) in enumerate(parser):
             x, y = p
             key = coord_to_name(x, y)
             value = NpyObject(tile)
             txn.put(key.encode("ascii"), pickle.dumps(value))
+            
             n_items = i + 1
 
-            if i % self.write_frequency == 0:
+            if n_items % self.write_frequency == 0:
                 txn.commit()
                 txn = self.env.begin(write=True)
 
