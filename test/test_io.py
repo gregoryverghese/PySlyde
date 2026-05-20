@@ -6,7 +6,6 @@ Covers batching, path handling, metadata integrity, overwrite behavior, and basi
 import io
 import json
 import os
-import pickle
 import shutil
 import tempfile
 import unittest
@@ -17,7 +16,7 @@ import numpy as np
 import pytest
 import tensorflow as tf
 
-from pyslyde.io.disk_io import DiskWrite
+from pyslyde.io.disk_io import DiskWrite, DiskRead
 from pyslyde.io.tfrecord_write import (
     convert,
     doConversion,
@@ -83,8 +82,8 @@ def _synthetic_parser(coords, shape=(8, 8, 3), dtype=np.uint8):
 @pytest.mark.disk
 class TestDiskWrite(unittest.TestCase):
     """
-    Test suite for DiskWrite focusing on correctness of filenames, tiles/metadata,
-    buffer flushing semantics, overwrite behavior, and directory creation.
+    Test suite for DiskWrite and DiskRead focusing on correctness of filenames, tiles,
+    buffer flushing semantics, overwrite behavior, and directory creation, and reads.
     """
 
     @classmethod
@@ -113,12 +112,6 @@ class TestDiskWrite(unittest.TestCase):
         """
         return os.path.join(base, f"{coord_to_name(x, y)}.npy")
 
-    def _meta_path(self, base, x, y):
-        """
-        Return the expected metadata pickle path for a tile (x_y_meta.pkl naming).
-        """
-        return os.path.join(base, f"{coord_to_name(x, y)}_meta.pkl")
-
     def test_repr_includes_path(self):
         """
         __repr__ should include the target path and initialization should create the directory.
@@ -129,7 +122,7 @@ class TestDiskWrite(unittest.TestCase):
 
     def test_write_flush_at_end_when_under_frequency(self):
         """
-        When the number of tiles is below write_frequency, all tiles are written on final flush with correct metadata.
+        When the number of tiles is below write_frequency, all tiles are written on final flush.
         """
         dw = DiskWrite(self.tmp, write_frequency=10)
         parser = _synthetic_parser(self.coords_small, shape=(8, 8, 3), dtype=np.uint8)
@@ -140,28 +133,22 @@ class TestDiskWrite(unittest.TestCase):
 
         for x, y in self.coords_small:
             tpath = self._tile_path(self.tmp, x, y)
-            mpath = self._meta_path(self.tmp, x, y)
             self.assertTrue(os.path.isfile(tpath), f"Missing tile {tpath}")
-            self.assertTrue(os.path.isfile(mpath), f"Missing meta {mpath}")
 
             tile_loaded = np.load(tpath)
-            with open(mpath, "rb") as fh:
-                meta = pickle.load(fh)
 
             expected = next(
                 _synthetic_parser([(x, y)], shape=(8, 8, 3), dtype=np.uint8)
             )[1]
             self.assertEqual(tuple(tile_loaded.shape), (8, 8, 3))
             self.assertTrue(np.array_equal(tile_loaded, expected))
-            self.assertEqual(tuple(meta["size"]), (8, 8, 3))
-            self.assertEqual(meta["dtype"], expected.dtype)
 
         out = f.getvalue()
         self.assertIn("Finished writing to disk", out)
 
     def test_write_batches_with_frequency(self):
         """
-        With write_frequency < N, DiskWrite should flush multiple times and persist all tiles and metadata.
+        With write_frequency < N, DiskWrite should flush multiple times and persist all tiles.
         """
         dw = DiskWrite(self.tmp, write_frequency=2)
         parser = _synthetic_parser(self.coords_many, shape=(10, 10, 3), dtype=np.uint8)
@@ -169,13 +156,7 @@ class TestDiskWrite(unittest.TestCase):
 
         for x, y in self.coords_many:
             tpath = self._tile_path(self.tmp, x, y)
-            mpath = self._meta_path(self.tmp, x, y)
             self.assertTrue(os.path.exists(tpath))
-            self.assertTrue(os.path.exists(mpath))
-            with open(mpath, "rb") as fh:
-                meta = pickle.load(fh)
-            self.assertEqual(tuple(meta["size"]), (10, 10, 3))
-            self.assertEqual(str(meta["dtype"]), "uint8")
 
     def test_empty_parser_writes_nothing(self):
         """
@@ -193,11 +174,10 @@ class TestDiskWrite(unittest.TestCase):
 
     def test_overwrite_existing_files(self):
         """
-        Writing the same coordinate twice should overwrite both tile contents and metadata.
+        Writing the same coordinate twice should overwrite tile contents.
         """
         coord = (3, 5)
         tpath = self._tile_path(self.tmp, *coord)
-        mpath = self._meta_path(self.tmp, *coord)
 
         dw1 = DiskWrite(self.tmp, write_frequency=1)
         parser1 = _synthetic_parser([coord], shape=(6, 6, 1), dtype=np.uint8)
@@ -210,10 +190,6 @@ class TestDiskWrite(unittest.TestCase):
         tile2 = np.load(tpath)
 
         self.assertFalse(np.array_equal(tile1, tile2))
-        with open(mpath, "rb") as fh:
-            meta = pickle.load(fh)
-        self.assertEqual(tuple(meta["size"]), (6, 6, 1))
-        self.assertEqual(str(meta["dtype"]), "float32")
 
     def test_path_is_created_if_missing(self):
         """
@@ -227,7 +203,6 @@ class TestDiskWrite(unittest.TestCase):
         coord = (0, 1)
         dw.write(_synthetic_parser([coord]))
         self.assertTrue(os.path.isfile(self._tile_path(nested, *coord)))
-        self.assertTrue(os.path.isfile(self._meta_path(nested, *coord)))
 
     def test_invalid_write_frequency_raises(self):
         """
@@ -238,6 +213,42 @@ class TestDiskWrite(unittest.TestCase):
         with self.assertRaises(ZeroDivisionError):
             dw.write(parser)
 
+    def test_disk_read_get_keys(self):
+        dw = DiskWrite(self.tmp, write_frequency=1)
+        dw.write(_synthetic_parser(self.coords_small))
+
+        dr = DiskRead(self.tmp)
+        keys = dr.get_keys()
+
+        expected_keys = [coord_to_name(x, y) for x, y in self.coords_small]
+        self.assertCountEqual(keys, expected_keys)
+
+    def test_disk_read_num_keys(self):
+        dw = DiskWrite(self.tmp, write_frequency=1)
+        dw.write(_synthetic_parser(self.coords_small))
+
+        dr = DiskRead(self.tmp)
+        self.assertEqual(dr.num_keys, len(self.coords_small))
+
+    def test_disk_read_image(self):
+        coord = (1, 2)
+        dw = DiskWrite(self.tmp, write_frequency=1)
+        dw.write(_synthetic_parser([coord], shape=(8, 8, 3), dtype=np.uint8))
+
+        dr = DiskRead(self.tmp)
+        image = dr.read_image(coord_to_name(*coord))
+
+        expected = next(
+            _synthetic_parser([coord], shape=(8, 8, 3), dtype=np.uint8)
+        )[1]
+
+        self.assertTrue(np.array_equal(image, expected))        
+
+    def test_read_missing_tile_raises_oserror(self):
+        dr = DiskRead(self.tmp)
+
+        with self.assertRaisesRegex(OSError, "Failed to read tile"):
+            dr.read_image("missing_tile")
 
 ##################################################################
 # Tests for pyslyde/io/lmdb_io.py
