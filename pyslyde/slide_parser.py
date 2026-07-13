@@ -1,12 +1,12 @@
 """
-slide_parser.py:
-Whole Slide Image (WSI) parser and stitching utilities for PySlyde."""
+slide_parser.py: Whole-slide image (WSI) parser and stitching utilities for PySlyde."""
 
 import os
 import random
 import warnings
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
+from collections.abc import Collection
 
 import cv2
 import numpy as np
@@ -24,22 +24,23 @@ from pyslyde.util.utilities import (
     name_to_coord,
     round_dim,
 )
+from pyslyde.masks.base import BaseMask
 
 
 class WSIParser:
     """
-    Parse a whole-slide image into tiles, masks, and tile-level features.
+    Parse a whole-slide image into tiles, mask regions, and tile-level features.
 
     This class provides utilities to:
-        - generate tile origins over a specified border (`tiler`)
-        - extract image tiles (`extract_tile`, `extract_tiles`)
-        - extract aligned mask tiles (`extract_mask`, `extract_masks`)
+        - generate tile origins over a specified border (``tiler``)
+        - extract image tiles (``extract_tile``, ``extract_tiles``)
+        - extract mask regions corresponding to tiles (``extract_mask``, ``extract_masks``)
         - filter tiles using masks or custom functions
         - save tiles or features to disk / LMDB / RocksDB
 
     Border convention
     -----------------
-    `border` is interpreted as a level-0 coverage border in the form:
+    ``border`` is interpreted as a level-0 coverage border in the form:
 
         [(x_min, x_max), (y_min, y_max)]
 
@@ -49,21 +50,30 @@ class WSIParser:
 
     Coordinate convention
     ---------------------
-    Tile origins are stored as `(x, y)` coordinates in level-0 slide space.
-    All internally generated tile coordinates (`self._tiles`) and all mask
-    slicing operations are expressed in level-0 coordinates.
+    Tile origins are stored as ``(x, y)`` coordinates in level-0 slide space.
+    All internally generated tile coordinates (``self._tiles``) and all
+    operations involving ``BaseMask``implementations use level-0 coordinates.
+
+    Mask handling
+    -------------
+    Mask construction is intentionally decoupled from ``WSIParser``.
+
+    Methods requiring a mask accept any implementation of ``BaseMask``.
+    The parser interacts with masks exclusively through the ``BaseMask``
+    interface, allowing masks to be stored at arbitrary resolutions while
+    keeping all parser operations in level-0 slide coordinates.    
 
     Processing modes
     ----------------
     This class supports two mutually exclusive extraction modes:
 
     1. Level-based mode
-       - user specifies `level`
+       - user specifies ``level``
        - tiles are read directly from that slide pyramid level
        - behaviour is backward compatible with the legacy implementation
 
     2. Target-MPP mode
-       - user specifies `target_mpp`
+       - user specifies ``target_mpp``
        - the parser computes the required level-0 downsample relative to the
          slide base MPP
        - it then selects the closest finer-or-equal pyramid level to avoid
@@ -72,7 +82,7 @@ class WSIParser:
 
     Tile size and footprint
     -----------------------
-    `tile_dim` defines the output tile size in pixels.
+    ``tile_dim`` defines the output tile size in pixels.
 
     The physical / level-0 footprint of each tile depends on the active mode:
         - in level-based mode, footprint is determined by the chosen pyramid level
@@ -81,17 +91,14 @@ class WSIParser:
     Thus, output tile dimensions remain fixed, while the covered tissue area is
     controlled by the active read mode.
 
-    Mask contract
-    -------------
-    Whole-slide masks passed to mask-based methods must be aligned to level-0
-    slide coordinates and have shape `(slide_height, slide_width)`.
-
     Notes
     -----
-    - `target_mpp` requires valid slide MPP metadata.
+    - ``target_mpp`` requires valid slide MPP metadata.
     - Requests for a target MPP finer than the slide base MPP are rejected.
     - Tile coordinates remain in level-0 space in both modes, even when tiles
       are read from a lower-resolution pyramid level.
+    - Coordinate transformations required by a mask are handled by the
+      supplied ``BaseMask`` implementation rather than by ``WSIParser``.      
     """
 
     def __init__(
@@ -109,15 +116,20 @@ class WSIParser:
         Args:
             slide:
                 OpenSlide object representing the whole slide image.
+
             tile_dim:
                 Output tile dimension in pixels (square tiles).
+
             border:
                 Level-0 coverage border in the form
                 [(x_min, x_max), (y_min, y_max)].
+
             level:
                 Slide pyramid (resolution) level to extract tile in level-based mode.
+            
             stain_normalizer:
                 Optional stain normalizer object  (must subclass StainNormalizer).
+            
             target_mpp:
                 Optional target microns-per-pixel. If provided, tiles are
                 extracted at a consistent physical resolution across slides.
@@ -149,7 +161,6 @@ class WSIParser:
 
         self._tiles: List[Tuple[int, int]] = []
         self._features: List[np.ndarray] = []
-        self._number = len(self._tiles)
 
     @property
     def number(self) -> int:
@@ -193,17 +204,17 @@ class WSIParser:
                 - "target_mpp": tiles are extracted to match a target physical resolution
 
         target_level:
-            User-specified pyramid level (`level` argument).
-            Ignored when `mode="target_mpp"`.
+            User-specified pyramid level (``level`` argument).
+            Ignored when ``mode="target_mpp"``.
 
         effective_level:
             Actual pyramid level used for reading tiles from the slide.
-            - In level mode: equal to `target_level`
+            - In level mode: equal to ``target_level``
             - In target-MPP mode: automatically selected to best match the target scale
 
         target_mpp:
             Requested microns-per-pixel (µm/pixel).
-            Only relevant when `mode="target_mpp"`.
+            Only relevant when ``mode="target_mpp"``.
 
         base_mpp:
             Microns-per-pixel (µm/pixel) at level 0 of the slide, derived from slide metadata.
@@ -212,11 +223,11 @@ class WSIParser:
         effective_mpp:
             Effective microns-per-pixel (µm/pixel) of the extracted tiles.
             - In level mode: computed as base_mpp × level downsample (if base_mpp available)
-            - In target-MPP mode: equal to `target_mpp`
+            - In target-MPP mode: equal to ``target_mpp``
 
         residual_scale:
             Ratio between the downsample of the selected read level and the exact
-            downsample required by `target_mpp`:
+            downsample required by ``target_mpp``:
 
                 residual_scale = read_downsample / target_downsample
 
@@ -248,7 +259,7 @@ class WSIParser:
             "residual_scale": self._residual_scale,
             "tile_size": self.tile_dims,
             "border": self.border,
-            "number": self._number,
+            "number": len(self._tiles),
         }
 
     def __repr__(self) -> str:
@@ -336,10 +347,11 @@ class WSIParser:
         the closest finer-or-equal match to the target.
 
         Args:
-            target_downsample: Desired downsample factor relative to level 0.
+            target_downsample: 
+                Desired downsample factor relative to level 0.
 
         Returns:
-            int: Index of the selected pyramid level.
+            Index of the selected pyramid level.
         """
         downsamples = [float(d) for d in self.slide.level_downsamples]
 
@@ -451,11 +463,14 @@ class WSIParser:
         Remove edge cases based on dimensions of patch.
 
         Args:
-            x: Base x coordinate to test.
-            y: Base y coordinate to test.
+            x: 
+                Level-0 x-coordinate of the tile origin.
+
+            y: 
+                Level-0 y-coordinate of the tile origin.
 
         Returns:
-            bool: Whether to remove patch or not.
+            Whether to remove patch or not.
         """
         remove = False
         if x + self._x_dim > self._x_max:
@@ -463,17 +478,87 @@ class WSIParser:
         if y + self._y_dim > self._y_max:
             remove = True
         return remove
+    
+    def _normalize_labels(
+        self,
+        labels: Union[int, Collection[int]],
+    ) -> set[int]:
+        """
+        Normalize one or more labels into a set.
 
-    def tiler(self, stride: Optional[int] = None, edge_cases: bool = False) -> int:
+        Args:
+            labels:
+                Label or collection of labels.
+
+        Returns:
+            Normalized set of labels.
+
+        Raises:
+            ValueError:
+                If no labels are supplied.
+        """
+
+        if isinstance(labels, int):
+            labels = {labels}
+        else:
+            labels = set(labels)
+
+        if not labels:
+            raise ValueError(
+                "At least one label must be specified."
+            )
+
+        return labels
+
+    def _retain_labels(
+        self,
+        label_mask: np.ndarray,
+        labels: Union[int, Collection[int]],
+    ) -> np.ndarray:
+        """
+        Retain only the specified labels within a label mask.
+
+        Pixels belonging to all other labels are reassigned to the
+        background label (0).
+
+        Args:
+            label_mask:
+                Label mask.
+
+            labels:
+                Label or collection of labels to retain.
+
+        Returns:
+            Label mask in which pixels belonging to the specified labels
+            retain their original label values, while all remaining
+            pixels are reassigned to the background label (0).
+        """
+
+        labels = self._normalize_labels(labels)
+
+        return np.where(
+            np.isin(label_mask, list(labels)),
+            label_mask,
+            0,
+        )
+
+    def tiler(
+            self, 
+            stride: Optional[int] = None, 
+            edge_cases: bool = False
+    ) -> int:
         """
         Generate tile coordinates based on border, level, and stride.
 
         Args:
-            stride: Step size for tiling.
-            edge_cases: Whether to handle edge cases.
+            stride: 
+                Step size for tiling.
+
+            edge_cases: 
+                Whether to handle edge cases.
 
         Returns:
-            int: Number of patches generated.
+            Number of patches generated.
         """
         stride = self.tile_dims[0] if stride is None else stride
         stride_l0 = max(round_dim(stride * self._target_downsample, "round"), 1)
@@ -485,14 +570,16 @@ class WSIParser:
                     continue
                 self._tiles.append((x, y))
 
-        self._number = len(self._tiles)
-        return self._number
+        return len(self._tiles)
 
     def extract_features(
         self,
         model_name: str,
         model_path: Optional[str] = None,
         normalize: bool = False,
+        mask: Optional[BaseMask] = None,
+        labels: Optional[Union[int, Collection[int]]] = None,
+        bg_value: int = 255,        
         force_hf_login: bool = False,
     ) -> Generator[Tuple[Tuple[int, int], np.ndarray], None, None]:
         """
@@ -511,15 +598,29 @@ class WSIParser:
                 Hugging Face access token. Once weights are cached locally,
                 subsequent runs on the same machine typically do not require
                 re-authentication unless the cache has been cleared.
+
             model_path:
                 Optional path to a user-provided checkpoint.
 
                 Reserved for future development. The current
                 `FeatureGenerator` implementation does not yet support loading
                 custom checkpoints through this argument.
+
             normalize:
                 Whether to apply stain normalization to each tile before feature
                 extraction.
+
+            mask:
+                Optional whole-slide mask used to mask the extracted tile.
+
+            labels:
+                Optional label or collection of labels to retain before
+                applying the mask. If None, all non-zero labels are retained.
+
+            bg_value:
+                Pixel value assigned to pixels excluded by the mask, if masking
+                is applied. Default is 255 (white).                
+                
             force_hf_login:
                 Whether to force Hugging Face authentication before loading a model.
 
@@ -531,50 +632,74 @@ class WSIParser:
                 "Providing `model_path` is not supported yet by FeatureGenerator."
             )
 
-        encode = FeatureGenerator(model_name=model_name, force_hf_login=force_hf_login)
-
-        print(f"Extracting features from {len(self._tiles)} tiles...")
+        encode = FeatureGenerator(
+            model_name=model_name, 
+            force_hf_login=force_hf_login
+        )
 
         count = 0
         for x, y in self._tiles:
-            tile = self.extract_tile(x, y, normalize=normalize)
+            tile = self.extract_tile(
+                x=x, 
+                y=y, 
+                normalize=normalize,
+                mask=mask,
+                labels=labels,
+                bg_value=bg_value,            
+            )
             feature_vec = encode.forward_pass(tile)
             feature_vec = feature_vec.detach().cpu().numpy()
             count += 1
             yield (x, y), feature_vec
 
-        print(f"Done processing {count} feature vectors.")
-
     def filter_by_mask(
         self,
-        mask: np.ndarray,
-        label: int,
+        mask: BaseMask,
+        labels: Union[int, Collection[int]],
         threshold: float = 0.5,
     ) -> int:
         """
-        Filter tiles based on tissue mask.
+        Filter retained tiles according to the proportion of a label 
+        within each tile's corresponding mask region.
 
         Args:
-            mask: Whole-slide mask at level-0 resolution.
-            label: Label to filter for.
-            threshold: Threshold for tissue proportion.
+            mask: 
+                Whole-slide mask used for filtering.
+
+            labels: 
+                Label or collection of labels to filter tiles by.
+
+            threshold: 
+                Minimum proportion of the specified label required 
+                for a tile to be retained.
 
         Returns:
-            int: Number of tiles remaining.
+            Number of retained tiles.
         """
-        mask = self._validate_level0_mask(mask)
-        self.filter_mask = mask.copy()
-        self.filter_mask[self.filter_mask != label] = 0
-        self.filter_mask[self.filter_mask == label] = 1
-        tiles = self._tiles.copy()
+        if not 0.0 <= threshold <= 1.0:
+            raise ValueError("threshold must be between 0 and 1.")
+        
+        labels = self._normalize_labels(labels)
 
-        for t in self._tiles:
-            x, y = (t[0], t[1])
-            t_mask = self.filter_mask[y : y + self._y_dim, x : x + self._x_dim]
-            if np.sum(t_mask) < threshold * (self._x_dim * self._y_dim):
-                tiles.remove(t)
+        retained_tiles = []
 
-        self._tiles = tiles
+        for x, y in self._tiles:
+
+            roi = mask.read_region_native(
+                x=x,
+                y=y,
+                width=self._x_dim,
+                height=self._y_dim,
+            )
+
+            label_mask = np.isin(roi, list(labels))
+            proportion = np.count_nonzero(label_mask) / roi.size
+
+            if proportion >= threshold:
+                retained_tiles.append((x, y))
+
+        self._tiles = retained_tiles
+
         return len(self._tiles)
 
     def filter_by_func(
@@ -594,7 +719,6 @@ class WSIParser:
             if filter_func(tile, *args, **kwargs):
                 tiles.remove(t)
 
-        print(f"Removed {self.number - len(tiles)} tiles")
         self._tiles = tiles.copy()
 
     def sample_tiles(self, n: int, seed: int | None = None) -> None:
@@ -606,189 +730,127 @@ class WSIParser:
         sample_tiles = rng.sample(self._tiles, n)
         self._tiles = sample_tiles
 
-    def _validate_level0_mask(self, mask: np.ndarray) -> np.ndarray:
-        """
-        Validate that a mask is a whole-slide mask in level-0 resolution.
-
-        Args:
-            mask: Input whole-slide mask.
-
-        Returns:
-            The validated mask unchanged.
-
-        Raises:
-            ValueError: If the mask dimensions do not match the slide dimensions.
-        """
-        h0, w0 = int(self.slide.dims[1]), int(self.slide.dims[0])
-
-        if mask.shape[:2] != (h0, w0):
-            raise ValueError(
-                f"Mask shape {mask.shape} does not match slide dims {(h0, w0)}."
-            )
-        return mask
-
-    def _resolve_mask(self, mask: Optional[np.ndarray]) -> np.ndarray:
-        """
-        Resolve a whole-slide mask to use for mask-based operations.
-
-        Priority:
-            1. Explicitly provided `mask`
-            2. Stored parser mask (`self.filter_mask`)
-
-        Args:
-            mask: Optional whole-slide level-0 mask.
-
-        Returns:
-            A validated whole-slide mask.
-
-        Raises:
-            ValueError: If no mask is available or the mask shape is invalid.
-        """
-        mask_src = mask if mask is not None else getattr(self, "filter_mask", None)
-        if mask_src is None:
-            raise ValueError(
-                "No mask provided and no stored active mask found. "
-                "Pass `mask=...` or set one via `filter_by_mask()`."
-            )
-        return self._validate_level0_mask(mask_src)
-
     def extract_mask(
         self,
         x: int,
         y: int,
-        mask: Optional[np.ndarray] = None,
-        label: Optional[int] = None,
-        binary: bool = True,
+        mask: BaseMask,
     ) -> np.ndarray:
         """
-        Extract a mask patch corresponding to a single tile.
+        Extract the mask corresponding to a tile.
 
         Args:
             x:
-                Level-0 x coordinate of the tile origin.
+                Level-0 x-coordinate of the tile origin.
+
             y:
-                Level-0 y coordinate of the tile origin.
+                Level-0 y-coordinate of the tile origin.
+
             mask:
-                Optional level-0 whole-slide mask to use. If `None`, the method
-                attempts to use the parser's stored mask (`self.filter_mask`).
-            label:
-                Optional label value to select from the mask.
-                If provided, only pixels equal to this label are retained.
-            binary:
-                If True, return a binary mask (0/1). If False, preserve
-                original mask values (except where `label` filtering is applied).
+                Whole-slide mask from which to extract the tile mask.
 
         Returns:
-            np.ndarray:
-                Mask patch resized to `self.tile_dims` with shape
-                `(tile_height, tile_width)`.
-                Nearest-neighbour interpolation is used to preserve mask values
-
-        Raises:
-            ValueError:
-                If no mask is available (neither `mask` nor `self.mask`)
-                or if the mask dimensions do not match the slide dimensions.
+            Mask corresponding to the requested tile.
         """
-        mask_src = self._resolve_mask(mask)
 
-        roi = mask_src[y : y + self._y_dim, x : x + self._x_dim]
-        if roi.size == 0 or roi.shape[0] != self._y_dim or roi.shape[1] != self._x_dim:
-            raise ValueError(
-                f"Tile ROI at {(x, y)} is out of bounds for the provided mask."
-            )
-
-        if label is not None:
-            if binary:
-                roi = (roi == label).astype(np.uint8)
-            else:
-                roi = np.where(roi == label, roi, 0).astype(roi.dtype, copy=False)
-        else:
-            if binary:
-                roi = (roi > 0).astype(np.uint8)
-
-        roi = cv2.resize(
-            roi,
-            (self.tile_dims[0], self.tile_dims[1]),
-            interpolation=cv2.INTER_NEAREST,
+        return mask.read_region(
+            x=x,
+            y=y,
+            width=self._x_dim,
+            height=self._y_dim,
         )
-        return roi
 
     def extract_masks(
         self,
-        mask: Optional[np.ndarray] = None,
-        label: Optional[int] = None,
-        binary: bool = True,
-    ) -> Generator[Tuple[Tuple[int, int], np.ndarray], None, None]:
+        mask: BaseMask,
+    ) -> Generator[tuple[tuple[int, int], np.ndarray], None, None]:
         """
-        Generator that yields mask patches for all tiles.
+        Extract the corresponding mask for each retained tile.
 
         Args:
             mask:
-                Optional level-0 whole-slide mask to use. If `None`, the stored
-                parser mask (`self.filter_mask`) will be used if available.
-            label:
-                Optional label value to select from the mask.
-                If provided, only pixels equal to this label are retained.
-            binary:
-                If True, returned masks are binary (0/1). If False,
-                original mask values are preserved.
+                Whole-slide mask.
 
         Yields:
-            Tuple[(x, y), np.ndarray]:
-                A tuple containing the tile coordinate `(x, y)` and the
-                corresponding mask patch resized to `self.tile_dims`.
+            Tile coordinates together with the corresponding mask.
         """
+
         for x, y in self._tiles:
-            yield (x, y), self.extract_mask(x, y, mask=mask, label=label, binary=binary)
+
+            yield (
+                (x, y),
+                self.extract_mask(
+                    x=x,
+                    y=y,
+                    mask=mask,
+                ),
+            )
 
     def extract_tile(
         self,
         x: int,
         y: int,
         normalize: bool = False,
-        apply_mask: bool = False,
-        mask: Optional[np.ndarray] = None,
+        mask: Optional[BaseMask] = None,
+        labels: Optional[Union[int, Collection[int]]] = None,
         bg_value: int = 255,
     ) -> np.ndarray:
         """
         Extract a single tile from the slide.
 
-        The tile is read according to the active parser mode,
-        using `(x, y)` as the level-0 top-left origin of the tile footprint.
+        The tile is read according to the active parser mode using ``(x, y)`` 
+        as the level-0 coordinates of the tile's top-left corner.
 
         - In level-based mode, tiles are read directly from `self.level`.
         - In target-MPP mode, tiles are read from an automatically selected
           pyramid level and resized to the requested output size if needed.
 
-        Optional post-processing can then be applied, including binary
-        masking and stain normalization.
+        Optional masking and stain normalization can then be applied.
 
         Args:
             x:
-                Level-0 x coordinate of the tile origin.
+                Level-0 x-coordinate of the tile origin.
+
             y:
-                Level-0 y coordinate of the tile origin.
+                Level-0 y-coordinate of the tile origin.
+
             normalize:
-                If True, apply stain normalization to the tile.
-            apply_mask:
-                If True, apply a binary mask to the extracted tile.
+                If True, apply stain normalization to the extracted tile.
+
             mask:
-                Optional whole-slide mask in level-0 resolution to use
-                when `apply_mask=True`.
-                If `None`, the method attempts to use `self.filter_mask`.
+                Optional whole-slide mask used to mask the extracted tile.
+
+            labels:
+                Optional label or collection of labels to retain before
+                applying the mask. If None, all non-zero labels are retained.
+
             bg_value:
-                Pixel value to assign to masked-out background pixels.
-                Default is 255 (white).
+                Pixel value assigned to pixels excluded by the mask, if masking
+                is applied. Default is 255 (white).
 
         Returns:
-            np.ndarray:
-                RGB tile array of shape `(height, width, 3)`.
+            RGB tile array of shape `(height, width, 3)`.
         """
         tile = self._read_tile_by_mode(x, y)
 
-        if apply_mask:
-            tile_mask = self.extract_mask(x, y, mask=mask, binary=True)
-            tile[tile_mask == 0] = bg_value
+        if mask is not None:
+
+            label_mask = self.extract_mask(
+                x=x,
+                y=y,
+                mask=mask,
+            )
+
+            if labels is not None:
+                label_mask = self._retain_labels(
+                    label_mask,
+                    labels,
+                )
+
+            binary_mask = (label_mask > 0).astype(np.uint8)
+
+            tile = tile.copy()            
+            tile[binary_mask == 0] = bg_value
 
         if normalize:
             if self.stain_normalizer is None:
@@ -808,8 +870,8 @@ class WSIParser:
     def extract_tiles(
         self,
         normalize: bool = False,
-        apply_mask: bool = False,
-        mask: Optional[np.ndarray] = None,
+        mask: Optional[BaseMask] = None,
+        labels: Optional[Union[int, Collection[int]]] = None,
         bg_value: int = 255,
     ) -> Generator[Tuple[Tuple[int, int], np.ndarray], None, None]:
         """
@@ -818,51 +880,62 @@ class WSIParser:
         Args:
             normalize:
                 If True, apply stain normalization to each tile.
-            apply_mask:
-                If True, apply a binary mask to each tile.
+
             mask:
-                Optional whole-slide mask in level-0 resolution to use
-                when `apply_mask=True`.
-                If `None`, the method attempts to use `self.filter_mask`.               .
+                Optional whole-slide mask used to mask the extracted tile.
+
+            labels:
+                Optional label or collection of labels to retain before applying
+                the mask. If None, all non-zero labels are retained.
+
             bg_value:
-                Pixel value to assign to masked-out background pixels.
-                Default is 255 (white).
+                Pixel value assigned to pixels excluded by the mask, if masking
+                is applied. Default is 255 (white).
 
         Yields:
-            Tuple[(x, y), np.ndarray]:
-                A tuple containing the tile coordinate `(x, y)` and the
-                corresponding extracted tile array.
+            A tuple containing the tile coordinate `(x, y)` and the
+            corresponding extracted tile array.
         """
-        print("Number of tiles", len(self._tiles))
-
         for x, y in self._tiles:
             tile = self.extract_tile(
                 x=x,
                 y=y,
                 normalize=normalize,
-                apply_mask=apply_mask,
                 mask=mask,
+                labels=labels,
                 bg_value=bg_value,
             )
+
             yield (x, y), tile
 
     @staticmethod
     def _save_to_disk(
-        image: np.ndarray, path: str, x: Optional[int] = None, y: Optional[int] = None
+        image: np.ndarray, 
+        path: str, 
+        x: int, 
+        y: int,
     ) -> bool:
         """
         Save tile to disk.
 
         Args:
-            image: Tile image as numpy array.
-            path: Path to save the image.
-            x: X coordinate for filename.
-            y: Y coordinate for filename.
+            image: 
+                Tile image as numpy array.
+
+            path: 
+                Path to save the image.
+
+            x: 
+                Level-0 x-coordinate of the tile origin used when
+                constructing the filename.
+
+            y: 
+                Level-0 y-coordinate of the tile origin used when
+                constructing the filename.
 
         Returns:
-            bool: Success status.
+            Whether the tile was written successfully.
         """
-        assert isinstance(y, int) and isinstance(x, int)
         filename = coord_to_name(x, y)
         image_path = os.path.join(path, filename + ".png")
         if len(image.shape) > 2:
@@ -871,13 +944,12 @@ class WSIParser:
         status = cv2.imwrite(image_path, image)
         return status
 
-    def save(
+    def _save_tiles(
         self,
         func: Generator[Tuple[Tuple[int, int], np.ndarray], None, None],
         tile_path: str,
         label_dir: bool = False,
         label_csv: bool = False,
-        normalize: bool = False,
     ) -> None:
         """
         Save the extracted tiles to disk.
@@ -885,10 +957,13 @@ class WSIParser:
         Args:
             func:
                 Generator function that yields (coordinates, tile) tuples.
+
             tile_path:
                 Base directory where tiles will be saved.
+
             label_dir:
                 If True, saves tiles in subdirectories based on their label.
+
             label_csv:
                 If True, saves tile metadata in a CSV file.
         """
@@ -921,13 +996,13 @@ class WSIParser:
 
     def save_tiles(
         self,
-        tile_path: str,
+        tile_path: str,        
         normalize: bool = False,
+        mask: Optional[BaseMask] = None,
+        labels: Optional[Union[int, Collection[int]]] = None,
+        bg_value: int = 255,   
         label_dir: bool = False,
-        label_csv: bool = False,
-        apply_mask: bool = False,
-        mask: Optional[np.ndarray] = None,
-        bg_value: int = 255,
+        label_csv: bool = False,             
     ) -> None:
         """
         Wrapper to extract tiles and save them to disk.
@@ -935,40 +1010,45 @@ class WSIParser:
         Wraps the two-step workflow:
 
             func = parser.extract_tiles(...)
-            parser.save(func, tile_path, ...)
+            parser._save_tiles(func, tile_path, ...)
 
         Args:
             tile_path:
                 Base directory where tiles will be saved.
+
             normalize:
                 Whether to stain-normalize tiles during extraction.
+            
+            mask:
+                Optional whole-slide mask used to mask the extracted tile.
+            
+            labels:
+                Optional label or collection of labels to retain before
+                applying the mask. If None, all non-zero labels are retained.
+
+            bg_value:
+                Pixel value assigned to pixels excluded by the mask, if masking
+                is applied. Default is 255 (white).
+
             label_dir:
                 If True, saves tiles in a (single) subdirectory named after tile_path basename.
+            
             label_csv:
-                If True, writes a CSV with tile metadata (x, y, path).
-            apply_mask:
-                If True, applies a whole-slide mask to each extracted tile (background -> bg_value).
-            mask:
-                Whole-slide mask to apply. If None and `apply_mask` is True, this will use
-                `self.filter_mask` if available.
-            bg_value:
-                Value to assign to background pixels when applying a mask (default: white=255).
+                If True, writes a CSV with tile metadata (x, y, path).                
         """
-        if apply_mask and mask is None and hasattr(self, "filter_mask"):
-            mask = self.filter_mask
 
         func = self.extract_tiles(
             normalize=normalize,
-            apply_mask=apply_mask,
             mask=mask,
+            labels=labels,
             bg_value=bg_value,
         )
-        self.save(
+
+        self._save_tiles(
             func,
             tile_path,
             label_dir=label_dir,
             label_csv=label_csv,
-            normalize=normalize,
         )
 
     def to_lmdb(
@@ -982,10 +1062,17 @@ class WSIParser:
         Save to LMDB database.
 
         Args:
-            func: Generator function that yields (coordinates, tile) tuples.
-            db_path: Base directory where tiles or features will be saved.
-            map_size: Map size for LMDB.
-            write_frequency: Controls batch commit of a transaction.
+            func: 
+                Generator function that yields (coordinates, tile) tuples.
+
+            db_path: 
+                Base directory where tiles or features will be saved.
+
+            map_size: 
+                Map size for LMDB.
+
+            write_frequency: 
+                Controls batch commit of a transaction.
         """
         os.makedirs(db_path, exist_ok=True)
         lmdb_writer = LMDBWrite(db_path, map_size, write_frequency)
@@ -1001,9 +1088,14 @@ class WSIParser:
         Save to RocksDB database.
 
         Args:
-            func: Generator function that yields (coordinates, tile) tuples.
-            db_path: Base directory where tiles or features will be saved.
-            write_frequency: Controls batch commit of a transaction.
+            func: 
+                Generator function that yields (coordinates, tile) tuples.
+            
+            db_path: 
+                Base directory where tiles or features will be saved.
+            
+            write_frequency: 
+                Controls batch commit of a transaction.
         """
         try:
             from pyslyde.io.rocksdb_io import RocksDBWrite
@@ -1026,9 +1118,14 @@ class WSIParser:
         Save features to disk.
 
         Args:
-            func: Generator function that yields (coordinates, feature) tuples.
-            path: Path to save the features.
-            write_frequency: Controls batch commit of a transaction.
+            func: 
+                Generator function that yields (coordinates, feature) tuples.
+            
+            path: 
+                Path to save the features.
+
+            write_frequency: 
+                Controls batch commit of a transaction.
         """
         os.makedirs(path, exist_ok=True)
         disk_writer = DiskWrite(path, write_frequency)
