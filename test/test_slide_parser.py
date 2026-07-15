@@ -30,6 +30,9 @@ import numpy as np
 import pytest
 
 import pyslyde.slide_parser as slide_parser
+
+from pyslyde.masks.level0 import Level0Mask
+from pyslyde.masks.mapped import MappedMask
 from pyslyde.util.utilities import coord_to_name
 
 # Helpers
@@ -116,14 +119,77 @@ def patch_wsi_dependencies(monkeypatch):
     )
 
 
-# Tests for WSIParser
+@pytest.fixture
+def level0_mask(
+    fake_slide,
+):
+    """
+    Level-0 semantic mask covering the fake slide.
+
+    Label 1 occupies the top-left 8 × 8 tile.
+    Label 2 occupies the neighbouring tile to the right.
+    """
+
+    mask = np.zeros(
+        (80, 100),
+        dtype=np.uint8,
+    )
+
+    mask[0:8, 0:8] = 1
+    mask[0:8, 8:16] = 2
+
+    return Level0Mask(mask)
+
+
+@pytest.fixture
+def mapped_mask(
+    fake_slide,
+):
+    """
+    Mapped semantic mask stored at half the slide resolution.
+
+    The mask represents the same labelled regions as ``level0_mask`` but is
+    stored at one-half resolution in each dimension.
+    """
+
+    mask = np.zeros(
+        (40, 50),
+        dtype=np.uint8,
+    )
+
+    mask[0:4, 0:4] = 1
+    mask[0:4, 4:8] = 2
+
+    return MappedMask(
+        mask=mask,
+        slide_shape=(80, 100),
+    )
+
+
+@pytest.fixture
+def multi_label_mask():
+    """
+    Whole-slide mask containing three vertical label regions.
+
+    Labels 1, 2 and 3 occupy consecutive 8-pixel-wide bands from
+    left to right.
+    """
+
+    mask = np.zeros((80, 100), dtype=np.uint8)
+    mask[:, :8] = 1
+    mask[:, 8:16] = 2
+    mask[:, 16:24] = 3
+
+    return Level0Mask(mask)
 
 
 @pytest.mark.slide_parser
 class TestWSIParser:
-    """Pytest suite for WSIParser."""
 
-    def test_init_level_mode_config(self, fake_slide, patch_wsi_dependencies):
+    # Construction
+    # ------------
+
+    def test_init_level_mode_config(self, fake_slide):
         """Parser should initialize correctly in level mode."""
         parser = slide_parser.WSIParser(
             slide=fake_slide,
@@ -142,7 +208,7 @@ class TestWSIParser:
         assert parser.tiles == []
 
     def test_init_target_mpp_mode_warns_when_level_also_given(
-        self, fake_slide, patch_wsi_dependencies
+        self, fake_slide,
     ):
         """Providing both level and target_mpp should warn and prefer target_mpp."""
         with warnings.catch_warnings(record=True) as caught:
@@ -197,7 +263,10 @@ class TestWSIParser:
                 target_mpp=None,
             )
 
-    def test_tiler_generates_expected_tiles(self, fake_slide, patch_wsi_dependencies):
+    # Tile generation
+    # ---------------
+
+    def test_tiler_generates_expected_tiles(self, fake_slide):
         """tiler should generate expected level-0 tile origins."""
         parser = slide_parser.WSIParser(
             slide=fake_slide,
@@ -213,9 +282,9 @@ class TestWSIParser:
         assert parser.number == 4
 
     def test_tiler_edge_cases_skips_partial_tiles(
-        self, fake_slide, patch_wsi_dependencies
+        self, fake_slide, 
     ):
-        """edge_cases=True should exclude tiles whose footprint exceeds border."""
+        """``edge_cases=True`` should exclude tiles whose footprint exceeds border."""
         parser = slide_parser.WSIParser(
             slide=fake_slide,
             tile_dim=8,
@@ -228,134 +297,10 @@ class TestWSIParser:
         assert n == 4
         assert parser.tiles == [(0, 0), (0, 8), (8, 0), (8, 8)]
 
-    def test_validate_level0_mask_rejects_wrong_shape(
-        self, fake_slide, patch_wsi_dependencies
-    ):
-        """Whole-slide masks must match slide level-0 dimensions."""
-        parser = slide_parser.WSIParser(
-            slide=fake_slide,
-            tile_dim=8,
-            border=[(0, 16), (0, 16)],
-            level=0,
-        )
-        bad_mask = np.zeros((10, 10), dtype=np.uint8)
-
-        with pytest.raises(ValueError, match="does not match slide dims"):
-            parser._validate_level0_mask(bad_mask)
-
-    def test_extract_mask_binary_with_label(self, fake_slide, patch_wsi_dependencies):
-        """extract_mask should return a binary tile mask for the selected label."""
-        parser = slide_parser.WSIParser(
-            slide=fake_slide,
-            tile_dim=8,
-            border=[(0, 16), (0, 16)],
-            level=0,
-        )
-
-        mask = np.zeros((80, 100), dtype=np.uint8)
-        mask[0:8, 0:8] = 2
-
-        out = parser.extract_mask(0, 0, mask=mask, label=2, binary=True)
-
-        assert out.shape == (8, 8)
-        assert out.dtype == np.uint8
-        assert np.all(out == 1)
-
-    def test_extract_mask_nonbinary_preserves_label_values(
-        self, fake_slide, patch_wsi_dependencies
-    ):
-        """extract_mask(binary=False) should preserve selected label values."""
-        parser = slide_parser.WSIParser(
-            slide=fake_slide,
-            tile_dim=8,
-            border=[(0, 16), (0, 16)],
-            level=0,
-        )
-
-        mask = np.zeros((80, 100), dtype=np.uint8)
-        mask[0:8, 0:8] = 3
-
-        out = parser.extract_mask(0, 0, mask=mask, label=3, binary=False)
-
-        assert out.shape == (8, 8)
-        assert np.all(out == 3)
-
-    def test_extract_mask_uses_stored_filter_mask_if_mask_not_passed(
-        self, fake_slide, patch_wsi_dependencies
-    ):
-        """extract_mask should fall back to parser.filter_mask when available."""
-        parser = slide_parser.WSIParser(
-            slide=fake_slide,
-            tile_dim=8,
-            border=[(0, 16), (0, 16)],
-            level=0,
-        )
-
-        parser.filter_mask = np.zeros((80, 100), dtype=np.uint8)
-        parser.filter_mask[0:8, 0:8] = 1
-
-        out = parser.extract_mask(0, 0)
-
-        assert out.shape == (8, 8)
-        assert np.all(out == 1)
-
-    def test_extract_mask_raises_when_no_mask_available(
-        self, fake_slide, patch_wsi_dependencies
-    ):
-        """extract_mask should fail when neither mask nor stored filter mask exists."""
-        parser = slide_parser.WSIParser(
-            slide=fake_slide,
-            tile_dim=8,
-            border=[(0, 16), (0, 16)],
-            level=0,
-        )
-
-        with pytest.raises(ValueError, match="No mask provided"):
-            parser.extract_mask(0, 0)
-
-    def test_filter_by_mask_keeps_only_tiles_above_threshold(
-        self, fake_slide, patch_wsi_dependencies
-    ):
-        """filter_by_mask should remove tiles not meeting label coverage threshold."""
-        parser = slide_parser.WSIParser(
-            slide=fake_slide,
-            tile_dim=8,
-            border=[(0, 16), (0, 16)],
-            level=0,
-        )
-        parser.tiles = [(0, 0), (8, 0)]
-
-        mask = np.zeros((80, 100), dtype=np.uint8)
-        mask[0:8, 0:8] = 1
-
-        remaining = parser.filter_by_mask(mask=mask, label=1, threshold=0.5)
-
-        assert remaining == 1
-        assert parser.tiles == [(0, 0)]
-
-    def test_filter_by_func_removes_matching_tiles(
-        self, fake_slide, patch_wsi_dependencies
-    ):
-        """filter_by_func should remove tiles for which filter_func returns True."""
-        parser = slide_parser.WSIParser(
-            slide=fake_slide,
-            tile_dim=8,
-            border=[(0, 24), (0, 24)],
-            level=0,
-        )
-        parser.tiles = [(0, 0), (8, 0), (16, 0)]
-
-        def remove_dark_tiles(tile, threshold):
-            return tile.mean() < threshold
-
-        parser.filter_by_func(remove_dark_tiles, threshold=10)
-
-        assert parser.tiles == [(16, 0)]
-
     def test_sample_tiles_is_reproducible_with_seed(
-        self, fake_slide, patch_wsi_dependencies
+        self, fake_slide
     ):
-        """sample_tiles should be deterministic when a seed is given."""
+        """``sample_tiles()`` should be deterministic when a seed is given."""
         tiles = [(0, 0), (0, 8), (8, 0), (8, 8), (16, 16)]
 
         parser1 = slide_parser.WSIParser(
@@ -380,8 +325,19 @@ class TestWSIParser:
         assert parser1.tiles == parser2.tiles
         assert len(parser1.tiles) == 3
 
-    def test_extract_tile_applies_mask(self, fake_slide, patch_wsi_dependencies):
-        """extract_tile(apply_mask=True) should set masked-out pixels to bg_value."""
+    # Mask extraction
+    # ---------------
+
+    def test_extract_mask_returns_requested_mask_region(
+        self,
+        fake_slide,
+        level0_mask,
+    ):
+        """
+        ``extract_mask()`` should return the mask region corresponding
+        to the requested tile.
+        """
+
         parser = slide_parser.WSIParser(
             slide=fake_slide,
             tile_dim=8,
@@ -389,20 +345,455 @@ class TestWSIParser:
             level=0,
         )
 
+        region = parser.extract_mask(
+            x=0,
+            y=0,
+            mask=level0_mask,
+        )
+
+        assert region.shape == (8, 8)
+        assert np.all(region == 1)
+
+    def test_extract_mask_preserves_multiple_labels_within_a_tile(
+        self,
+        fake_slide,
+        level0_mask,
+    ):
+        """
+        ``extract_mask()`` should preserve multiple semantic labels within a
+        single extracted mask region.
+        """
+
+        # tile containing two labels
+        level0_mask.array[0:8, 0:4] = 1
+        level0_mask.array[0:8, 4:8] = 2
+
+        parser = slide_parser.WSIParser(
+            slide=fake_slide,
+            tile_dim=8,
+            border=[(0, 16), (0, 16)],
+            level=0,
+        )
+
+        region = parser.extract_mask(
+            x=0,
+            y=0,
+            mask=level0_mask,
+        )
+
+        assert region.shape == (8, 8)
+
+        assert np.all(region[:, :4] == 1)
+        assert np.all(region[:, 4:] == 2)
+
+    def test_extract_masks_returns_one_mask_per_tile(
+        self,
+        fake_slide,
+        level0_mask,
+    ):
+        """
+        ``extract_masks()`` should yield one mask region per retained tile.
+        """
+
+        parser = slide_parser.WSIParser(
+            slide=fake_slide,
+            tile_dim=8,
+            border=[(0, 24), (0, 8)],
+            level=0,
+        )
+
+        parser.tiles = [
+            (0, 0),
+            (8, 0),
+            (16, 0),
+        ]
+
+        masks = list(
+            parser.extract_masks(
+                mask=level0_mask,
+            )
+        )
+
+        assert len(masks) == 3
+
+        assert [coord for coord, _ in masks] == parser.tiles
+
+        assert all(region.shape == (8, 8) for _, region in masks)
+
+    def test_extract_masks_returns_expected_mask_regions(
+        self,
+        fake_slide,
+        level0_mask,
+    ):
+        """
+        ``extract_masks()`` should yield mask regions corresponding to each tile.
+        """
+
+        parser = slide_parser.WSIParser(
+            slide=fake_slide,
+            tile_dim=8,
+            border=[(0, 16), (0, 8)],
+            level=0,
+        )
+
+        parser.tiles = [
+            (0, 0),
+            (8, 0),
+        ]
+
+        regions = dict(
+            parser.extract_masks(
+                mask=level0_mask,
+            )
+        )
+
+        assert np.all(regions[(0, 0)] == 1)
+        assert np.all(regions[(8, 0)] == 2)
+
+    # Tile filtering
+    # --------------
+
+    def test_filter_by_mask_keeps_only_tiles_above_threshold(
+        self, 
+        fake_slide, 
+        level0_mask,
+    ):
+        """``filter_by_mask`` should retain only tiles meeting the requested 
+        label coverage threshold.
+        """
+        parser = slide_parser.WSIParser(
+            slide=fake_slide,
+            tile_dim=8,
+            border=[(0, 16), (0, 16)],
+            level=0,
+        )
+
+        parser.tiles = [
+            (0, 0), 
+            (8, 0)
+        ]
+
+        remaining = parser.filter_by_mask(
+            mask=level0_mask, 
+            labels=1, 
+            threshold=0.5,
+        )
+
+        assert remaining == 1
+        assert parser.tiles == [(0, 0)]
+
+    def test_filter_by_mask_accepts_multiple_labels(
+        self,
+        fake_slide,
+        level0_mask,
+    ):
+        """
+        ``filter_by_mask()`` should retain tiles containing any requested label.
+        """
+
+        parser = slide_parser.WSIParser(
+            slide=fake_slide,
+            tile_dim=8,
+            border=[(0, 24), (0, 8)],
+            level=0,
+        )
+
+        parser.tiles = [
+            (0, 0),
+            (8, 0),
+            (16, 0),
+        ]
+
+        remaining = parser.filter_by_mask(
+            mask=level0_mask,
+            labels=[1, 2],
+            threshold=0.5,
+        )
+
+        assert remaining == 2
+        assert parser.tiles == [
+            (0, 0),
+            (8, 0),
+        ]
+
+    def test_filter_by_mask_removes_tiles_without_requested_labels(
+        self,
+        fake_slide,
+        level0_mask,
+    ):
+        """
+        ``filter_by_mask()`` should remove every tile when none contains 
+        the requested labels.
+        """
+
+        parser = slide_parser.WSIParser(
+            slide=fake_slide,
+            tile_dim=8,
+            border=[(0, 16), (0, 16)],
+            level=0,
+        )
+
+        parser.tiles = [
+            (0, 0),
+            (8, 0),
+        ]
+
+        remaining = parser.filter_by_mask(
+            mask=level0_mask,
+            labels=3,
+            threshold=0.5,
+        )
+
+        assert remaining == 0
+        assert parser.tiles == []
+
+    def test_filter_by_mask_threshold_zero_retains_all_tiles(
+        self,
+        fake_slide,
+        level0_mask,
+    ):
+        """
+        ``filter_by_mask()`` should retain every tile when the threshold is zero.
+        """
+
+        parser = slide_parser.WSIParser(
+            slide=fake_slide,
+            tile_dim=8,
+            border=[(0, 24), (0, 8)],
+            level=0,
+        )
+
+        parser.tiles = [
+            (0, 0),
+            (8, 0),
+            (16, 0),
+        ]
+
+        parser.filter_by_mask(
+            mask=level0_mask,
+            labels=1,
+            threshold=0.0,
+        )
+
+        assert parser.tiles == [
+            (0, 0),
+            (8, 0),
+            (16, 0),
+        ]
+
+    def test_filter_by_mask_threshold_one_requires_complete_tile_coverage(
+        self,
+        fake_slide,
+    ):
+        """
+        ``filter_by_mask()`` should retain only tiles completely covered by the
+        requested labels when the threshold is one.
+        """
+
         mask = np.zeros((80, 100), dtype=np.uint8)
-        mask[0:8, 0:4] = 1  # left half kept, right half masked
+
+        mask[0:8, 0:8] = 1
+
+        mask[0:8, 8:12] = 1
+
+        mask = Level0Mask(mask)
+
+        parser = slide_parser.WSIParser(
+            slide=fake_slide,
+            tile_dim=8,
+            border=[(0, 16), (0, 8)],
+            level=0,
+        )
+
+        parser.tiles = [
+            (0, 0),
+            (8, 0),
+        ]
+
+        parser.filter_by_mask(
+            mask=mask,
+            labels=1,
+            threshold=1.0,
+        )
+        
+        assert parser.tiles == [
+            (0, 0),
+        ]
+
+    def test_filter_by_mask_rejects_invalid_threshold(
+        self,
+        fake_slide,
+        level0_mask,
+    ):
+        """``filter_by_mask()`` should reject thresholds outside the interval [0, 1]."""
+
+        parser = slide_parser.WSIParser(
+            slide=fake_slide,
+            tile_dim=8,
+            border=[(0, 16), (0, 16)],
+            level=0,
+        )
+
+        parser.tiles = [(0, 0)]
+
+        for threshold in (-0.1, 1.1):
+
+            with pytest.raises(
+                ValueError,
+                match="threshold",
+            ):
+                parser.filter_by_mask(
+                    mask=level0_mask,
+                    labels=1,
+                    threshold=threshold,
+                )
+
+    def test_filter_by_mask_rejects_empty_label_collection(
+        self,
+        fake_slide,
+        level0_mask,
+    ):
+        """``filter_by_mask()`` should reject an empty label collection."""
+
+        parser = slide_parser.WSIParser(
+            slide=fake_slide,
+            tile_dim=8,
+            border=[(0, 16), (0, 16)],
+            level=0,
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="At least one label must be specified",
+        ):
+            parser.filter_by_mask(
+                mask=level0_mask,
+                labels=[],
+            )
+
+    def test_filter_by_func_removes_matching_tiles(
+        self, fake_slide, patch_wsi_dependencies
+    ):
+        """``filter_by_func`` should remove tiles for which filter_func returns True."""
+        parser = slide_parser.WSIParser(
+            slide=fake_slide,
+            tile_dim=8,
+            border=[(0, 24), (0, 24)],
+            level=0,
+        )
+        parser.tiles = [(0, 0), (8, 0), (16, 0)]
+
+        def remove_dark_tiles(tile, threshold):
+            return tile.mean() < threshold
+
+        parser.filter_by_func(remove_dark_tiles, threshold=10)
+
+        assert parser.tiles == [(16, 0)]
+
+    # Tile extraction
+    # ---------------
+
+    def test_extract_tile_applies_mask(
+            self, 
+            fake_slide, 
+            patch_wsi_dependencies,
+            level0_mask,
+    ):
+        """``extract_tile()`` should replace masked pixels with ``bg_value``."""
+        parser = slide_parser.WSIParser(
+            slide=fake_slide,
+            tile_dim=8,
+            border=[(0, 16), (0, 16)],
+            level=0,
+        )
 
         tile = parser.extract_tile(
             x=0,
             y=0,
-            apply_mask=True,
-            mask=mask,
+            mask=level0_mask,
             bg_value=255,
         )
 
         assert tile.shape == (8, 8, 3)
-        assert np.all(tile[:, 0:4, :] == 0)
-        assert np.all(tile[:, 4:8, :] == 255)
+        assert np.all(tile == 0)
+
+
+    def test_extract_tile_retains_requested_label(
+        self,
+        fake_slide,
+        patch_wsi_dependencies,
+        multi_label_mask,
+    ):
+        """``extract_tile()`` should retain only the requested label."""
+
+        parser = slide_parser.WSIParser(
+            slide=fake_slide,
+            tile_dim=8,
+            border=[(0, 16), (0, 8)],
+            level=0,
+        )
+
+        tile = parser.extract_tile(
+            x=0,
+            y=0,
+            mask=multi_label_mask,
+            labels=1,
+            bg_value=255,
+        )
+
+        assert np.all(tile[:, :8] != 255)
+        assert np.all(tile[:, 8:] == 255)
+
+    def test_extract_tile_retains_multiple_labels(
+        self,
+        fake_slide,
+        patch_wsi_dependencies,
+        multi_label_mask,
+    ):
+        """``extract_tile()`` should retain all requested labels."""
+
+        parser = slide_parser.WSIParser(
+            slide=fake_slide,
+            tile_dim=8,
+            border=[(0, 24), (0, 8)],
+            level=0,
+        )
+
+        tile = parser.extract_tile(
+            x=0,
+            y=0,
+            mask=multi_label_mask,
+            labels={1, 3},
+            bg_value=255,
+        )
+
+        assert np.all(tile[:, :8] != 255)
+        assert np.all(tile[:, 8:16] == 255)
+        assert np.all(tile[:, 16:24] != 255)
+
+    def test_extract_tile_retains_all_labels_when_labels_not_specified(
+        self,
+        fake_slide,
+        patch_wsi_dependencies,
+        multi_label_mask,
+    ):
+        """``extract_tile()`` should retain all non-zero labels by default."""
+
+        parser = slide_parser.WSIParser(
+            slide=fake_slide,
+            tile_dim=8,
+            border=[(0, 24), (0, 8)],
+            level=0,
+        )
+
+        tile = parser.extract_tile(
+            x=0,
+            y=0,
+            mask=multi_label_mask,
+            bg_value=255,
+        )
+
+        assert np.all(tile != 255)
 
     def test_extract_tile_raises_if_normalizer_missing(
         self, fake_slide, patch_wsi_dependencies
@@ -456,6 +847,9 @@ class TestWSIParser:
 
         assert np.array_equal(tile_norm, tile_plain + 1)
 
+    # Batch extraction
+    # ----------------
+    
     def test_extract_tiles_yields_all_tiles(self, fake_slide, patch_wsi_dependencies):
         """extract_tiles should yield one tile per stored coordinate."""
         parser = slide_parser.WSIParser(
@@ -471,9 +865,6 @@ class TestWSIParser:
         assert len(out) == 3
         assert [coord for coord, _ in out] == parser.tiles
         assert all(tile.shape == (8, 8, 3) for _, tile in out)
-
-
-# Tests for Stitching
 
 
 @pytest.mark.slide_parser
