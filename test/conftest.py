@@ -120,9 +120,10 @@ def _download_google_drive(url: str, dest: Path) -> None:
         file_id = url
 
     try:
-        gdown.download(
-            id=file_id, output=str(dest), quiet=False, fuzzy=True, resume=True
-        )
+        # gdown >= 6 removed the fuzzy/resume keyword arguments; passing
+        # them raises TypeError before any download starts. `fuzzy` is only
+        # meaningful for URL (not id=) inputs anyway.
+        gdown.download(id=file_id, output=str(dest), quiet=False)
 
         if not dest.exists() or dest.stat().st_size == 0:
             raise RuntimeError("Download failed: file is empty or does not exist")
