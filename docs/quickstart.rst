@@ -93,7 +93,7 @@ Use the `WSIParser` for advanced tiling operations:
        slide=slide_with_annotations,
        tile_dim=256,  # tile size
        border=slide_with_annotations.get_border(),
-       mag_level=0    # magnification level
+       level=0        # pyramid level
    )
 
    # Generate tiles
@@ -202,7 +202,7 @@ Here's a complete example that demonstrates a typical workflow:
        slide=slide_with_annotations,
        tile_dim=256,
        border=border,
-       mag_level=0
+       level=0
    )
 
    # 4. Generate tiles
