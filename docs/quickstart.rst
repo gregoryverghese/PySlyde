@@ -150,7 +150,7 @@ Automatic tissue detection:
    tissue_mask = detector.detect_tissue()
    
    # Get tissue border
-   border = detector.border()
+   border = detector.border(tissue_mask)
    
    # Visualize tissue regions
    thumbnail = detector.tissue_thumbnail
@@ -195,7 +195,7 @@ Here's a complete example that demonstrates a typical workflow:
    # 2. Detect tissue regions
    detector = TissueDetect("path/to/slide.svs")
    tissue_mask = detector.detect_tissue()
-   border = detector.border()
+   border = detector.border(tissue_mask)
 
    # 3. Create parser for tiling
    parser = WSIParser(
