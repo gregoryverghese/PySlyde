@@ -100,7 +100,7 @@ parser = WSIParser(
     slide=slide,
     tile_dim=256,
     border=slide.get_border(),
-    mag_level=0
+    level=0
 )
 
 # Generate tiles
@@ -130,7 +130,7 @@ detector = TissueDetect("path/to/slide.svs")
 tissue_mask = detector.detect_tissue()
 
 # Get tissue border
-border = detector.border()
+border = detector.border(tissue_mask)
 
 # Visualize tissue regions
 thumbnail = detector.tissue_thumbnail
