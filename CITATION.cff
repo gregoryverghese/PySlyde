@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: If you use this software, please cite it as below.
+title: 'PySlyde: A Lightweight, Open-Source Toolkit for Pathology Preprocessing'
+type: software
+authors:
+- given-names: Gregory
+  family-names: Verghese
+- given-names: Anthony
+  family-names: Baptista
+- given-names: Chima
+  family-names: Eke
+- given-names: Holly
+  family-names: Rafique
+- given-names: Elizabeth
+  family-names: Ing-Simmons
+- given-names: Enrico
+  family-names: Parisini
+- given-names: Mengyuan
+  family-names: Li
+- given-names: Fathima
+  family-names: Mohamed
+- given-names: Ananya
+  family-names: Bhalla
+- given-names: Lucy
+  family-names: Ryan
+- given-names: Michael
+  family-names: Pitcher
+- given-names: Concetta
+  family-names: Piazzese
+- given-names: James
+  family-names: Graham
+- given-names: Dinis Pedro
+  family-names: Calado
+- given-names: Christopher R.S.
+  family-names: Banerji
+- given-names: Anita
+  family-names: Grigoriadis
+repository-code: https://github.com/PharosKCL/pyslyde
+license: MIT
