@@ -93,7 +93,7 @@ Use the `WSIParser` for advanced tiling operations:
        slide=slide_with_annotations,
        tile_dim=256,  # tile size
        border=slide_with_annotations.get_border(),
-       mag_level=0    # magnification level
+       level=0        # pyramid level
    )
 
    # Generate tiles
@@ -150,7 +150,7 @@ Automatic tissue detection:
    tissue_mask = detector.detect_tissue()
    
    # Get tissue border
-   border = detector.border()
+   border = detector.border(tissue_mask)
    
    # Visualize tissue regions
    thumbnail = detector.tissue_thumbnail
@@ -195,14 +195,14 @@ Here's a complete example that demonstrates a typical workflow:
    # 2. Detect tissue regions
    detector = TissueDetect("path/to/slide.svs")
    tissue_mask = detector.detect_tissue()
-   border = detector.border()
+   border = detector.border(tissue_mask)
 
    # 3. Create parser for tiling
    parser = WSIParser(
        slide=slide_with_annotations,
        tile_dim=256,
        border=border,
-       mag_level=0
+       level=0
    )
 
    # 4. Generate tiles

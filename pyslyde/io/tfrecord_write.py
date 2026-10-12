@@ -10,7 +10,14 @@ import math
 
 import cv2
 import numpy as np
-import tensorflow as tf
+
+try:
+    import tensorflow as tf
+except ImportError as e:
+    raise ImportError(
+        "TFRecords support requires the 'tensorflow' optional "
+        "dependency group. Install it with: pip install pyslyde[tensorflow]"
+    ) from e
 
 __author__= 'Gregory Verghese'
 __email__='gregory.verghese@gmail.com'
@@ -87,7 +94,7 @@ def convert(imageFiles, maskFiles, tfRecordPath, dim=None):
         maskFiles: maskfile paths
         tfRecordPath: path to save tfrecords
     '''
-
+    os.makedirs(os.path.dirname(tfRecordPath), exist_ok=True)
     numImgs = len(imageFiles)
     check=[]
     with tf.io.TFRecordWriter(tfRecordPath) as writer:

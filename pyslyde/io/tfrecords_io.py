@@ -7,7 +7,14 @@ import math
 
 import cv2
 import numpy as np
-import tensorflow as tf
+
+try:
+    import tensorflow as tf
+except ImportError as e:
+    raise ImportError(
+        "TFRecords support requires the 'tensorflow' optional "
+        "dependency group. Install it with: pip install pyslyde[tensorflow]"
+    ) from e
 
 
 class TFRecordWrite():
@@ -19,8 +26,8 @@ class TFRecordWrite():
 
         self.db_path=db_path
         self.patch=patch
-        self.shard_size=0.01 
-        self.unit=10**9
+        self.shard_size=shard_size
+        self.unit=unit
 
     
     def _print_progress(self,i):
@@ -58,11 +65,12 @@ class TFRecordWrite():
 
 
     def convert(self): 
+        it = iter(self.patch.extract_patches())          
         for i in range(self.shard_number):
             path=os.path.join(self.db_path,str(i)+'.tfrecords')
             writer=tf.io.TFRecordWriter(path)
             for j in range(self.img_num_per_shard):
-                image, p = next(self.patch.extract_patches())
+                image, p = next(it)
                 self._print_progress(j)
                 image = tf.image.encode_png(image)
                  

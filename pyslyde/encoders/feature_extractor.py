@@ -13,18 +13,25 @@ weights from the model's default source over the internet, when available.
 import os
 
 import numpy as np
-import timm
-import torch
-from huggingface_hub import hf_hub_download, login, snapshot_download
-from huggingface_hub.utils import LocalEntryNotFoundError
-from PIL import Image
-from timm.data import resolve_data_config
-from timm.data.transforms_factory import create_transform
-from timm.layers import SwiGLUPacked, to_2tuple
-from torch import nn
-from torchvision import models
-from torchvision import transforms as T
-from transformers import AutoImageProcessor, AutoModel
+
+try:
+    import timm
+    import torch
+    import torch.nn as nn
+    import torchvision.models as models
+    from huggingface_hub import hf_hub_download, login, snapshot_download
+    from huggingface_hub.utils import LocalEntryNotFoundError
+    from PIL import Image
+    from timm.data import resolve_data_config
+    from timm.data.transforms_factory import create_transform
+    from timm.layers import SwiGLUPacked, to_2tuple
+    from torchvision import transforms as T
+    from transformers import AutoImageProcessor, AutoModel
+except ImportError as e:
+    raise ImportError(
+        "Feature extraction requires the 'feature-extractor' optional "
+        "dependency group. Install it with: pip install pyslyde[feature-extractor]"
+    ) from e
 
 EXPECTED_DIMS = {
     "resnet18": 512,
@@ -381,7 +388,10 @@ class TFVisionWrapper:
         try:
             import tensorflow as tf
         except ImportError as e:
-            raise RuntimeError("Tensorflow is required but not found.") from e
+            raise ImportError(
+                "TensorFlow model support requires the 'tensorflow' optional "
+                "dependency group. Install it with: pip install pyslyde[tensorflow]"
+            ) from e
 
         self.tf = tf
 
@@ -962,13 +972,17 @@ class FeatureGenerator:
         try:
             import tensorflow as tf  # noqa: F401
         except ImportError as e:
-            raise RuntimeError("pathfm requires tensorflow to be installed.") from e
+            raise ImportError(
+                "pathfm requires the 'tensorflow' optional "
+                "dependency group. Install it with: pip install pyslyde[tensorflow]"
+            ) from e
 
         try:
             import tf_keras as tfk
         except ImportError as e:
-            raise RuntimeError(
-                "pathfm requires tf_keras (legacy Keras 2) to be installed."
+            raise ImportError(
+                "pathfm requires tf_keras (legacy Keras 2), part of the 'tensorflow' "
+                "optional dependency group. Install it with: pip install pyslyde[tensorflow]"
             ) from e
 
         if self.model_path is not None:
