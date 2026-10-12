@@ -15,14 +15,14 @@ import os
 import numpy as np
 import timm
 import torch
-import torch.nn as nn
-import torchvision.models as models
 from huggingface_hub import hf_hub_download, login, snapshot_download
 from huggingface_hub.utils import LocalEntryNotFoundError
 from PIL import Image
 from timm.data import resolve_data_config
 from timm.data.transforms_factory import create_transform
 from timm.layers import SwiGLUPacked, to_2tuple
+from torch import nn
+from torchvision import models
 from torchvision import transforms as T
 from transformers import AutoImageProcessor, AutoModel
 
@@ -67,6 +67,7 @@ VIRCHOW_POSTPROCESS = {
     "virchow": {"patch_start": 1, "expected_T": 257, "expected_C": 1280},
     "virchow2": {"patch_start": 5, "expected_T": 261, "expected_C": 1280},
 }
+
 
 class ConvStem(nn.Module):
     """
@@ -123,14 +124,15 @@ class ConvStem(nn.Module):
         self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
 
     def forward(self, x):
-        B, C, H, W = x.shape
+        _, _, H, W = x.shape
         assert H == self.img_size[0] and W == self.img_size[1], (
             f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."
         )
         x = self.proj(x)
-        x = x.permute(0, 2, 3, 1)  # BCHW -> BHWC       
+        x = x.permute(0, 2, 3, 1)  # BCHW -> BHWC
         x = self.norm(x)
         return x
+
 
 MODEL_CONFIG = {
     "uni": {
@@ -147,7 +149,6 @@ MODEL_CONFIG = {
             "dynamic_img_size": True,
         },
     },
-
     "uni2": {
         "backend": "timm",
         "source": "huggingface",
@@ -170,7 +171,6 @@ MODEL_CONFIG = {
             "dynamic_img_size": True,
         },
     },
-
     "virchow": {
         "backend": "timm",
         "source": "huggingface",
@@ -185,13 +185,12 @@ MODEL_CONFIG = {
             "num_heads": 16,
             "embed_dim": 1280,
             "depth": 32,
-             "global_pool": "",
+            "global_pool": "",
             "mlp_layer": SwiGLUPacked,
             "act_layer": nn.SiLU,
             "dynamic_img_size": True,
         },
     },
-
     "virchow2": {
         "backend": "timm",
         "source": "huggingface",
@@ -206,11 +205,10 @@ MODEL_CONFIG = {
             "mlp_ratio": 5.3375,
             "global_pool": "",
             "dynamic_img_size": True,
-            'mlp_layer': SwiGLUPacked,
-            'act_layer': torch.nn.SiLU,
+            "mlp_layer": SwiGLUPacked,
+            "act_layer": torch.nn.SiLU,
         },
     },
-
     "gigapath": {
         "backend": "timm",
         "source": "huggingface",
@@ -229,7 +227,6 @@ MODEL_CONFIG = {
             "dynamic_img_size": True,
         },
     },
-
     "hoptimus0": {
         "backend": "timm",
         "source": "huggingface",
@@ -238,13 +235,12 @@ MODEL_CONFIG = {
         "architecture": "vit_giant_patch14_reg4_dinov2",
         "kwargs": {
             "img_size": 224,
-            'init_values': 1e-5,
+            "init_values": 1e-5,
             "global_pool": "token",
             "num_classes": 0,
-            'dynamic_img_size': True,
+            "dynamic_img_size": True,
         },
     },
-
     "hoptimus1": {
         "backend": "timm",
         "source": "huggingface",
@@ -253,13 +249,12 @@ MODEL_CONFIG = {
         "architecture": "vit_giant_patch14_reg4_dinov2",
         "kwargs": {
             "img_size": 224,
-            'init_values': 1e-5,
+            "init_values": 1e-5,
             "global_pool": "token",
             "num_classes": 0,
-            'dynamic_img_size': True,
+            "dynamic_img_size": True,
         },
     },
-
     "ctranspath": {
         "backend": "timm",
         "source": "huggingface",
@@ -269,36 +264,30 @@ MODEL_CONFIG = {
             "embed_layer": ConvStem,
         },
     },
-
     "pathfm": {
         "backend": "tensorflow",
         "source": "huggingface",
         "hf_repo_id": "google/path-foundation",
         "requires_hf_auth": True,
     },
-
     "phikon": {
         "backend": "transformers",
         "source": "huggingface",
         "hf_repo_id": "owkin/phikon",
     },
-
     "phikon2": {
         "backend": "transformers",
         "source": "huggingface",
         "hf_repo_id": "owkin/phikon-v2",
     },
-
     "resnet18": {
         "backend": "torchvision",
         "source": "torchvision",
     },
-
     "resnet50": {
         "backend": "torchvision",
         "source": "torchvision",
     },
-
     "vgg16": {
         "backend": "torchvision",
         "source": "torchvision",
@@ -308,6 +297,7 @@ MODEL_CONFIG = {
 GATED_HF_MODELS = {
     key for key, cfg in MODEL_CONFIG.items() if cfg.get("requires_hf_auth", False)
 }
+
 
 class TorchWrapper:
     """
@@ -431,6 +421,7 @@ class TFVisionWrapper:
 
         return torch.from_numpy(emb)
 
+
 class FeatureGenerator:
     """
     Factory and interface for extracting feature embeddings from vision models.
@@ -442,26 +433,26 @@ class FeatureGenerator:
     """
 
     def __init__(
-            self, 
-            model_name: str, 
-            model_path: str | None = None, 
-            force_hf_login: bool = False,
+        self,
+        model_name: str,
+        model_path: str | None = None,
+        force_hf_login: bool = False,
     ):
         """
         Initialize a feature generator for the specified model.
 
         Parameters:
             model_name: Identifier of the feature extraction backbone to use.
-            model_path: Optional path to a local pretrained model representation. 
-                If provided, the local representation is used instead of the 
+            model_path: Optional path to a local pretrained model representation.
+                If provided, the local representation is used instead of the
                 model's defaultpretrained weight source (e.g., HF).
                 The expected path type depends on the model, for instance:
                     - PyTorch/timm and torchvision models: checkpoint/weights file.
                     - Phikon and Phikon2: local HF directory containing the model,
                       configuration and preprocessing files.
                     - PathFM: local TensorFlow/Keras SavedModel directory.
-            force_hf_login: If True, force a new HF login when HF is used as 
-                the model source.            
+            force_hf_login: If True, force a new HF login when HF is used as
+                the model source.
         """
         self.model_path = model_path
 
@@ -496,7 +487,7 @@ class FeatureGenerator:
                 f"Model '{self.model_name}' does not have a Hugging Face "
                 "repository configured."
             )
-                
+
         return f"hf-hub:{self.hf_repo_id}"
 
     @model.setter
@@ -512,12 +503,9 @@ class FeatureGenerator:
 
         cfg = MODEL_CONFIG[value]
 
-        if (
-            self.model_path is None 
-            and cfg["source"] == "huggingface"
-        ):
+        if self.model_path is None and cfg["source"] == "huggingface":
             self._prepare_hf_access(value)
-                    
+
         self._model = getattr(self, "_" + value)()
 
     def _hf_login(self, force=False):
@@ -562,19 +550,19 @@ class FeatureGenerator:
         """
         Prepare Hugging Face access for a gated model.
 
-        No action is taken for models that do not require authentication. 
+        No action is taken for models that do not require authentication.
         For gated models, Hugging Face authentication is forced when
         force_hf_login is enabled; otherwise, authentication is performed
         only when the model is not already available in the local Hugging Face
         cache.
-        """        
+        """
         if model_name not in GATED_HF_MODELS:
             return
-    
+
         if self.force_hf_login:
             self._hf_login(force=True)
             return
-        
+
         if not self._hf_cache_exists(self.hf_repo_id):
             self._hf_login()
 
@@ -612,8 +600,7 @@ class FeatureGenerator:
 
         else:
             raise ValueError(
-                f"Invalid expected_type '{expected_type}'. "
-                "Expected 'file' or 'dir'."
+                f"Invalid expected_type '{expected_type}'. Expected 'file' or 'dir'."
             )
 
     def _load_weights(self):
@@ -623,8 +610,8 @@ class FeatureGenerator:
         Raises
             ValueError: If ``model_path`` was not provided.
             FileNotFoundError: If ``model_path`` does not point to a file.
-            RuntimeError: If the weights cannot be loaded or the checkpoint 
-                has an unsupported format.        
+            RuntimeError: If the weights cannot be loaded or the checkpoint
+                has an unsupported format.
         """
         self._validate_model_path("file")
 
@@ -644,9 +631,9 @@ class FeatureGenerator:
                     f"Invalid CTransPath checkpoint for '{self.model_name}': "
                     "expected a 'model' key containing the state_dict."
                 ) from e
-            
+
         return checkpoint
-        
+
     def _load_local_timm_model(self):
         """
         Construct a timm model and load its weights from a local checkpoint.
@@ -660,11 +647,11 @@ class FeatureGenerator:
         )
 
         model.load_state_dict(
-            self._load_weights(), 
+            self._load_weights(),
             strict=True,
         )
 
-        return model    
+        return model
 
     def _build_transforms(self, model_name: str):
         """
@@ -803,8 +790,8 @@ class FeatureGenerator:
             model = AutoModel.from_pretrained(
                 self.model_path,
                 local_files_only=True,
-            )  
-        else:      
+            )
+        else:
             processor = AutoImageProcessor.from_pretrained(self.hf_repo_id)
             model = AutoModel.from_pretrained(self.hf_repo_id)
 
@@ -844,7 +831,7 @@ class FeatureGenerator:
         """
         if self.model_path is not None:
             model = self._load_local_timm_model()
-        else:        
+        else:
             model = timm.create_model(
                 self.hf_hub_ref,
                 pretrained=True,
@@ -880,7 +867,7 @@ class FeatureGenerator:
         """
         if self.model_path is not None:
             model = self._load_local_timm_model()
-        else:        
+        else:
             model = timm.create_model(
                 self.hf_hub_ref,
                 pretrained=True,
@@ -938,7 +925,7 @@ class FeatureGenerator:
                 pretrained=True,
                 init_values=1e-5,
                 dynamic_img_size=False,
-        )
+            )
         transforms = self._build_transforms("hoptimus0")
         return TorchWrapper(model, transforms, self.device)
 
