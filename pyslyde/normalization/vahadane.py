@@ -1,3 +1,5 @@
+"""Vahadane stain normalisation (sparse non-negative matrix factorisation)."""
+
 from .base import StainNormalizer
 from typing import Any, Dict, Optional
 import numpy as np

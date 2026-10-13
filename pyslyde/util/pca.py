@@ -1,3 +1,5 @@
+"""PCA on tile feature vectors read from a parser, disk, LMDB or RocksDB."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

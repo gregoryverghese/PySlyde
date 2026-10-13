@@ -6,28 +6,6 @@ slide images (WSIs). It wraps `OpenSlide <https://openslide.org/>`_ and adds
 annotation parsing, mask generation, tissue detection, tiling, stain
 normalisation and feature extraction with pathology foundation models.
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Getting started
-
-   installation
-   quickstart
-   example_data
-   examples/index
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Reference
-
-   api/index
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Development
-
-   testing
-   contributing
-
 Features
 --------
 
@@ -60,7 +38,30 @@ Quick example
    mask = slide.generate_mask(size=(555, 742))
    region, region_mask = slide.generate_region(level=0, x=(600, 1600), y=(1200, 2200))
 
-See the :doc:`quickstart` for the full workflow.
+See the :doc:`quickstart` for a short example and the :doc:`tutorials <examples/index>` for the
+full workflow.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Getting started
+
+   installation
+   quickstart
+   example_data
+   examples/index
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Reference
+
+   api/index
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Development
+
+   testing
+   contributing
 
 Indices
 -------

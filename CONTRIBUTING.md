@@ -34,10 +34,10 @@ that control them, and how to run the integration tests on your own data.
 ### Documentation
 
 The documentation (Sphinx, in `docs/`) is built with warnings as errors in CI
-and on Read the Docs:
+and on Read the Docs. With the `docs` extra installed (see above), build it
+locally with:
 
 ```sh
-pip install -r docs/requirements.txt
 sphinx-build -W --keep-going -b html docs docs/_build/html
 ```
 

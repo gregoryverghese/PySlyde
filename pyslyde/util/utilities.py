@@ -571,24 +571,37 @@ class TissueDetect:
         return self.contours
 
 
-def mask2rgb(mask: np.ndarray) -> np.ndarray:
+def mask2rgb(mask: np.ndarray, n_classes: Optional[int] = None) -> np.ndarray:
     """
-    Convert a mask to RGB representation.
+    Convert a label mask to an RGB image.
+
+    Background (0) is black; label ``c`` gets colour ``c - 1`` of a
+    ``seaborn`` ``"hls"`` palette of ``n_classes`` colours. Colours depend
+    only on the label value and ``n_classes``, so pass the same ``n_classes``
+    (number of labels + 1 for background) to get consistent colours across
+    masks, e.g. across tiles that contain different subsets of the labels.
 
     Args:
-        mask: Input mask as numpy array.
+        mask: Integer label mask of shape (H, W).
+        n_classes: Number of classes including background. Defaults to
+            ``mask.max() + 1``.
 
     Returns:
-        np.ndarray: RGB mask with colors assigned to each class.
+        np.ndarray: Float RGB image of shape (H, W, 3) with values in [0, 1].
     """
-    n_classes = len(np.unique(mask))
-    colors = sns.color_palette("hls", n_classes)
+    max_label = int(mask.max()) if mask.size else 0
+    if n_classes is None:
+        n_classes = max_label + 1
+    if max_label >= n_classes:
+        raise ValueError(
+            f"mask contains label {max_label}, but n_classes={n_classes}."
+        )
     rgb_mask = np.zeros(mask.shape + (3,))
-    for c in range(1, n_classes + 1):
-        t = mask == c
-        rgb_mask[:, :, 0][t] = colors[c - 1][0]
-        rgb_mask[:, :, 1][t] = colors[c - 1][1]
-        rgb_mask[:, :, 2][t] = colors[c - 1][2]
+    if n_classes < 2:
+        return rgb_mask
+    colors = sns.color_palette("hls", n_classes)
+    for c in range(1, n_classes):
+        rgb_mask[mask == c] = colors[c - 1]
     return rgb_mask
 
 
