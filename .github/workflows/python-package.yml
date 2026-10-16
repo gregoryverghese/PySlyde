@@ -58,8 +58,8 @@ jobs:
         python -m pip install ".[all,dev]"   # "all" = optional extras (PR #61)
     - name: Unit + integration tests (example dataset, docs snippets)
       run: |
-        python -m pytest -m "not models"
-        --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=pyslyde test/ | tee pytest-coverage.txt
+        python -m pytest -m "not models" --junitxml=pytest.xml \
+        --cov-report=term-missing:skip-covered --cov=pyslyde test/ | tee pytest-coverage.txt
     - name: Pytest coverage comment
       if: github.event_name == 'pull_request' 
       uses: MishaKav/pytest-coverage-comment@main
