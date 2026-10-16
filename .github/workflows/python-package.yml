@@ -18,9 +18,15 @@ env:
   PYSLYDE_CACHE_DIR: ${{ github.workspace }}/.cache/pyslyde
   TORCH_HOME: ${{ github.workspace }}/.cache/torch
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read        # checkout
+      pull-requests: write  # coverage comment
     strategy:
       fail-fast: false
       matrix:
@@ -53,6 +59,13 @@ jobs:
     - name: Unit + integration tests (example dataset, docs snippets)
       run: |
         python -m pytest -m "not models"
+        --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=pyslyde test/ | tee pytest-coverage.txt
+    - name: Pytest coverage comment
+      if: github.event_name == 'pull_request' 
+      uses: MishaKav/pytest-coverage-comment@main
+      with:
+        pytest-coverage-path: ./pytest-coverage.txt
+        junitxml-path: ./pytest.xml
 
   notebooks:
     runs-on: ubuntu-latest
@@ -124,8 +137,8 @@ jobs:
     - name: Install the code linting and formatting tool Ruff
       run: pipx install ruff
     - name: Lint code with Ruff
-      run: ruff check --output-format=github --target-version=py39
+      run: ruff check --output-format=github --target-version=py310
     - name: Check code formatting with Ruff
       if: always()
-      run: ruff format --diff --target-version=py39
+      run: ruff format --diff --target-version=py310
 
