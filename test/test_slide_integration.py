@@ -1,73 +1,44 @@
 """
 test_slide_integration.py
 
-This module contains opt-in integration tests for PySlyde. It relies on
-``conftest.py`` to resolve the integration fixture root directory via
-environment variables and (optionally) download/extract an archive.
+Integration tests for :class:`pyslyde.slide.Slide` on a real whole-slide image
+and real annotation files in every supported format.
 
-Fixture layout
---------------
-The fixture root directory (referred to here as ``PARENT``) must contain:
+Data
+----
+By default the tests use the PySlyde example dataset (see
+:mod:`pyslyde.datasets` and ``test/conftest.py``): the CC0-licensed OpenSlide
+slide ``CMU-1-Small-Region.svs`` (downloaded once, SHA-256 verified, cached)
+plus synthetic annotations shipped with the package. No configuration is
+needed; with the example dataset every test in this module is expected to run
+(0 skipped).
 
-PARENT
-├── annotations
-│   ├── asap.xml
-│   ├── name.csv
-│   ├── geojson.json or .geojson
-│   ├── imagej.xml
-│   └── qupath.json
-└── wsi
-    └── wsi.ndpi
+Custom data can be supplied as a directory or archive laid out as::
 
-Notes:
-- The annotations directory may contain additional files; tests select the first
-  match per supported pattern and will include the chosen path in skip messages.
-- URL-based test data must point to a zipped archive (``.zip`` or
-  ``.tar``, ``.tar.gz``, ``.tgz``).
-
-Configuration and precedence
-----------------------------
-The fixture root is resolved using the following precedence:
-
-1) ``PYSLYDE_IT_DATA_DIR`` (highest priority)
-   - If it points to a directory: used as-is.
-   - If it points to an archive file: extracted and used.
-
-2) ``PYSLYDE_IT_DATA_URL``
-   - Download an archive and extract it.
-   - Optional integrity check via ``PYSLYDE_IT_DATA_SHA256``.
-
-3) Fall back on ``DEFAULT_DATA_URL`` set in ``confest.py``.
-
-4) If neither is provided, tests will skip cleanly with an explanation.
-
-Google Drive
-------------
-If ``PYSLYDE_IT_DATA_URL`` is a Google Drive link, ``conftest.py`` uses the
-``gdown`` library for reliable downloads.
+    PARENT
+    |-- annotations
+    |   |-- *.geojson          (source="geojson")
+    |   |-- *.csv              (source="csv")
+    |   |-- *qupath*.json      (source="qupath")
+    |   |-- *asap*.xml         (source="asap")
+    |   |-- *imagej*.xml       (source="imagej")
+    |   `-- *custom*.json      (source="json")
+    `-- wsi
+        `-- one of *.svs, *.ndpi, *.tif(f), *.ome.tif(f)
 
 How to run
 ----------
-Using defaults (only if ``conftest.py`` defines internal defaults and no env var
-is provided):
-
-    pytest path/to/test_slide_integration.py --basetemp=<optional_temp_dir>
-
-Using a local fixture directory or archive:
-
-    PYSLYDE_IT_DATA_DIR=/path/to/PARENT pytest path/to/test_slide_integration.py --basetemp=<optional_temp_dir>
-    PYSLYDE_IT_DATA_DIR=/path/to/fixtures.zip pytest path/to/test_slide_integration.py --basetemp=<optional_temp_dir>
-
-Using a remote archive URL:
-
-    PYSLYDE_IT_DATA_URL=<archive_url> pytest path/to/test_slide_integration.py --basetemp=<optional_temp_dir>
-    PYSLYDE_IT_DATA_URL=<archive_url> PYSLYDE_IT_DATA_SHA256=<sha256> pytest path/to/test_slide_integration.py --basetemp=<optional_temp_dir>
+    pytest -m integration                               # example dataset
+    PYSLYDE_IT_DATA_DIR=/path/to/PARENT pytest -m integration
+    PYSLYDE_IT_DATA_URL=<archive> PYSLYDE_IT_DATA_SHA256=<sha256> pytest -m integration
+    PYSLYDE_IT_STRICT=1 pytest -m integration           # fail instead of skip
 """
 
 from __future__ import annotations
 
 import csv
 import json
+import os
 from pathlib import Path
 from typing import Iterable
 
@@ -142,6 +113,8 @@ def _skip_missing(
             The selected annotation fixture path, if one was resolved.
     """
     msg = f"{reason}. Missing: " + ", ".join(missing) + _fmt_selected(wsi=wsi, ann=ann)
+    if os.environ.get("PYSLYDE_IT_STRICT", "").strip() in ("1", "true", "True", "yes"):
+        pytest.fail(f"[PYSLYDE_IT_STRICT] {msg}", pytrace=False)
     pytest.skip(msg)
 
 

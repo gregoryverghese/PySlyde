@@ -654,6 +654,29 @@ def test_border_OpenSlide_slide(dummy_slide_OpenSlide):
     assert 0 <= y_min < y_max <= height
 
 
+def test_border_after_detect_tissue_uses_tissue_mask():
+    """Documented Quick Start flow: detect_tissue() then border() (issue #52)."""
+    slide_np = np.full((120, 160, 3), 235, dtype=np.uint8)  # light background
+    slide_np[30:90, 40:120] = (150, 60, 160)  # a purple "tissue" block
+    td = utilities.TissueDetect(slide_np)
+    td.detect_tissue()
+    assert td.contour_mask is None
+
+    border = td.border()
+    assert border is not None
+    (x_min, x_max), (y_min, y_max) = border
+    assert (x_min, x_max, y_min, y_max) == (40, 120, 30, 90)
+
+
+def test_border_without_prior_detection_runs_detect_tissue():
+    slide_np = np.full((120, 160, 3), 235, dtype=np.uint8)
+    slide_np[10:50, 20:70] = (150, 60, 160)
+    td = utilities.TissueDetect(slide_np)
+    (x_min, x_max), (y_min, y_max) = td.border()
+    assert td.tissue_mask is not None
+    assert (x_min, x_max, y_min, y_max) == (20, 70, 10, 50)
+
+
 def test_tissue_thumbnail(dummy_slide_OpenSlide):
     slide_os = dummy_slide_OpenSlide(as_pil=True)
 

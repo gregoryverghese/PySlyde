@@ -1,128 +1,110 @@
 Installation
-===========
+============
 
-PySlyde can be installed from PyPI or from source. This guide covers all installation methods and requirements.
+.. note::
+
+   The dependency list is defined in ``pyproject.toml``, which is the single
+   source of truth; this page does not repeat it. Optional extras are listed
+   below.
 
 Requirements
------------
+------------
 
-PySlyde requires Python 3.8 or higher and the following dependencies:
+* Python (see ``requires-python`` in ``pyproject.toml``)
+* The **OpenSlide C library**. The ``openslide-python`` package installed
+  with PySlyde is only a binding and needs the native library alongside it.
+  Choose one of the options below.
 
-* `numpy <https://numpy.org/>`_ >= 1.20.0
-* `opencv-python <https://opencv.org/>`_ >= 4.5.0
-* `openslide-python <https://openslide.org/>`_ >= 1.1.0
-* `pandas <https://pandas.pydata.org/>`_ >= 1.3.0
-* `matplotlib <https://matplotlib.org/>`_ >= 3.3.0
-* `seaborn <https://seaborn.pydata.org/>`_ >= 0.11.0
-* `scikit-image <https://scikit-image.org/>`_ >= 0.18.0
-* `scipy <https://scipy.org/>`_ >= 1.7.0
-* `lmdb <https://lmdb.readthedocs.io/>`_ >= 1.2.0
-* `einops <https://einops.rocks/>`_ >= 0.4.0
-* `h5py <https://www.h5py.org/>`_ >= 3.1.0
-* `huggingface_hub <https://huggingface.co/docs/huggingface_hub/>`_ >= 0.10.0
-* `tensorflow <https://tensorflow.org/>`_ >= 2.8.0
-* `torch <https://pytorch.org/>`_ >= 1.10.0
-* `timm <https://github.com/huggingface/pytorch-image-models>`_ >= 0.6.0
-* `webdataset <https://github.com/webdataset/webdataset>`_ >= 0.2.0
+OpenSlide native library
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-Installation from PyPI
----------------------
-
-The easiest way to install PySlyde is using pip:
+Any platform, via pip (recommended):
 
 .. code-block:: bash
 
-   pip install pyslyde
+   pip install openslide-bin
 
-This will install PySlyde and all its dependencies automatically.
-
-Installation from Source
------------------------
-
-To install from source, clone the repository and install in development mode:
-
-.. code-block:: bash
-
-   git clone https://github.com/gregoryverghese/PySlide.git
-   cd PySlide
-   pip install -e .
-
-Development Installation
-------------------------
-
-For development work, install with development dependencies:
-
-.. code-block:: bash
-
-   git clone https://github.com/gregoryverghese/PySlide.git
-   cd PySlide
-   pip install -e ".[dev]"
-
-This includes additional tools for development:
-
-* `pytest <https://pytest.org/>`_ - Testing framework
-* `pytest-cov <https://pytest-cov.readthedocs.io/>`_ - Coverage reporting
-* `black <https://black.readthedocs.io/>`_ - Code formatting
-* `flake8 <https://flake8.pycqa.org/>`_ - Linting
-* `mypy <https://mypy.readthedocs.io/>`_ - Type checking
-* `pre-commit <https://pre-commit.com/>`_ - Git hooks
-
-System Dependencies
-------------------
-
-Some dependencies may require system-level libraries:
-
-Ubuntu/Debian:
-^^^^^^^^^^^^^
+Ubuntu / Debian:
 
 .. code-block:: bash
 
    sudo apt-get update
-   sudo apt-get install libopenslide-dev libgl1-mesa-glx libglib2.0-0
+   sudo apt-get install libopenslide0
 
-macOS:
-^^^^^^
+macOS (Homebrew):
 
 .. code-block:: bash
 
    brew install openslide
 
-Windows:
-^^^^^^^^
+Windows: use ``openslide-bin`` (above), or see the
+`OpenSlide download page <https://openslide.org/download/>`_.
 
-For Windows, most dependencies are available as pre-compiled wheels. If you encounter issues with OpenSlide, you may need to install it manually from the `OpenSlide website <https://openslide.org/download/>`_.
+Install PySlyde
+---------------
 
-Verifying Installation
----------------------
+From PyPI:
 
-To verify that PySlyde is installed correctly, run:
+.. code-block:: bash
+
+   pip install pyslyde
+
+From source:
+
+.. code-block:: bash
+
+   git clone https://github.com/PharosKCL/pyslyde.git
+   cd pyslyde
+   pip install -e .
+
+Optional extras (see ``[project.optional-dependencies]`` in ``pyproject.toml``):
+
+.. code-block:: bash
+
+   pip install -e ".[feature-extractor]"   # deep-learning feature extraction (torch, timm, ...)
+   pip install -e ".[tensorflow]"          # TensorFlow models / TFRecords output
+   pip install -e ".[geospatial]"          # pyslyde.tools (geopandas, shapely, rasterio)
+   pip install -e ".[rocksdb]"             # RocksDB output (rocksdict)
+   pip install -e ".[all]"                 # all of the above
+   pip install -e ".[dev]"                 # tests and linting (pytest, ruff, mypy, ...)
+   pip install -e ".[docs]"                # build this documentation
+
+The :doc:`quickstart` and :doc:`tutorials <examples/index>` use feature
+extraction, so install ``".[all]"`` (or at least ``".[feature-extractor]"``)
+to run them end to end.
+
+Check the installation
+----------------------
 
 .. code-block:: python
 
+   import openslide
    import pyslyde
-   print(pyslyde.__version__)
 
-You should see the version number printed without any errors.
+   print(pyslyde.__version__)
+   print(openslide.__library_version__)   # fails if the C library is missing
+
+Then run the :doc:`quickstart`, which downloads a small example slide and
+exercises the main workflow.
 
 Troubleshooting
---------------
+---------------
 
-Common Installation Issues
-^^^^^^^^^^^^^^^^^^^^^^^^^
+``OSError: ... libopenslide`` / ``ModuleNotFoundError: openslide``
+   The OpenSlide C library is missing. Install it with one of the options
+   above.
 
-1. **OpenSlide not found**: Make sure you have the system-level OpenSlide library installed.
+``libGL.so.1: cannot open shared object file`` (Linux servers / containers)
+   Install ``libgl1``, or replace ``opencv-python`` with
+   ``opencv-python-headless``.
 
-2. **CUDA issues**: If you're using GPU acceleration, ensure you have the correct CUDA version installed for your PyTorch/TensorFlow version.
+GPU / CUDA
+   Install the PyTorch build that matches your CUDA version
+   (https://pytorch.org/get-started/locally/) before installing PySlyde.
 
-3. **Memory issues**: PySlyde works with large images, so ensure you have sufficient RAM (8GB+ recommended).
+Getting help
+------------
 
-4. **Permission errors**: On some systems, you may need to use `pip install --user` or install with sudo.
-
-Getting Help
------------
-
-If you encounter installation issues:
-
-1. Check the `GitHub issues <https://github.com/gregoryverghese/PySlide/issues>`_ for similar problems
-2. Create a new issue with your system details and error messages
-3. Contact the maintainer at gregory.verghese@gmail.com 
+Please open an issue on
+`GitHub <https://github.com/PharosKCL/pyslyde/issues>`_ with your operating
+system, Python version, the command you ran and the full error message.

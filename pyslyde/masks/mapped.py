@@ -130,11 +130,14 @@ class MappedMask(BaseMask):
         Read a region using the mask's native storage resolution.
 
         Args:
-        x, y
-            Level-0 top-left coordinate.
-
-        width, height
-            Level-0 region dimensions.
+            x:
+                Level-0 x coordinate of the top-left corner.
+            y:
+                Level-0 y coordinate of the top-left corner.
+            width:
+                Level-0 region width.
+            height:
+                Level-0 region height.
 
         Returns:
             numpy.ndarray

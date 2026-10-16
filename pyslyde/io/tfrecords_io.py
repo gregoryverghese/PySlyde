@@ -1,3 +1,5 @@
+"""TFRecords I/O utilities for PySlyde (requires the ``tensorflow`` extra)."""
+
 import os
 import sys
 import json

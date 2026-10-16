@@ -1,5 +1,5 @@
-# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+# Install the package, run the tests and lint with a variety of Python versions.
+# https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
 name: Test and lint Python package
 
@@ -8,11 +8,18 @@ on:
     branches: [ "dev", "main" ]
   pull_request:
     branches: [ "dev", "main" ]
+  schedule:
+    - cron: "17 4 * * 1"   # weekly, Monday 04:17 UTC (also runs the real-model tests)
   workflow_dispatch:
+
+env:
+  # Integration tests must not silently skip in CI: missing data is an error.
+  PYSLYDE_IT_STRICT: "1"
+  PYSLYDE_CACHE_DIR: ${{ github.workspace }}/.cache/pyslyde
+  TORCH_HOME: ${{ github.workspace }}/.cache/torch
 
 jobs:
   test:
-
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -20,7 +27,7 @@ jobs:
         python-version: ["3.10", "3.13"]
 
     steps:
-    - name: Clear disk space 
+    - name: Clear disk space
       uses: endersonmenezes/free-disk-space@v3
       with:
         remove_android: true
@@ -32,14 +39,76 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         cache: "pip"
+    - name: Cache example data and model weights
+      uses: actions/cache@v4
+      with:
+        path: |
+          .cache/pyslyde
+          .cache/torch
+        key: pyslyde-data-${{ hashFiles('pyslyde/datasets/__init__.py') }}
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip openslide-bin
-        df -h
-        python -m pip install .[all,dev]
-    - name: Test with pytest (exclude integration-marked tests)
+        python -m pip install ".[all,dev]"   # "all" = optional extras (PR #61)
+    - name: Unit + integration tests (example dataset, docs snippets)
       run: |
-        python -m pytest -m "not integration"
+        python -m pytest -m "not models"
+
+  notebooks:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Clear disk space
+      uses: endersonmenezes/free-disk-space@v3
+      with:
+        remove_android: true
+        rm_cmd: "rmz"
+        rmz_version: "3.1.1"
+    - uses: actions/checkout@v5
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        cache: "pip"
+    - name: Cache example data and model weights
+      uses: actions/cache@v4
+      with:
+        path: |
+          .cache/pyslyde
+          .cache/torch
+        key: pyslyde-data-${{ hashFiles('pyslyde/datasets/__init__.py') }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip openslide-bin
+        python -m pip install ".[all,dev]" nbmake ipykernel
+    - name: Execute tutorial notebooks
+      run: |
+        python -m pytest --nbmake --nbmake-timeout=900 docs/examples/*.ipynb
+
+  models:
+    # Real feature-extractor weights for the openly available models.
+    # Gated / very large models need a token and a large runner (run manually).
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Clear disk space
+      uses: endersonmenezes/free-disk-space@v3
+      with:
+        remove_android: true
+        rm_cmd: "rmz"
+        rmz_version: "3.1.1"
+    - uses: actions/checkout@v5
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        cache: "pip"
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip openslide-bin
+        python -m pip install ".[all,dev]"
+    - name: Real-model tests (open models)
+      env:
+        RUN_NETWORK_TESTS: "1"
+      run: |
+        python -m pytest -m "models and not gated and not bigmem"
 
   lint:
     runs-on: ubuntu-latest

@@ -1017,8 +1017,9 @@ class Slide(OpenSlide):
             vis_path = os.path.join(vis_dir, f"{base}.png")
             if not overwrite and os.path.exists(vis_path):
                 raise FileExistsError(f"{vis_path} already exists.")
-            rgb = mask2rgb(mask)
-            ok = cv2.imwrite(vis_path, rgb)
+            n_classes = max(self.annotations.class_key.values()) + 1
+            rgb = (mask2rgb(mask, n_classes=n_classes) * 255).round().astype(np.uint8)
+            ok = cv2.imwrite(vis_path, cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
             if not ok:
                 raise IOError(f"Failed to write visualization to {vis_path}.")
             paths["vis"] = vis_path

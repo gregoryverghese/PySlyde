@@ -51,7 +51,7 @@ class WSIParser:
     ---------------------
     Tile origins are stored as ``(x, y)`` coordinates in level-0 slide space.
     All internally generated tile coordinates (``self._tiles``) and all
-    operations involving ``BaseMask``implementations use level-0 coordinates.
+    operations involving ``BaseMask`` implementations use level-0 coordinates.
 
     Mask handling
     -------------
@@ -67,11 +67,13 @@ class WSIParser:
     This class supports two mutually exclusive extraction modes:
 
     1. Level-based mode
+
        - user specifies ``level``
        - tiles are read directly from that slide pyramid level
        - behaviour is backward compatible with the legacy implementation
 
     2. Target-MPP mode
+
        - user specifies ``target_mpp``
        - the parser computes the required level-0 downsample relative to the
          slide base MPP
