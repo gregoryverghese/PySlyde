@@ -132,8 +132,7 @@ def mapped_mask(
     )
 
 
-class TestBaseMask:  
-
+class TestBaseMask:
     def test_constructor_rejects_non_numpy_array(self):
         """Constructor should reject non-NumPy arrays."""
 
@@ -202,7 +201,6 @@ class TestBaseMask:
         assert dummy_mask.scale_x == pytest.approx(1.0)
         assert dummy_mask.scale_y == pytest.approx(1.0)
 
-    
     def test_validate_region_accepts_valid_region(
         self,
         dummy_mask: DummyMask,
@@ -285,7 +283,6 @@ class TestBaseMask:
 
 
 class TestLevel0Mask:
-
     def test_constructor_infers_slide_shape(
         self,
         level0_mask: Level0Mask,
@@ -379,7 +376,6 @@ class TestLevel0Mask:
 
 
 class TestMappedMask:
-
     def test_constructor_derives_scale_from_slide_shape(
         self,
         mapped_mask: MappedMask,
@@ -490,7 +486,7 @@ class TestMappedMask:
         """``_mask_roi()`` should round outward to ensure the stored-mask ROI
         fully covers the requested level-0 region.
         """
-        
+
         mask = np.zeros(
             (10, 10),
             dtype=np.uint8,

@@ -2,14 +2,12 @@
 Custom PySlyde exceptions.
 """
 
-from typing import List
-
 
 class StitchingMissingPatches(Exception):
     """Exception raised when patches are missing during stitching."""
 
     def __init__(
-        self, patch_names: List[str], message: str = "patches missing"
+        self, patch_names: list[str], message: str = "patches missing"
     ) -> None:
         """
         Initialize the exception.

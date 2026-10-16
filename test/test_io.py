@@ -16,7 +16,7 @@ import numpy as np
 import pytest
 import tensorflow as tf
 
-from pyslyde.io.disk_io import DiskWrite, DiskRead
+from pyslyde.io.disk_io import DiskRead, DiskWrite
 from pyslyde.io.tfrecord_write import (
     convert,
     doConversion,
@@ -238,17 +238,16 @@ class TestDiskWrite(unittest.TestCase):
         dr = DiskRead(self.tmp)
         image = dr.read_image(coord_to_name(*coord))
 
-        expected = next(
-            _synthetic_parser([coord], shape=(8, 8, 3), dtype=np.uint8)
-        )[1]
+        expected = next(_synthetic_parser([coord], shape=(8, 8, 3), dtype=np.uint8))[1]
 
-        self.assertTrue(np.array_equal(image, expected))        
+        self.assertTrue(np.array_equal(image, expected))
 
     def test_read_missing_tile_raises_oserror(self):
         dr = DiskRead(self.tmp)
 
         with self.assertRaisesRegex(OSError, "Failed to read tile"):
             dr.read_image("missing_tile")
+
 
 ##################################################################
 # Tests for pyslyde/io/lmdb_io.py
@@ -329,8 +328,7 @@ class TestLMDBReadWrite(unittest.TestCase):
         with redirect_stdout(f):
 
             def gen():
-                for item in tiles:
-                    yield item
+                yield from tiles
 
             writer.write(gen())
 
@@ -537,8 +535,7 @@ class TestTFRecordWrite(unittest.TestCase):
 
             def extract_patches(self):
                 # Each call returns a fresh generator as expected by TFRecordWrite.
-                for img, info in self._patches:
-                    yield img, info
+                yield from self._patches
 
         # Build 4 tiny RGB tiles with names x_y
         coords = [(0, 0), (1, 2), (2, 1), (3, 3)]
@@ -708,9 +705,9 @@ class TestTFRecordWriteScript(unittest.TestCase):
         self.assertIsInstance(f_i, tf.train.Feature)
         self.assertEqual(list(f_i.int64_list.value), [7])
         self.assertIsInstance(f_f, tf.train.Feature)
-        self.assertAlmostEqual(list(f_f.float_list.value)[0], 3.5, places=5)
+        self.assertAlmostEqual(next(iter(f_f.float_list.value)), 3.5, places=5)
         self.assertIsInstance(f_b, tf.train.Feature)
-        self.assertEqual(list(f_b.bytes_list.value)[0], b"abc")
+        self.assertEqual(next(iter(f_b.bytes_list.value)), b"abc")
 
     def test_convert_writes_single_tfrecord(self):
         """

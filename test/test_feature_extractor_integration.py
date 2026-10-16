@@ -53,7 +53,6 @@ from __future__ import annotations
 
 import importlib.util
 import os
-from typing import Optional
 
 import numpy as np
 import pytest
@@ -95,7 +94,7 @@ def _dummy_rgb_image(model_name: str) -> np.ndarray:
     return rng.integers(0, 256, size=(h, w, 3), dtype=np.uint8)
 
 
-def _skip_reason(model_name: str) -> Optional[str]:
+def _skip_reason(model_name: str) -> str | None:
     """
     Decides if this model's integration test should run in the current environment.
 

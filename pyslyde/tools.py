@@ -4,19 +4,19 @@ Tools PySlyde.
 Anthony Baptista
 14/08/2025
 """
+
 import numpy as np
-from skimage import measure
-import matplotlib.pyplot as plt
-from scipy.ndimage import binary_fill_holes
 from scipy import ndimage as ndi
-from skimage.segmentation import watershed
+from scipy.ndimage import binary_fill_holes
+from skimage import measure
 from skimage.feature import peak_local_max
+from skimage.segmentation import watershed
 
 
 def polygons_from_mask(mask):
     """
-    Convert a labeled mask into a GeoDataFrame of polygons, 
-    applying contour extraction, convex hull simplification, and watershed segmentation 
+    Convert a labeled mask into a GeoDataFrame of polygons,
+    applying contour extraction, convex hull simplification, and watershed segmentation
     for invalid polygons.
 
     Args:
@@ -31,7 +31,7 @@ def polygons_from_mask(mask):
 
     Notes:
         - Background pixels (value 0) are ignored.
-        - Invalid polygons are rasterized and split using watershed segmentation 
+        - Invalid polygons are rasterized and split using watershed segmentation
           based on the distance transform.
         - CRS is set to EPSG:4326 by default.
     """
@@ -55,7 +55,7 @@ def polygons_from_mask(mask):
             continue
 
         # Binary mask for this cell
-        region_mask = (mask == region_value)
+        region_mask = mask == region_value
 
         # Find contours
         contours = measure.find_contours(region_mask, 0)
@@ -66,21 +66,24 @@ def polygons_from_mask(mask):
                 # Get minimal convex polygon
                 poly_min = poly.convex_hull
                 polygons.append(poly_min)
-            
-            elif poly.is_valid==False and poly.area > 0:
+
+            elif not poly.is_valid and poly.area > 0:
                 resolution = 1  # cell size
                 minx, miny, maxx, maxy = poly.bounds
                 width = int((maxx - minx) / resolution)
                 height = int((maxy - miny) / resolution)
 
                 # Rasterize polygon
-                transform = rasterio.transform.from_bounds(minx, miny, maxx, maxy, width, height)
+                transform = rasterio.transform.from_bounds(
+                    minx, miny, maxx, maxy, width, height
+                )
                 raster = rasterize(
                     [(poly, 1)],
                     out_shape=(height, width),
                     transform=transform,
                     fill=0,
-                    dtype=np.uint8)
+                    dtype=np.uint8,
+                )
 
                 # Compute distance transform
                 distance = ndi.distance_transform_edt(raster)
@@ -94,15 +97,17 @@ def polygons_from_mask(mask):
 
                 # Apply watershed
                 labels = watershed(-distance, markers, mask=raster)
-                for geom, value in shapes(labels.astype(np.int32), mask=(labels>0), transform=transform):
+                for geom, value in shapes(
+                    labels.astype(np.int32), mask=(labels > 0), transform=transform
+                ):
                     polygons.append(shape(geom))
 
     # Create GeoDataFrame
-    gdf = gpd.GeoDataFrame(geometry=polygons, crs="EPSG:4326") 
-    gdf['area'] = gdf.area
-    gdf['perimeter'] = gdf.length
-    gdf['centroid'] = gdf.centroid
-    
+    gdf = gpd.GeoDataFrame(geometry=polygons, crs="EPSG:4326")
+    gdf["area"] = gdf.area
+    gdf["perimeter"] = gdf.length
+    gdf["centroid"] = gdf.centroid
+
     return gdf
 
 
@@ -121,8 +126,8 @@ def preprocess_mask(mask):
         - The function extracts only pixels with value 2.
         - Internal holes within the target regions are filled using a binary morphological operation.
     """
-    
-    binary_mat = (mask==2).astype(np.uint8)
+
+    binary_mat = (mask == 2).astype(np.uint8)
     binary_mat = binary_fill_holes(binary_mat).astype(np.uint8)
 
     return binary_mat

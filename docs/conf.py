@@ -15,7 +15,7 @@ sys.path.insert(0, REPO_ROOT)
 def _read_version() -> str:
     """Read ``__version__`` from pyslyde/__init__.py without importing it."""
     with open(os.path.join(REPO_ROOT, "pyslyde", "__init__.py"), encoding="utf-8") as f:
-        m = re.search(r'^__version__\s*=\s*["\']([^"\']+)["\']', f.read(), re.M)
+        m = re.search(r'^__version__\s*=\s*["\']([^"\']+)["\']', f.read(), re.MULTILINE)
     return m.group(1) if m else "unknown"
 
 

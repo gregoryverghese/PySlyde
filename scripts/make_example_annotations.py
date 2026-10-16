@@ -62,7 +62,9 @@ def derive_polygons(slide_path: Path) -> dict[str, list[list[list[int]]]]:
     slide = openslide.OpenSlide(str(slide_path))
     w, h = slide.dimensions
     scale = 2.0  # analyse at half resolution
-    img = np.asarray(slide.get_thumbnail((int(w / scale), int(h / scale))).convert("RGB"))
+    img = np.asarray(
+        slide.get_thumbnail((int(w / scale), int(h / scale))).convert("RGB")
+    )
     scale = w / img.shape[1]
 
     # --- tissue: Otsu on saturation, largest component -----------------------
@@ -103,11 +105,13 @@ def write_all(polys: dict[str, list[list[list[int]]]], out: Path) -> None:
     features = []
     for label, items in polys.items():
         for p in items:
-            features.append({
-                "type": "Feature",
-                "properties": {"label": label},
-                "geometry": {"type": "Polygon", "coordinates": [_closed(p)]},
-            })
+            features.append(
+                {
+                    "type": "Feature",
+                    "properties": {"label": label},
+                    "geometry": {"type": "Polygon", "coordinates": [_closed(p)]},
+                }
+            )
     (out / "example.geojson").write_text(
         json.dumps({"type": "FeatureCollection", "features": features}, indent=1)
     )
@@ -116,12 +120,16 @@ def write_all(polys: dict[str, list[list[list[int]]]], out: Path) -> None:
     qp = []
     for label, items in polys.items():
         for p in items:
-            qp.append({
-                "type": "Feature",
-                "geometry": {"type": "Polygon", "coordinates": [_closed(p)]},
-                "properties": {"objectType": "annotation",
-                               "classification": {"name": label}},
-            })
+            qp.append(
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Polygon", "coordinates": [_closed(p)]},
+                    "properties": {
+                        "objectType": "annotation",
+                        "classification": {"name": label},
+                    },
+                }
+            )
     (out / "example_qupath.json").write_text(json.dumps(qp, indent=1))
 
     # Custom PySlyde JSON: {label: {polygon_id: [{x, y}, ...]}}
@@ -146,8 +154,14 @@ def write_all(polys: dict[str, list[list[list[int]]]], out: Path) -> None:
     n = 0
     for label, items in polys.items():
         for p in items:
-            a = ET.SubElement(anns, "Annotation", Name=f"Annotation {n}",
-                              Type="Polygon", PartOfGroup=label, Color="#F4FA58")
+            a = ET.SubElement(
+                anns,
+                "Annotation",
+                Name=f"Annotation {n}",
+                Type="Polygon",
+                PartOfGroup=label,
+                Color="#F4FA58",
+            )
             coords = ET.SubElement(a, "Coordinates")
             for k, (x, y) in enumerate(p):
                 ET.SubElement(coords, "Coordinate", Order=str(k), X=str(x), Y=str(y))
@@ -156,8 +170,9 @@ def write_all(polys: dict[str, list[list[list[int]]]], out: Path) -> None:
     for label in polys:
         ET.SubElement(groups, "Group", Name=label, PartOfGroup="None", Color="#F4FA58")
     ET.indent(root)
-    ET.ElementTree(root).write(out / "example_asap.xml", encoding="utf-8",
-                               xml_declaration=True)
+    ET.ElementTree(root).write(
+        out / "example_asap.xml", encoding="utf-8", xml_declaration=True
+    )
 
     # ImageJ-style XML: Annotation Name=label / Regions / Region / Vertices / Vertex
     root = ET.Element("Annotations")
@@ -170,8 +185,9 @@ def write_all(polys: dict[str, list[list[list[int]]]], out: Path) -> None:
             for x, y in p:
                 ET.SubElement(verts, "Vertex", X=str(x), Y=str(y), Z="0")
     ET.indent(root)
-    ET.ElementTree(root).write(out / "example_imagej.xml", encoding="utf-8",
-                               xml_declaration=True)
+    ET.ElementTree(root).write(
+        out / "example_imagej.xml", encoding="utf-8", xml_declaration=True
+    )
 
 
 def main(argv=None) -> int:
@@ -184,6 +200,7 @@ def main(argv=None) -> int:
     if slide_path is None:
         sys.path.insert(0, str(REPO_ROOT))
         from pyslyde.datasets import fetch_example_slide
+
         slide_path = fetch_example_slide()
 
     polys = derive_polygons(slide_path)

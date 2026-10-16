@@ -39,21 +39,20 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Dict, Optional
 from urllib.request import Request, urlopen
 
 __all__ = [
-    "EXAMPLE_SLIDE",
     "ANNOTATION_FILES",
+    "EXAMPLE_SLIDE",
     "cache_dir",
     "download_verified",
-    "fetch_example_slide",
     "example_annotations_dir",
     "example_data_dir",
+    "fetch_example_slide",
 ]
 
 #: Pinned description of the example slide (URL, checksum, licence).
-EXAMPLE_SLIDE: Dict[str, str] = {
+EXAMPLE_SLIDE: dict[str, str] = {
     "filename": "CMU-1-Small-Region.svs",
     "url": (
         "https://openslide.cs.cmu.edu/download/openslide-testdata/"
@@ -65,7 +64,7 @@ EXAMPLE_SLIDE: Dict[str, str] = {
 }
 
 #: Annotation source name -> file shipped in ``pyslyde/datasets/annotations``.
-ANNOTATION_FILES: Dict[str, str] = {
+ANNOTATION_FILES: dict[str, str] = {
     "geojson": "example.geojson",
     "csv": "example.csv",
     "qupath": "example_qupath.json",
@@ -160,7 +159,7 @@ def example_annotations_dir() -> Path:
     return _ANNOTATIONS_DIR
 
 
-def example_data_dir(root: Optional[os.PathLike] = None) -> Path:
+def example_data_dir(root: os.PathLike | None = None) -> Path:
     """
     Return a directory laid out as::
 

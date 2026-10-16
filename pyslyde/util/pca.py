@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Iterator, Literal, Optional, Sequence, Union
+from typing import Literal
 
 import numpy as np
 from sklearn.decomposition import PCA, IncrementalPCA
 
 SUPPORTED_SOURCES: tuple[str, ...] = ("disk", "lmdb", "rocksdb")
 
-PathLike = Union[str, Path]
+PathLike = str | Path
 SourceType = Literal["disk", "lmdb", "rocksdb"]
 PCAMethod = Literal["incremental", "full"]
 
@@ -70,7 +71,7 @@ class PCAConfig:
             Whether to print simple progress messages during fitting.
     """
 
-    n_components: Optional[int] = None
+    n_components: int | None = None
     method: PCAMethod = "incremental"
     batch: int = 10000
     skip_all_zero: bool = True
@@ -99,7 +100,7 @@ def _iter_valid_feature_rows(
             If an array is neither 1D nor 2D, or if feature dimensionality is
             inconsistent across inputs.
     """
-    feature_dim: Optional[int] = None
+    feature_dim: int | None = None
 
     for arr in arrays:
         mat = np.asarray(arr)
@@ -130,7 +131,7 @@ def _discover_feature_files(
     *,
     root: PathLike = ".",
     pattern: str,
-    paths: Optional[Sequence[PathLike]] = None,
+    paths: Sequence[PathLike] | None = None,
     recursive: bool = True,
     sort_paths: bool = True,
 ) -> list[Path]:
@@ -182,8 +183,8 @@ def _discover_database_dirs(
     *,
     source: Literal["lmdb", "rocksdb"],
     root: PathLike = ".",
-    pattern: Optional[str] = None,
-    paths: Optional[Sequence[PathLike]] = None,
+    pattern: str | None = None,
+    paths: Sequence[PathLike] | None = None,
     recursive: bool = True,
     sort_paths: bool = True,
 ) -> list[Path]:
@@ -222,8 +223,8 @@ def _discover_database_dirs(
 def _iter_feature_arrays_from_disk(
     *,
     root: PathLike = ".",
-    pattern: Optional[str] = None,
-    paths: Optional[Sequence[PathLike]] = None,
+    pattern: str | None = None,
+    paths: Sequence[PathLike] | None = None,
     recursive: bool = True,
     sort_paths: bool = True,
 ) -> Iterator[np.ndarray]:
@@ -247,8 +248,8 @@ def _iter_feature_arrays_from_disk(
 def _iter_feature_arrays_from_lmdb(
     *,
     root: PathLike = ".",
-    pattern: Optional[str] = None,
-    paths: Optional[Sequence[PathLike]] = None,
+    pattern: str | None = None,
+    paths: Sequence[PathLike] | None = None,
     recursive: bool = True,
     sort_paths: bool = True,
 ) -> Iterator[np.ndarray]:
@@ -278,8 +279,8 @@ def _iter_feature_arrays_from_lmdb(
 def _iter_feature_arrays_from_rocksdb(
     *,
     root: PathLike = ".",
-    pattern: Optional[str] = None,
-    paths: Optional[Sequence[PathLike]] = None,
+    pattern: str | None = None,
+    paths: Sequence[PathLike] | None = None,
     recursive: bool = True,
     sort_paths: bool = True,
 ) -> Iterator[np.ndarray]:
@@ -329,8 +330,8 @@ def _resolve_feature_arrays(
     *,
     source: SourceType,
     root: PathLike = ".",
-    pattern: Optional[str] = None,
-    paths: Optional[Sequence[PathLike]] = None,
+    pattern: str | None = None,
+    paths: Sequence[PathLike] | None = None,
     recursive: bool = True,
     sort_paths: bool = True,
 ) -> Iterator[np.ndarray]:
@@ -451,10 +452,10 @@ def _fit_pca_from_arrays(
 def fit_pca(
     *,
     source: SourceType,
-    config: Optional[PCAConfig] = None,
+    config: PCAConfig | None = None,
     root: PathLike = ".",
-    pattern: Optional[str] = None,
-    paths: Optional[Sequence[PathLike]] = None,
+    pattern: str | None = None,
+    paths: Sequence[PathLike] | None = None,
     recursive: bool = True,
 ):
     """
@@ -518,7 +519,7 @@ def fit_pca(
 def fit_pca_from_parser(
     feature_generator: Iterable[tuple[tuple[int, int], np.ndarray]],
     *,
-    config: Optional[PCAConfig] = None,
+    config: PCAConfig | None = None,
 ):
     """
     Fit PCA directly from `parser.extract_features(...)` output.

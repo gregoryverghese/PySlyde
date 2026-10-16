@@ -29,8 +29,7 @@ import cv2
 import numpy as np
 import pytest
 
-import pyslyde.slide_parser as slide_parser
-
+from pyslyde import slide_parser
 from pyslyde.masks.level0 import Level0Mask
 from pyslyde.masks.mapped import MappedMask
 from pyslyde.util.utilities import coord_to_name
@@ -185,7 +184,6 @@ def multi_label_mask():
 
 @pytest.mark.slide_parser
 class TestWSIParser:
-
     # Construction
     # ------------
 
@@ -208,7 +206,8 @@ class TestWSIParser:
         assert parser.tiles == []
 
     def test_init_target_mpp_mode_warns_when_level_also_given(
-        self, fake_slide,
+        self,
+        fake_slide,
     ):
         """Providing both level and target_mpp should warn and prefer target_mpp."""
         with warnings.catch_warnings(record=True) as caught:
@@ -282,7 +281,8 @@ class TestWSIParser:
         assert parser.number == 4
 
     def test_tiler_edge_cases_skips_partial_tiles(
-        self, fake_slide, 
+        self,
+        fake_slide,
     ):
         """``edge_cases=True`` should exclude tiles whose footprint exceeds border."""
         parser = slide_parser.WSIParser(
@@ -297,9 +297,7 @@ class TestWSIParser:
         assert n == 4
         assert parser.tiles == [(0, 0), (0, 8), (8, 0), (8, 8)]
 
-    def test_sample_tiles_is_reproducible_with_seed(
-        self, fake_slide
-    ):
+    def test_sample_tiles_is_reproducible_with_seed(self, fake_slide):
         """``sample_tiles()`` should be deterministic when a seed is given."""
         tiles = [(0, 0), (0, 8), (8, 0), (8, 8), (16, 16)]
 
@@ -454,11 +452,11 @@ class TestWSIParser:
     # --------------
 
     def test_filter_by_mask_keeps_only_tiles_above_threshold(
-        self, 
-        fake_slide, 
+        self,
+        fake_slide,
         level0_mask,
     ):
-        """``filter_by_mask`` should retain only tiles meeting the requested 
+        """``filter_by_mask`` should retain only tiles meeting the requested
         label coverage threshold.
         """
         parser = slide_parser.WSIParser(
@@ -468,14 +466,11 @@ class TestWSIParser:
             level=0,
         )
 
-        parser.tiles = [
-            (0, 0), 
-            (8, 0)
-        ]
+        parser.tiles = [(0, 0), (8, 0)]
 
         remaining = parser.filter_by_mask(
-            mask=level0_mask, 
-            labels=1, 
+            mask=level0_mask,
+            labels=1,
             threshold=0.5,
         )
 
@@ -522,7 +517,7 @@ class TestWSIParser:
         level0_mask,
     ):
         """
-        ``filter_by_mask()`` should remove every tile when none contains 
+        ``filter_by_mask()`` should remove every tile when none contains
         the requested labels.
         """
 
@@ -615,7 +610,7 @@ class TestWSIParser:
             labels=1,
             threshold=1.0,
         )
-        
+
         assert parser.tiles == [
             (0, 0),
         ]
@@ -637,7 +632,6 @@ class TestWSIParser:
         parser.tiles = [(0, 0)]
 
         for threshold in (-0.1, 1.1):
-
             with pytest.raises(
                 ValueError,
                 match="threshold",
@@ -694,10 +688,10 @@ class TestWSIParser:
     # ---------------
 
     def test_extract_tile_applies_mask(
-            self, 
-            fake_slide, 
-            patch_wsi_dependencies,
-            level0_mask,
+        self,
+        fake_slide,
+        patch_wsi_dependencies,
+        level0_mask,
     ):
         """``extract_tile()`` should replace masked pixels with ``bg_value``."""
         parser = slide_parser.WSIParser(
@@ -716,7 +710,6 @@ class TestWSIParser:
 
         assert tile.shape == (8, 8, 3)
         assert np.all(tile == 0)
-
 
     def test_extract_tile_retains_requested_label(
         self,
@@ -849,7 +842,7 @@ class TestWSIParser:
 
     # Batch extraction
     # ----------------
-    
+
     def test_extract_tiles_yields_all_tiles(self, fake_slide, patch_wsi_dependencies):
         """extract_tiles should yield one tile per stored coordinate."""
         parser = slide_parser.WSIParser(

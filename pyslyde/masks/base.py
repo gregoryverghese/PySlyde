@@ -35,6 +35,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
+
 class BaseMask(ABC):
     """
     Abstract representation of a whole-slide mask.
@@ -76,28 +77,20 @@ class BaseMask(ABC):
         scale_y: float | None = None,
     ) -> None:
         if not isinstance(mask, np.ndarray):
-            raise TypeError(
-                f"mask must be a numpy.ndarray, got {type(mask).__name__}."
-            )
+            raise TypeError(f"mask must be a numpy.ndarray, got {type(mask).__name__}.")
 
         if mask.ndim != 2:
-            raise ValueError(
-                f"mask must be two-dimensional, got shape {mask.shape}."
-            )
+            raise ValueError(f"mask must be two-dimensional, got shape {mask.shape}.")
 
         mask_h, mask_w = mask.shape
 
         if mask_h == 0 or mask_w == 0:
-            raise ValueError(
-                "mask dimensions must be positive."
-            )
+            raise ValueError("mask dimensions must be positive.")
 
         slide_h, slide_w = slide_shape
 
         if slide_h <= 0 or slide_w <= 0:
-            raise ValueError(
-                "slide_shape must contain positive dimensions."
-            )
+            raise ValueError("slide_shape must contain positive dimensions.")
 
         self._mask = mask
         self._slide_shape = slide_shape
@@ -114,10 +107,10 @@ class BaseMask(ABC):
         Stored mask array.
 
         The array represents the internal storage of the mask and therefore
-        may not be level-0 resolution.        
+        may not be level-0 resolution.
 
         Returns:
-            numpy.ndarray        
+            numpy.ndarray
         """
         return self._mask
 
@@ -184,8 +177,8 @@ class BaseMask(ABC):
         Examples:
             Level0Mask always returns (1.0, 1.0).
 
-            MappedMask may use explicitly supplied scales, or derive scales 
-            from the relationship between slide dimensions and mask dimensions.            
+            MappedMask may use explicitly supplied scales, or derive scales
+            from the relationship between slide dimensions and mask dimensions.
 
             Implementations must fail with an informative exception if the
             mapping cannot be uniquely determined.
@@ -225,16 +218,12 @@ class BaseMask(ABC):
             raise ValueError("height must be positive.")
 
         if x < 0 or y < 0:
-            raise ValueError(
-                "Requested region cannot have negative coordinates."
-            )
+            raise ValueError("Requested region cannot have negative coordinates.")
 
         slide_h, slide_w = self.slide_shape
 
         if x + width > slide_w or y + height > slide_h:
-            raise ValueError(
-                "Requested region extends outside the slide."
-            )
+            raise ValueError("Requested region extends outside the slide.")
 
     @abstractmethod
     def read_region_native(
@@ -258,8 +247,8 @@ class BaseMask(ABC):
                 Dimensions of the requested region in level-0 pixels.
 
         Returns:
-            Mask region at the native storage resolution. The returned array is 
-            not guaranteed to have shape ``(height, width)`` but represents the 
+            Mask region at the native storage resolution. The returned array is
+            not guaranteed to have shape ``(height, width)`` but represents the
             same physical region of the slide.
 
         Raises:

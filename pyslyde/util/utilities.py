@@ -9,14 +9,14 @@ import os
 import random
 from itertools import chain
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import cv2
 import matplotlib as mpl
-import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+from matplotlib import patches
 from openslide import OpenSlide
 from skimage.color import rgb2gray
 from skimage.filters import threshold_otsu
@@ -41,7 +41,7 @@ def round_dim(value: float, rounding: str) -> int:
             Rounded integer dimension.
     """
     if rounding == "round":
-        return int(round(value))
+        return round(value)
     if rounding == "floor":
         return int(np.floor(value))
     if rounding == "ceil":
@@ -50,11 +50,11 @@ def round_dim(value: float, rounding: str) -> int:
 
 
 def extract_tile_from_slide(
-    slide: Union[OpenSlide, object],
+    slide: OpenSlide | object,
     x: int,
     y: int,
     level: int,
-    tile_dims: Tuple[int, int],
+    tile_dims: tuple[int, int],
 ) -> np.ndarray:
     """
     Extract a single RGB tile directly from a slide-like object.
@@ -127,7 +127,7 @@ def coord_to_name(x: int, y: int, sep: str = "_") -> str:
     return f"{x}{sep}{y}"
 
 
-def name_to_coord(name: str, sep: str = "_") -> Tuple[int, int]:
+def name_to_coord(name: str, sep: str = "_") -> tuple[int, int]:
     """
     Parse tile coordinates from a canonical tile name.
 
@@ -209,7 +209,7 @@ class TissueDetect:
         {"thresh": 0, "maxval": 255, "type": cv2.THRESH_OTSU},
     ]
 
-    def __init__(self, slide: Union[str, OpenSlide, np.ndarray]) -> None:
+    def __init__(self, slide: str | OpenSlide | np.ndarray) -> None:
         """
         Initialize the tissue detector.
 
@@ -234,12 +234,12 @@ class TissueDetect:
                 "slide must be a path, an OpenSlide object, or a numpy.ndarray"
             )
 
-        self.tissue_mask: Optional[np.ndarray] = None
-        self.contour_mask: Optional[np.ndarray] = None
-        self.contours: Optional[List[np.ndarray]] = None
-        self._border: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = None
+        self.tissue_mask: np.ndarray | None = None
+        self.contour_mask: np.ndarray | None = None
+        self.contours: list[np.ndarray] | None = None
+        self._border: tuple[tuple[int, int], tuple[int, int]] | None = None
 
-    def _get_full_dimensions(self) -> Tuple[int, int]:
+    def _get_full_dimensions(self) -> tuple[int, int]:
         """
         Return full-resolution dimensions as (width, height).
 
@@ -423,8 +423,8 @@ class TissueDetect:
         return thumb
 
     def border(
-        self, mask: Optional[np.ndarray] = None
-    ) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+        self, mask: np.ndarray | None = None
+    ) -> tuple[tuple[int, int], tuple[int, int]]:
         """
         Get border coordinates from a tissue/contour mask.
 
@@ -527,7 +527,7 @@ class TissueDetect:
             interpolation=cv2.INTER_NEAREST,
         )
 
-    def _generate_tissue_contour(self) -> List[np.ndarray]:
+    def _generate_tissue_contour(self) -> list[np.ndarray]:
         """
         Generate tissue contours from the detection image.
 
@@ -571,7 +571,7 @@ class TissueDetect:
         return self.contours
 
 
-def mask2rgb(mask: np.ndarray, n_classes: Optional[int] = None) -> np.ndarray:
+def mask2rgb(mask: np.ndarray, n_classes: int | None = None) -> np.ndarray:
     """
     Convert a label mask to an RGB image.
 
@@ -593,9 +593,7 @@ def mask2rgb(mask: np.ndarray, n_classes: Optional[int] = None) -> np.ndarray:
     if n_classes is None:
         n_classes = max_label + 1
     if max_label >= n_classes:
-        raise ValueError(
-            f"mask contains label {max_label}, but n_classes={n_classes}."
-        )
+        raise ValueError(f"mask contains label {max_label}, but n_classes={n_classes}.")
     rgb_mask = np.zeros(mask.shape + (3,))
     if n_classes < 2:
         return rgb_mask
@@ -606,8 +604,8 @@ def mask2rgb(mask: np.ndarray, n_classes: Optional[int] = None) -> np.ndarray:
 
 
 def draw_boundary(
-    annotations: Dict[str, List[List[List[int]]]], offset: int = 100
-) -> List[Tuple[int, int]]:
+    annotations: dict[str, list[list[list[int]]]], offset: int = 100
+) -> list[tuple[int, int]]:
     """
     Draw boundary around annotations.
 
@@ -620,9 +618,7 @@ def draw_boundary(
     """
     annotations = list(chain(*[annotations[f] for f in annotations]))
     coords = list(chain(*annotations))
-    boundaries = list(
-        map(lambda x: (min(x) - offset, max(x) + offset), list(zip(*coords)))
-    )
+    boundaries = [(min(x) - offset, max(x) + offset) for x in list(zip(*coords))]
     return boundaries
 
 
@@ -743,7 +739,7 @@ def visualise_wsi_tiling(
     tiler,
     save_path,
     level=3,
-    plot_args={"color": "red", "size": (10, 10), "title": ""},
+    plot_args=None,
 ):
     """
     Visualise tile layout on a WSI thumbnail.
@@ -767,6 +763,8 @@ def visualise_wsi_tiling(
         - Tiles are drawn as rectangles on the thumbnail.
         - Coordinates are scaled according to level downsampling.
     """
+    if plot_args is None:
+        plot_args = {"color": "red", "size": (10, 10), "title": ""}
     mpl.use("Agg")
     wsi_thumb = wsi.get_thumbnail(wsi.level_dimensions[level])
     wsi_thumb = np.array(wsi_thumb.convert("RGB"))
@@ -862,10 +860,10 @@ def calculate_std_mean(patch_path, channel=True, norm=True):
         patches = glob.glob(os.path.join(patch_path, "*"))
     shape = cv2.imread(patches[0]).shape
     channels = shape[-1]
-    chnl_values = np.zeros((channels))
-    chnl_values_sqrt = np.zeros((channels))
+    chnl_values = np.zeros(channels)
+    chnl_values_sqrt = np.zeros(channels)
     pixel_nums = len(patches) * shape[0] * shape[1]
-    print("total number pixels: {}".format(pixel_nums))
+    print(f"total number pixels: {pixel_nums}")
     axis = (0, 1, 2) if not channel else (0, 1)
     divisor = 1.0 if not norm else 255.0
     for path in patches:
@@ -878,7 +876,7 @@ def calculate_std_mean(patch_path, channel=True, norm=True):
         patch = (patch / divisor).astype("float64")
         chnl_values_sqrt += np.sum(np.square(patch - mean), axis=axis, dtype="float64")
     std = np.sqrt(chnl_values_sqrt / pixel_nums, dtype="float64")
-    print("mean: {}, std: {}".format(mean, std))
+    print(f"mean: {mean}, std: {std}")
     return mean, std
 
 
@@ -903,7 +901,6 @@ def calculate_weights(mask_path, num_cls):
     if mask_path is not None:
         mask_files = glob.glob(os.path.join(mask_path, "*"))
     cls_nums = {c: 0 for c in range(num_cls)}
-
     for f in mask_files:
         mask = cv2.imread(f)
         pixels = mask.reshape(-1)
