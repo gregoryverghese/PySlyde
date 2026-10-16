@@ -69,7 +69,7 @@ slide = Slide(
     annotations_path=str(data / "annotations" / "example.geojson"),
     source="geojson",
 )
-mask = slide.generate_mask(size=(555, 742))            # annotation mask
+mask = slide.generate_mask(size=(555, 742))  # annotation mask
 region, region_mask = slide.generate_region(level=0, x=(600, 1600), y=(1200, 2200))
 
 # Tissue detection
@@ -85,7 +85,6 @@ for (x, y), features in parser.extract_features(model_name="resnet18"):
     print((x, y), features.shape)
 
 parser.save_tiles(tile_path="output/tiles")
-
 ```
 
 See the [Quick Start guide](https://pyslyde.readthedocs.io/en/latest/quickstart.html) and the

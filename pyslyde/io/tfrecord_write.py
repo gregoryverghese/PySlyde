@@ -39,9 +39,7 @@ def getShardNumber(images, masks, shardSize=0.01, unit=10**9):
     maskMem = sum(os.path.getsize(f) for f in masks if os.path.isfile(f))
     imageMem = sum(os.path.getsize(f) for f in images if os.path.isfile(f))
     totalMem = (maskMem + imageMem) / unit
-    print(
-        f"Image memory: {imageMem}, Mask memory: {maskMem}, Total memory: {totalMem}"
-    )
+    print(f"Image memory: {imageMem}, Mask memory: {maskMem}, Total memory: {totalMem}")
     shardNum = int(np.ceil(totalMem / shardSize))
     imgPerShard = int(np.floor(len(images) / shardNum))
 
@@ -209,12 +207,8 @@ def getFiles(imagePath, maskPath, outPath, config, shardSize=0.1):
     x = pd.DataFrame({'train': trainImgs})
     x.to_csv('check.csv')
     """
-    print(
-        f"train:{len(trainImgs)}, valid: {len(validImgs)}, test: {len(testImgs)}"
-    )
-    print(
-        f"train:{len(trainMasks)}, valid: {len(validMasks)}, test: {len(testMasks)}"
-    )
+    print(f"train:{len(trainImgs)}, valid: {len(validImgs)}, test: {len(testImgs)}")
+    print(f"train:{len(trainMasks)}, valid: {len(validMasks)}, test: {len(testMasks)}")
 
     trainShardNum, tNum = getShardNumber(trainImgs, trainMasks)
     doConversion(trainImgs, trainMasks, trainShardNum, tNum, outPath, "train")
