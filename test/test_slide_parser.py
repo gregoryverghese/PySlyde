@@ -29,8 +29,7 @@ import cv2
 import numpy as np
 import pytest
 
-import pyslyde.slide_parser as slide_parser
-
+from pyslyde import slide_parser
 from pyslyde.masks.level0 import Level0Mask
 from pyslyde.masks.mapped import MappedMask
 from pyslyde.util.utilities import coord_to_name

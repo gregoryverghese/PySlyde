@@ -43,13 +43,13 @@ from typing import Dict, Optional
 from urllib.request import Request, urlopen
 
 __all__ = [
-    "EXAMPLE_SLIDE",
     "ANNOTATION_FILES",
+    "EXAMPLE_SLIDE",
     "cache_dir",
     "download_verified",
-    "fetch_example_slide",
     "example_annotations_dir",
     "example_data_dir",
+    "fetch_example_slide",
 ]
 
 #: Pinned description of the example slide (URL, checksum, licence).

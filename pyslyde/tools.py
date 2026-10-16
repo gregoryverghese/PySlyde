@@ -6,11 +6,11 @@ Anthony Baptista
 """
 
 import numpy as np
-from skimage import measure
-from scipy.ndimage import binary_fill_holes
 from scipy import ndimage as ndi
-from skimage.segmentation import watershed
+from scipy.ndimage import binary_fill_holes
+from skimage import measure
 from skimage.feature import peak_local_max
+from skimage.segmentation import watershed
 
 
 def polygons_from_mask(mask):

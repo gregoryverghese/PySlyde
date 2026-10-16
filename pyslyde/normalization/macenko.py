@@ -1,8 +1,10 @@
 """Macenko stain normalisation (SVD-based stain vector estimation)."""
 
-from .base import StainNormalizer
 from typing import Any, Dict, Optional
+
 import numpy as np
+
+from .base import StainNormalizer
 
 
 class MacenkoStainNormalizer(StainNormalizer):

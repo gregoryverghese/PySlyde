@@ -1,14 +1,14 @@
 # stain_normalization/__init__.py
 from .base import StainNormalizer
-from .macenko import MacenkoStainNormalizer
-from .vahadane import VahadaneStainNormalizer
-from .reinhard import ReinhardStainNormalizer
 from .factory import make_normalizer
+from .macenko import MacenkoStainNormalizer
+from .reinhard import ReinhardStainNormalizer
+from .vahadane import VahadaneStainNormalizer
 
 __all__ = [
-    "StainNormalizer",
     "MacenkoStainNormalizer",
-    "VahadaneStainNormalizer",
     "ReinhardStainNormalizer",
+    "StainNormalizer",
+    "VahadaneStainNormalizer",
     "make_normalizer",
 ]

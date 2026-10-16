@@ -2,8 +2,11 @@
 
 # stain_normalization/reinhard.py
 from __future__ import annotations
-import numpy as np
+
 from typing import Any, Dict, Optional
+
+import numpy as np
+
 from .base import StainNormalizer
 
 # Try to import OpenCV (optional speed-up)
@@ -65,7 +68,7 @@ class ReinhardStainNormalizer(StainNormalizer):
 
     # ---------- Public API ----------
 
-    def fit(self, target_tile: np.ndarray) -> "ReinhardStainNormalizer":
+    def fit(self, target_tile: np.ndarray) -> ReinhardStainNormalizer:
         lab = self._rgb_to_lab(target_tile)
         mask = self._tissue_mask(target_tile)
 

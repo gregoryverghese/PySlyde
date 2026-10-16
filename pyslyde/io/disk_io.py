@@ -1,9 +1,10 @@
 """Disk I/O utilities for PySlyde."""
 
 import os
+from typing import Generator, List, Optional, Tuple
+
 import numpy as np
 
-from typing import Generator, List, Optional, Tuple
 from pyslyde.util.utilities import coord_to_name
 
 

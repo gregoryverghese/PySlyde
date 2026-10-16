@@ -16,7 +16,7 @@ import numpy as np
 import pytest
 import tensorflow as tf
 
-from pyslyde.io.disk_io import DiskWrite, DiskRead
+from pyslyde.io.disk_io import DiskRead, DiskWrite
 from pyslyde.io.tfrecord_write import (
     convert,
     doConversion,

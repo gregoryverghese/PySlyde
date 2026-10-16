@@ -10,14 +10,14 @@ import numpy as np
 try:
     import timm
     import torch
-    import torch.nn as nn
-    import torchvision.models as models
     from huggingface_hub import hf_hub_download, login, snapshot_download
     from huggingface_hub.utils import LocalEntryNotFoundError
     from PIL import Image
     from timm.data import resolve_data_config
     from timm.data.transforms_factory import create_transform
     from timm.layers import SwiGLUPacked, to_2tuple
+    from torch import nn
+    from torchvision import models
     from torchvision import transforms as T
     from transformers import AutoImageProcessor, AutoModel
 except ImportError as e:
@@ -259,7 +259,7 @@ class ConvStem(nn.Module):
         self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
 
     def forward(self, x):
-        B, C, H, W = x.shape
+        _B, _C, H, W = x.shape
         assert H == self.img_size[0] and W == self.img_size[1], (
             f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."
         )
@@ -804,7 +804,7 @@ class FeatureGenerator:
             if out.ndim != 3:
                 raise RuntimeError(f"{name} expected (B,T,C), got {out.shape}.")
 
-            B, T, C = out.shape
+            _B, T, C = out.shape
             exp_T, exp_C = cfg["expected_T"], cfg["expected_C"]
             if (exp_T is not None and T != exp_T) or (exp_C is not None and C != exp_C):
                 raise RuntimeError(

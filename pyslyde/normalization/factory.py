@@ -3,10 +3,11 @@
 # stain_normalization/factory.py
 
 from typing import Dict, Type
+
 from .base import StainNormalizer
 from .macenko import MacenkoStainNormalizer
-from .vahadane import VahadaneStainNormalizer
 from .reinhard import ReinhardStainNormalizer
+from .vahadane import VahadaneStainNormalizer
 
 # Registry of available normalizers
 _REGISTRY: Dict[str, Type[StainNormalizer]] = {

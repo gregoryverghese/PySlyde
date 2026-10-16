@@ -1,15 +1,15 @@
-# -*- coding: utf-8 -*-
 """
 Created on Mon Oct 20 12:06:32 2025
 
 @author: PiazzeseC
 """
 
-import numpy as np
 import cv2
+import numpy as np
+import pytest
 from skimage.filters.rank import entropy as sk_entropy
 from skimage.morphology import disk
-import pytest
+
 from pyslyde.util import filters
 
 

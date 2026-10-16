@@ -1,10 +1,11 @@
 """Image filtering and processing utilities for PySlyde."""
 
+from typing import Any, List, Optional
+
 import cv2
 import numpy as np
-from skimage.morphology import disk
 from skimage.filters.rank import entropy as skimage_entropy
-from typing import Optional, List, Any
+from skimage.morphology import disk
 
 
 def image_entropy(patch: np.ndarray) -> float:

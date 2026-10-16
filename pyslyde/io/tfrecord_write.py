@@ -2,10 +2,10 @@
 tfrecord_write.py: write down image and mask data in serialized tfrecord format
 """
 
-import os
-import json
-import glob
 import argparse
+import glob
+import json
+import os
 
 import numpy as np
 
@@ -40,9 +40,7 @@ def getShardNumber(images, masks, shardSize=0.01, unit=10**9):
     imageMem = sum(os.path.getsize(f) for f in images if os.path.isfile(f))
     totalMem = (maskMem + imageMem) / unit
     print(
-        "Image memory: {}, Mask memory: {}, Total memory: {}".format(
-            imageMem, maskMem, totalMem
-        )
+        f"Image memory: {imageMem}, Mask memory: {maskMem}, Total memory: {totalMem}"
     )
     shardNum = int(np.ceil(totalMem / shardSize))
     imgPerShard = int(np.floor(len(images) / shardNum))
@@ -59,7 +57,7 @@ def printProgress(count, total):
         total: total number of images
     """
     complete = float(count) / total
-    print("\r- Progress: {0:.1%}".format(complete), flush=True)
+    print(f"\r- Progress: {complete:.1%}", flush=True)
 
 
 def wrapInt64(value):
@@ -137,7 +135,7 @@ def convert(imageFiles, maskFiles, tfRecordPath, dim=None):
             serialized = example.SerializeToString()
             writer.write(serialized)
 
-        print("Number of errors: {}".format(len(check)))
+        print(f"Number of errors: {len(check)}")
 
 
 def doConversion(imgs, masks, shardNum, num, outPath, outDir):
@@ -151,7 +149,7 @@ def doConversion(imgs, masks, shardNum, num, outPath, outDir):
         outPath: path to save files
         outDir: directory to save files
     """
-    for i in range(0, shardNum):
+    for i in range(shardNum):
         shardImgs = imgs[i * num : num * (i + 1)]
         shardMasks = masks[i * num : num * (i + 1)]
         convert(
@@ -190,7 +188,7 @@ def getFiles(imagePath, maskPath, outPath, config, shardSize=0.1):
     imagePaths = glob.glob(os.path.join(imagePath, "*"))
     maskPaths = glob.glob(os.path.join(maskPath, "*"))
 
-    print("Total images: {}, Total masks: {}".format(len(imagePaths), len(maskPaths)))
+    print(f"Total images: {len(imagePaths)}, Total masks: {len(maskPaths)}")
 
     trainImgs = [
         img
@@ -212,29 +210,25 @@ def getFiles(imagePath, maskPath, outPath, config, shardSize=0.1):
     x.to_csv('check.csv')
     """
     print(
-        "train:{}, valid: {}, test: {}".format(
-            len(trainImgs), len(validImgs), len(testImgs)
-        )
+        f"train:{len(trainImgs)}, valid: {len(validImgs)}, test: {len(testImgs)}"
     )
     print(
-        "train:{}, valid: {}, test: {}".format(
-            len(trainMasks), len(validMasks), len(testMasks)
-        )
+        f"train:{len(trainMasks)}, valid: {len(validMasks)}, test: {len(testMasks)}"
     )
 
     trainShardNum, tNum = getShardNumber(trainImgs, trainMasks)
     doConversion(trainImgs, trainMasks, trainShardNum, tNum, outPath, "train")
-    print("Number of train shards: {}".format(trainShardNum))
+    print(f"Number of train shards: {trainShardNum}")
 
     validShardNum, vNum = getShardNumber(validImgs, validMasks, shardSize=0.1)
     doConversion(validImgs, validMasks, validShardNum, vNum, outPath, "validation")
-    print("Number of validation shards: {}".format(validShardNum))
+    print(f"Number of validation shards: {validShardNum}")
 
     # testShardNum, tstNum = getShardNumber(validImgs, validMasks, shardSize=0.005)
     # doConversion(validImgs, validMasks, validShardNum, vNum, outPath, 'test')
     testShardNum, tstNum = getShardNumber(testImgs, testMasks, shardSize=0.1)
     doConversion(testImgs, testMasks, testShardNum, tstNum, outPath, "test")
-    print("Number of test shards: {}".format(testShardNum))
+    print(f"Number of test shards: {testShardNum}")
 
 
 if __name__ == "__main__":

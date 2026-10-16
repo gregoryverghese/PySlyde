@@ -13,10 +13,10 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import cv2
 import matplotlib as mpl
-import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+from matplotlib import patches
 from openslide import OpenSlide
 from skimage.color import rgb2gray
 from skimage.filters import threshold_otsu
@@ -860,10 +860,10 @@ def calculate_std_mean(patch_path, channel=True, norm=True):
         patches = glob.glob(os.path.join(patch_path, "*"))
     shape = cv2.imread(patches[0]).shape
     channels = shape[-1]
-    chnl_values = np.zeros((channels))
-    chnl_values_sqrt = np.zeros((channels))
+    chnl_values = np.zeros(channels)
+    chnl_values_sqrt = np.zeros(channels)
     pixel_nums = len(patches) * shape[0] * shape[1]
-    print("total number pixels: {}".format(pixel_nums))
+    print(f"total number pixels: {pixel_nums}")
     axis = (0, 1, 2) if not channel else (0, 1)
     divisor = 1.0 if not norm else 255.0
     for path in patches:
@@ -876,7 +876,7 @@ def calculate_std_mean(patch_path, channel=True, norm=True):
         patch = (patch / divisor).astype("float64")
         chnl_values_sqrt += np.sum(np.square(patch - mean), axis=axis, dtype="float64")
     std = np.sqrt(chnl_values_sqrt / pixel_nums, dtype="float64")
-    print("mean: {}, std: {}".format(mean, std))
+    print(f"mean: {mean}, std: {std}")
     return mean, std
 
 

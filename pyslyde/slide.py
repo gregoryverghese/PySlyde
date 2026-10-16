@@ -121,7 +121,7 @@ class Slide(OpenSlide):
         self.dims: Tuple[int, int] = self.dimensions
         self.name: str = os.path.basename(filename)
         self._border: Optional[List[Tuple[int, int]]] = None
-        self.annotations: Optional["Annotations"] = None
+        self.annotations: Optional[Annotations] = None
 
         if annotations is not None:
             self.annotations = annotations
@@ -1021,7 +1021,7 @@ class Slide(OpenSlide):
             rgb = (mask2rgb(mask, n_classes=n_classes) * 255).round().astype(np.uint8)
             ok = cv2.imwrite(vis_path, cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
             if not ok:
-                raise IOError(f"Failed to write visualization to {vis_path}.")
+                raise OSError(f"Failed to write visualization to {vis_path}.")
             paths["vis"] = vis_path
 
         if save_meta:
@@ -1580,7 +1580,7 @@ class Annotations:
         self._annotations = annotations
 
     @staticmethod
-    def _to_pixel(v: Union[float, int, str]) -> int:
+    def _to_pixel(v: Union[float, str]) -> int:
         return int(round(float(v)))
 
     @staticmethod

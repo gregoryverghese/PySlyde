@@ -1,10 +1,12 @@
 """Vahadane stain normalisation (sparse non-negative matrix factorisation)."""
 
-from .base import StainNormalizer
 from typing import Any, Dict, Optional
+
 import numpy as np
-from sklearn.decomposition import NMF
 from scipy.optimize import nnls
+from sklearn.decomposition import NMF
+
+from .base import StainNormalizer
 
 
 class VahadaneStainNormalizer(StainNormalizer):
