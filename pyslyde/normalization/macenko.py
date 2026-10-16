@@ -1,6 +1,6 @@
 """Macenko stain normalisation (SVD-based stain vector estimation)."""
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 import numpy as np
 
@@ -69,9 +69,9 @@ class MacenkoStainNormalizer(StainNormalizer):
         self.verbose = bool(verbose)
         self.allow_fallback = bool(allow_fallback)
 
-        self.W_target: Optional[np.ndarray] = None
-        self.W_src: Optional[np.ndarray] = None
-        self.H_target_pct: Optional[np.ndarray] = None
+        self.W_target: np.ndarray | None = None
+        self.W_src: np.ndarray | None = None
+        self.H_target_pct: np.ndarray | None = None
 
     @staticmethod
     def _build_alpha_steps(alpha: float) -> tuple[float, ...]:
@@ -316,7 +316,7 @@ class MacenkoStainNormalizer(StainNormalizer):
         OD_reshaped = OD_norm.reshape(H, W, 3)
         return self.od2rgb(OD_reshaped, I0=255.0, ref_dtype=np.uint8)
 
-    def get_profile(self) -> Dict[str, Any]:
+    def get_profile(self) -> dict[str, Any]:
         return {
             "algo": "Macenko",
             "alpha": self.alpha,
@@ -331,7 +331,7 @@ class MacenkoStainNormalizer(StainNormalizer):
             else self.H_target_pct.tolist(),
         }
 
-    def set_profile(self, profile: Dict[str, Any]) -> None:
+    def set_profile(self, profile: dict[str, Any]) -> None:
         self.alpha = float(profile.get("alpha", self.alpha))
         self.beta = float(profile.get("beta", self.beta))
         self.percentile = float(profile.get("percentile", self.percentile))

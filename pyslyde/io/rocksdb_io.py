@@ -1,7 +1,7 @@
 """RocksDB I/O utilities for PySlyde using rocksdict."""
 
 import pickle
-from typing import Dict, Generator, List, Optional, Tuple
+from collections.abc import Generator
 
 import numpy as np
 
@@ -75,7 +75,7 @@ class RocksDBWrite:
         """Return string representation of the writer."""
         return f"RocksDBWrite(path: {self.db_path})"
 
-    def _flush_buffer(self, buffer: Dict[bytes, bytes]) -> int:
+    def _flush_buffer(self, buffer: dict[bytes, bytes]) -> int:
         """
         Flush a buffered set of key/value pairs to RocksDB.
 
@@ -91,7 +91,7 @@ class RocksDBWrite:
 
     def write(
         self,
-        parser: Generator[Tuple[Tuple[int, int], np.ndarray], None, None],
+        parser: Generator[tuple[tuple[int, int], np.ndarray], None, None],
     ) -> None:
         """
         Write arrays from a generator into RocksDB.
@@ -104,7 +104,7 @@ class RocksDBWrite:
         """
         print("Beginning writing to RocksDB...")
 
-        buffer: Dict[bytes, bytes] = {}
+        buffer: dict[bytes, bytes] = {}
         total_written = 0
 
         for (x, y), tile in parser:
@@ -179,7 +179,7 @@ class RocksDBRead:
         """Return string representation of the reader."""
         return f"RocksDBRead(path: {self.db_path})"
 
-    def get_keys(self) -> List[str]:
+    def get_keys(self) -> list[str]:
         """
         Return all keys stored in the database.
 
@@ -188,7 +188,7 @@ class RocksDBRead:
         """
         return [key.decode("ascii") for key in self.db.keys()]
 
-    def read_image(self, key: str) -> Optional[np.ndarray]:
+    def read_image(self, key: str) -> np.ndarray | None:
         """
         Read an array from the database by key.
 

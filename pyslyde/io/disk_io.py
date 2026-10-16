@@ -1,7 +1,7 @@
 """Disk I/O utilities for PySlyde."""
 
 import os
-from typing import Generator, List, Optional, Tuple
+from collections.abc import Generator
 
 import numpy as np
 
@@ -33,7 +33,7 @@ class DiskWrite:
         return f"DiskWrite(path: {self.path})"
 
     def write(
-        self, parser: Generator[Tuple[Tuple[int, int], np.ndarray], None, None]
+        self, parser: Generator[tuple[tuple[int, int], np.ndarray], None, None]
     ) -> None:
         """
         Write tiles to disk in batches.
@@ -45,7 +45,7 @@ class DiskWrite:
         """
         print("Beginning writing to disk...")
 
-        tile_buffer: List[Tuple[str, np.ndarray]] = []
+        tile_buffer: list[tuple[str, np.ndarray]] = []
 
         n_items = 0
 
@@ -68,7 +68,7 @@ class DiskWrite:
 
     def _write_buffer(
         self,
-        tile_buffer: List[Tuple[str, np.ndarray]],
+        tile_buffer: list[tuple[str, np.ndarray]],
     ) -> None:
         """
         Write the contents of the buffers to disk.
@@ -91,7 +91,7 @@ class DiskRead:
     This class provides functionality to read tiles and features from disk.
     """
 
-    def __init__(self, path: str, image_size: Optional[Tuple[int, ...]] = None) -> None:
+    def __init__(self, path: str, image_size: tuple[int, ...] | None = None) -> None:
         """
         Initialize the disk reader.
 
@@ -111,7 +111,7 @@ class DiskRead:
         """Return string representation of the object."""
         return f"DiskRead(path: {self.path})"
 
-    def get_keys(self) -> List[str]:
+    def get_keys(self) -> list[str]:
         """
         Get all tile keys from disk.
 

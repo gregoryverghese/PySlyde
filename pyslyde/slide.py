@@ -19,10 +19,11 @@ import json
 import operator as op
 import os
 import xml.etree.ElementTree as ET
+from collections.abc import Callable, Mapping
 from datetime import datetime, timezone
 from itertools import chain
 from types import MappingProxyType
-from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union
+from typing import Any, Optional
 
 import cv2
 import numpy as np
@@ -74,16 +75,16 @@ class Slide(OpenSlide):
             [(x_min, x_max), (y_min, y_max)].
     """
 
-    MASK_SIZE: Tuple[int, int] = (2000, 2000)
+    MASK_SIZE: tuple[int, int] = (2000, 2000)
 
     def __init__(
         self,
         filename: str,
         level: int = 0,
         annotations: Optional["Annotations"] = None,
-        annotations_path: Optional[Union[str, List[str]]] = None,
-        labels: Optional[List[str]] = None,
-        source: Optional[str] = None,
+        annotations_path: str | list[str] | None = None,
+        labels: list[str] | None = None,
+        source: str | None = None,
     ) -> None:
         """
         Create a Slide backed by an OpenSlide WSI and optionally load annotations.
@@ -118,10 +119,10 @@ class Slide(OpenSlide):
         """
         super().__init__(filename)
         self.level: int = level
-        self.dims: Tuple[int, int] = self.dimensions
+        self.dims: tuple[int, int] = self.dimensions
         self.name: str = os.path.basename(filename)
-        self._border: Optional[List[Tuple[int, int]]] = None
-        self.annotations: Optional[Annotations] = None
+        self._border: list[tuple[int, int]] | None = None
+        self.annotations: Annotations | None = None
 
         if annotations is not None:
             self.annotations = annotations
@@ -137,20 +138,20 @@ class Slide(OpenSlide):
     def generate_region(
         self,
         level: int = 0,
-        x: Optional[Union[int, Tuple[int, int]]] = None,
-        y: Optional[Union[int, Tuple[int, int]]] = None,
-        x_size: Optional[int] = None,
-        y_size: Optional[int] = None,
+        x: int | tuple[int, int] | None = None,
+        y: int | tuple[int, int] | None = None,
+        x_size: int | None = None,
+        y_size: int | None = None,
         scale_border: bool = False,
         factor: int = 1,
-        threshold: Optional[int] = None,
+        threshold: int | None = None,
         operator: str = "=>",
         *,
-        labels: Optional[List[Union[int, str]]] = None,
+        labels: list[int | str] | None = None,
         dtype: np.dtype = np.uint16,
         rounding: str = "round",
         clamp_to_level_bounds: bool = True,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Extract an image region and its corresponding annotation mask.
 
@@ -242,10 +243,10 @@ class Slide(OpenSlide):
 
     def generate_mask(
         self,
-        size: Optional[Tuple[int, int]] = None,  # (width, height)
-        labels: Optional[List[Union[int, str]]] = None,
+        size: tuple[int, int] | None = None,  # (width, height)
+        labels: list[int | str] | None = None,
         *,
-        level: Optional[int] = None,
+        level: int | None = None,
         dtype: np.dtype = np.uint16,
         full_res: bool = False,
         preserve_aspect: bool = False,
@@ -346,7 +347,7 @@ class Slide(OpenSlide):
             if k is None:
                 continue
 
-            scaled_polys: List[np.ndarray] = []
+            scaled_polys: list[np.ndarray] = []
 
             for poly in polys:
                 arr = np.asarray(poly, dtype=np.float32)
@@ -372,8 +373,8 @@ class Slide(OpenSlide):
     def visualise_mask(
         self,
         *,
-        size: Tuple[int, int] = MASK_SIZE,
-        labels: Optional[List[Union[int, str]]] = None,
+        size: tuple[int, int] = MASK_SIZE,
+        labels: list[int | str] | None = None,
         dtype: np.dtype = np.uint16,
         preserve_aspect: bool = True,
         aspect_rtol: float = 1e-3,
@@ -413,15 +414,15 @@ class Slide(OpenSlide):
         self,
         save_dir: str,
         *,
-        size: Tuple[int, int] = (2000, 2000),
-        labels: Optional[List[Union[str, int]]] = None,
+        size: tuple[int, int] = (2000, 2000),
+        labels: list[str | int] | None = None,
         dtype: np.dtype = np.uint16,
         save_mask: bool = True,
         save_vis: bool = True,
         save_meta: bool = True,
         overwrite: bool = False,
-        basename: Optional[str] = None,
-    ) -> Dict[str, str]:
+        basename: str | None = None,
+    ) -> dict[str, str]:
         """
         Save slide annotation artifacts into structured subdirectories:
 
@@ -471,9 +472,9 @@ class Slide(OpenSlide):
     def detect_components(
         self,
         level: int = 6,
-        num_component: Optional[int] = None,
-        min_size: Optional[int] = None,
-    ) -> Tuple[List[np.ndarray], List[List[Tuple[int, int]]]]:
+        num_component: int | None = None,
+        min_size: int | None = None,
+    ) -> tuple[list[np.ndarray], list[list[tuple[int, int]]]]:
         """
         Detect connected tissue components on a downsampled representation of the slide.
 
@@ -555,8 +556,8 @@ class Slide(OpenSlide):
         self,
         padding: int = 100,
         *,
-        level: Optional[int] = None,
-    ) -> List[Tuple[int, int]]:
+        level: int | None = None,
+    ) -> list[tuple[int, int]]:
         """
         Generate border around min/max annotation points.
 
@@ -599,7 +600,7 @@ class Slide(OpenSlide):
 
         return border0
 
-    def _select_labels(self, labels: Optional[List[Union[int, str]]]) -> List[str]:
+    def _select_labels(self, labels: list[int | str] | None) -> list[str]:
         """
         Resolve a label subset specification, if any, into canonical label names.
 
@@ -621,7 +622,7 @@ class Slide(OpenSlide):
         if labels is None:
             return list(coordinates.keys())
 
-        use_labels: List[str] = []
+        use_labels: list[str] = []
         for lb in labels:
             if isinstance(lb, int):
                 name = id_to_label.get(lb)
@@ -660,7 +661,7 @@ class Slide(OpenSlide):
 
         return level
 
-    def _validate_contour(self, arr: np.ndarray) -> Optional[np.ndarray]:
+    def _validate_contour(self, arr: np.ndarray) -> np.ndarray | None:
         """
         Clean and validate a contour for cv2.fillPoly.
 
@@ -686,9 +687,9 @@ class Slide(OpenSlide):
 
     def _infer_default_roi(
         self,
-        x: Optional[Union[int, Tuple[int, int]]],
-        y: Optional[Union[int, Tuple[int, int]]],
-    ) -> Tuple[Union[int, Tuple[int, int]], Union[int, Tuple[int, int]]]:
+        x: int | tuple[int, int] | None,
+        y: int | tuple[int, int] | None,
+    ) -> tuple[int | tuple[int, int], int | tuple[int, int]]:
         """
         Infer a complete ROI specification when the caller does not fully define one.
 
@@ -718,10 +719,10 @@ class Slide(OpenSlide):
 
     def _parse_axis(
         self,
-        v: Union[int, Tuple[int, int]],
-        size: Optional[int],
+        v: int | tuple[int, int],
+        size: int | None,
         axis_name: str,
-    ) -> Tuple[int, int, int]:
+    ) -> tuple[int, int, int]:
         """
         Normalise a single axis ROI specification into explicit bounds and size (at level-0).
 
@@ -765,16 +766,16 @@ class Slide(OpenSlide):
 
     def _normalise_roi_level0(
         self,
-        x: Optional[Union[int, Tuple[int, int]]],
-        y: Optional[Union[int, Tuple[int, int]]],
-        x_size: Optional[int],
-        y_size: Optional[int],
+        x: int | tuple[int, int] | None,
+        y: int | tuple[int, int] | None,
+        x_size: int | None,
+        y_size: int | None,
         *,
         scale_border: bool,
         factor: int,
-        threshold: Optional[int],
+        threshold: int | None,
         operator: str,
-    ) -> Tuple[int, int, int, int]:
+    ) -> tuple[int, int, int, int]:
         """
         Normalise, validate, and finalise an ROI in level-0 coordinate space.
 
@@ -839,7 +840,7 @@ class Slide(OpenSlide):
         out_w: int,
         out_h: int,
         ds: float,
-        labels: Optional[List[Union[int, str]]],
+        labels: list[int | str] | None,
         dtype: np.dtype,
         rounding: str = "round",
         clamp_to_level_bounds: bool = True,
@@ -923,7 +924,7 @@ class Slide(OpenSlide):
             if k is None:
                 continue
 
-            scaled_polys: List[np.ndarray] = []
+            scaled_polys: list[np.ndarray] = []
 
             for poly in polys:
                 arr = np.asarray(poly, dtype=np.float32)
@@ -958,15 +959,15 @@ class Slide(OpenSlide):
         self,
         save_dir: str,
         *,
-        size: Tuple[int, int] = (2000, 2000),
-        labels: Optional[List[Union[str, int]]] = None,
+        size: tuple[int, int] = (2000, 2000),
+        labels: list[str | int] | None = None,
         dtype: np.dtype = np.uint16,
         save_mask: bool = True,
         save_vis: bool = True,
         save_meta: bool = True,
         overwrite: bool = False,
-        basename: Optional[str] = None,
-    ) -> Dict[str, str]:
+        basename: str | None = None,
+    ) -> dict[str, str]:
         """
         Internal implementation for saving slide annotation artifacts.
 
@@ -1000,7 +1001,7 @@ class Slide(OpenSlide):
         if save_meta:
             os.makedirs(meta_dir, exist_ok=True)
 
-        paths: Dict[str, str] = {}
+        paths: dict[str, str] = {}
 
         mask = None
         if save_mask or save_vis:
@@ -1072,7 +1073,7 @@ class Slide(OpenSlide):
     def resize_border(
         dim: int,
         factor: int = 1,
-        threshold: Optional[int] = None,
+        threshold: int | None = None,
         operator: str = "=>",
     ) -> int:
         """
@@ -1152,10 +1153,10 @@ class Annotations:
 
     def __init__(
         self,
-        path: Union[str, List[str]],
+        path: str | list[str],
         source: str,
-        labels: Optional[List[str]] = None,
-        class_map: Optional[Dict[str, int]] = None,
+        labels: list[str] | None = None,
+        class_map: dict[str, int] | None = None,
         encode: bool = False,
     ) -> None:
         """
@@ -1184,12 +1185,12 @@ class Annotations:
                 If True, labels are encoded to integer IDs internally.
                 If False, original label names are preserved.
         """
-        self.paths: List[str] = path if isinstance(path, list) else [path]
+        self.paths: list[str] = path if isinstance(path, list) else [path]
         self.source: str = source
-        self.labels: Optional[List[str]] = labels
+        self.labels: list[str] | None = labels
         self.encode: bool = encode
         self.class_map = class_map
-        self._annotations: Optional[Dict[Union[str, int], List[List[List[int]]]]] = None
+        self._annotations: dict[str | int, list[list[list[int]]]] | None = None
         self._generate_annotations()
 
     def __repr__(self) -> str:
@@ -1201,23 +1202,23 @@ class Annotations:
         return str(df)
 
     @property
-    def annotations(self) -> Optional[Dict[Union[str, int], List[List[List[int]]]]]:
+    def annotations(self) -> dict[str | int, list[list[list[int]]]] | None:
         return self._annotations
 
     @property
-    def keys(self) -> List[Union[str, int]]:
+    def keys(self) -> list[str | int]:
         if self._annotations is None:
             return []
         return list(self._annotations.keys())
 
     @property
-    def values(self) -> List[List[List[List[int]]]]:
+    def values(self) -> list[list[list[list[int]]]]:
         if self._annotations is None:
             return []
         return list(self._annotations.values())
 
     @property
-    def numbers(self) -> Dict[str, int]:
+    def numbers(self) -> dict[str, int]:
         if not self._annotations:
             return {}
         return {k: len(v) for k, v in self._annotations.items()}
@@ -1227,7 +1228,7 @@ class Annotations:
         return self.to_df()
 
     @property
-    def class_key(self) -> Dict[str, int]:
+    def class_key(self) -> dict[str, int]:
         """
         Mapping from annotation labels to integer IDs.
 
@@ -1245,12 +1246,12 @@ class Annotations:
         return {lbl: i + 1 for i, lbl in enumerate(classes)}
 
     @property
-    def id_to_label(self) -> Dict[int, str]:
+    def id_to_label(self) -> dict[int, str]:
         ck = self.class_key
         return {v: k for k, v in ck.items()}
 
     @property
-    def encoded_annotations(self) -> Dict[int, List[List[List[int]]]]:
+    def encoded_annotations(self) -> dict[int, list[list[list[int]]]]:
         return self.encode_keys()
 
     def to_df(self) -> pd.DataFrame:
@@ -1307,7 +1308,7 @@ class Annotations:
         *,
         close_rings: bool = True,
         fail_on_invalid: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Export annotations to a GeoJSON FeatureCollection.
 
@@ -1329,7 +1330,7 @@ class Annotations:
         if not self._annotations:
             return {"type": "FeatureCollection", "features": []}
 
-        features: List[Dict[str, Any]] = []
+        features: list[dict[str, Any]] = []
 
         for label, polygons in self._annotations.items():
             label_str = str(label)
@@ -1347,7 +1348,7 @@ class Annotations:
                         f"expected list of points, got {type(poly).__name__}."
                     )
 
-                coords: List[List[int]] = []
+                coords: list[list[int]] = []
                 for v_idx, pt in enumerate(poly):
                     if not isinstance(pt, (list, tuple)) or len(pt) != 2:
                         raise ValueError(
@@ -1414,7 +1415,7 @@ class Annotations:
         *,
         close_rings: bool = True,
         fail_on_invalid: bool = True,
-        indent: Optional[int] = 2,
+        indent: int | None = 2,
         overwrite: bool = False,
     ) -> None:
         """
@@ -1500,9 +1501,9 @@ class Annotations:
 
     def filter_labels(
         self,
-        labels: List[str],
-        annotations: Optional[Dict[Union[str, int], List[List[List[int]]]]] = None,
-    ) -> Dict[Union[str, int], List[List[List[int]]]]:
+        labels: list[str],
+        annotations: dict[str | int, list[list[list[int]]]] | None = None,
+    ) -> dict[str | int, list[list[list[int]]]]:
         """
         Return a filtered copy of annotations containing only requested labels.
         """
@@ -1514,9 +1515,9 @@ class Annotations:
 
     def rename_labels(
         self,
-        names: Dict[str, str],
-        annotations: Optional[Dict[Union[str, int], List[List[List[int]]]]] = None,
-    ) -> Dict[Union[str, int], List[List[List[int]]]]:
+        names: dict[str, str],
+        annotations: dict[str | int, list[list[list[int]]]] | None = None,
+    ) -> dict[str | int, list[list[list[int]]]]:
         """
         Return a copy of annotations with renamed labels.
         """
@@ -1528,7 +1529,7 @@ class Annotations:
             out[names.get(k, k)] = v
         return out
 
-    def encode_keys(self) -> Dict[int, List[List[List[int]]]]:
+    def encode_keys(self) -> dict[int, list[list[list[int]]]]:
         """
         Encode labels as integer values.
 
@@ -1545,7 +1546,7 @@ class Annotations:
         Load and merge annotations from all paths using the selected loader,
         and apply optional label filtering.
         """
-        annotations: Dict[str, List[List[List[int]]]] = {}
+        annotations: dict[str, list[list[list[int]]]] = {}
 
         if not self.source:
             self._annotations = {}
@@ -1580,16 +1581,16 @@ class Annotations:
         self._annotations = annotations
 
     @staticmethod
-    def _to_pixel(v: Union[float, str]) -> int:
+    def _to_pixel(v: float | str) -> int:
         return int(round(float(v)))
 
     @staticmethod
-    def _clean_id(value: Union[str, int]) -> Union[str, int]:
+    def _clean_id(value: str | int) -> str | int:
         if isinstance(value, str):
             return value.strip()
         return value
 
-    def _imagej(self, path: str) -> Dict[str, List[List[List[int]]]]:
+    def _imagej(self, path: str) -> dict[str, list[list[list[int]]]]:
         """
         Parse ImageJ XML annotation files.
 
@@ -1603,7 +1604,7 @@ class Annotations:
         root = tree.getroot()
 
         ann_elements = root.findall(".//Annotation")
-        annotations: Dict[str, List[List[List[int]]]] = {}
+        annotations: dict[str, list[list[list[int]]]] = {}
 
         for ann_idx, ann in enumerate(ann_elements):
             label = ann.attrib.get("Name", "undefined")
@@ -1618,7 +1619,7 @@ class Annotations:
                 if not vertex_elements:
                     continue
 
-                points: List[List[int]] = []
+                points: list[list[int]] = []
                 for v_idx, ve in enumerate(vertex_elements):
                     if "X" not in ve.attrib or "Y" not in ve.attrib:
                         raise ValueError(
@@ -1643,7 +1644,7 @@ class Annotations:
 
         return annotations
 
-    def _asap(self, path: str) -> Dict[str, List[List[List[int]]]]:
+    def _asap(self, path: str) -> dict[str, list[list[list[int]]]]:
         """
         Parse ASAP XML annotation files.
 
@@ -1656,7 +1657,7 @@ class Annotations:
         tree = ET.parse(path)
         root = tree.getroot()
 
-        annotations: Dict[str, List[List[List[int]]]] = {}
+        annotations: dict[str, list[list[list[int]]]] = {}
         ann_elements = root.findall(".//Annotation")
 
         if not ann_elements:
@@ -1697,7 +1698,7 @@ class Annotations:
 
         return annotations
 
-    def _qupath(self, path: str) -> Dict[str, List[List[List[int]]]]:
+    def _qupath(self, path: str) -> dict[str, list[list[list[int]]]]:
         """
         Parse QuPath annotation JSON files.
 
@@ -1707,7 +1708,7 @@ class Annotations:
         Returns:
             dict: Annotations dictionary.
         """
-        annotations: Dict[str, List[List[List[int]]]] = {}
+        annotations: dict[str, list[list[list[int]]]] = {}
 
         with open(path) as json_file:
             j = json.load(json_file)
@@ -1780,7 +1781,7 @@ class Annotations:
 
         return annotations
 
-    def _json(self, path: str) -> Dict[str, List[List[List[int]]]]:
+    def _json(self, path: str) -> dict[str, list[list[list[int]]]]:
         """
         Parse custom JSON annotation files with a specific structure.
 
@@ -1812,7 +1813,7 @@ class Annotations:
                 f"top-level object/dict, got {type(json_annotations).__name__}."
             )
 
-        annotations: Dict[str, List[List[List[int]]]] = {}
+        annotations: dict[str, list[list[list[int]]]] = {}
 
         for k, v in json_annotations.items():
             if not isinstance(v, dict):
@@ -1822,7 +1823,7 @@ class Annotations:
                     f"got {type(v).__name__}."
                 )
 
-            polygons: List[List[List[int]]] = []
+            polygons: list[list[list[int]]] = []
 
             for poly_id, v2 in v.items():
                 if not isinstance(v2, list):
@@ -1832,7 +1833,7 @@ class Annotations:
                         f"a list of vertices, got {type(v2).__name__}."
                     )
 
-                points: List[List[int]] = []
+                points: list[list[int]] = []
                 for idx, i in enumerate(v2):
                     if not isinstance(i, dict):
                         raise ValueError(
@@ -1864,7 +1865,7 @@ class Annotations:
 
         return annotations
 
-    def _geojson(self, path: str) -> Dict[str, List[List[List[int]]]]:
+    def _geojson(self, path: str) -> dict[str, list[list[list[int]]]]:
         """
         Parse GeoJSON annotations into the canonical in-memory representation.
 
@@ -1894,7 +1895,7 @@ class Annotations:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
 
-        def _as_feature_list(obj: Any) -> List[Dict[str, Any]]:
+        def _as_feature_list(obj: Any) -> list[dict[str, Any]]:
             """
             Normalise a GeoJSON document into a list of Feature objects.
 
@@ -1930,7 +1931,7 @@ class Annotations:
                 f"got {obj_type!r}."
             )
 
-        def _parse_point(coord: Any, *, feature_index: int) -> List[int]:
+        def _parse_point(coord: Any, *, feature_index: int) -> list[int]:
             """
             Parse a GeoJSON position into an integer pixel coordinate.
 
@@ -1953,7 +1954,7 @@ class Annotations:
                 )
             return [self._to_pixel(coord[0]), self._to_pixel(coord[1])]
 
-        def _parse_linestring(coords: Any, *, feature_index: int) -> List[List[int]]:
+        def _parse_linestring(coords: Any, *, feature_index: int) -> list[list[int]]:
             """
             Parse GeoJSON LineString coordinates into a vertex sequence.
 
@@ -1975,7 +1976,7 @@ class Annotations:
 
         def _parse_polygon_exterior(
             coords: Any, *, feature_index: int
-        ) -> List[List[int]]:
+        ) -> list[list[int]]:
             """
             Parse GeoJSON Polygon coordinates and return the exterior ring only.
 
@@ -2010,7 +2011,7 @@ class Annotations:
             coords: Any,
             *,
             feature_index: int,
-        ) -> List[List[List[int]]]:
+        ) -> list[list[list[int]]]:
             """
             Convert a supported geometry into one or more vertex sequences.
 
@@ -2073,7 +2074,7 @@ class Annotations:
             )
 
         features = _as_feature_list(data)
-        annotations: Dict[str, List[List[List[int]]]] = {}
+        annotations: dict[str, list[list[list[int]]]] = {}
 
         for idx, feature in enumerate(features):
             if not isinstance(feature, dict):
@@ -2119,7 +2120,7 @@ class Annotations:
 
         return annotations
 
-    def _csv(self, path: str) -> Dict[str, List[List[List[int]]]]:
+    def _csv(self, path: str) -> dict[str, list[list[list[int]]]]:
         """
         Parse CSV annotation files with a specific structure.
 
@@ -2179,7 +2180,7 @@ class Annotations:
         vertex_df["vertex_id"] = vertex_df["vertex_id"].astype(np.int64)
 
         labels = list(vertex_df["label"].drop_duplicates())
-        annotations: Dict[str, List[List[List[int]]]] = {lbl: [] for lbl in labels}
+        annotations: dict[str, list[list[list[int]]]] = {lbl: [] for lbl in labels}
 
         for (lbl, pid), g in vertex_df.groupby(["label", "polygon_id"], sort=False):
             if g["vertex_id"].duplicated().any():

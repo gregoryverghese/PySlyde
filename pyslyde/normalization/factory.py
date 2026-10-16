@@ -2,15 +2,13 @@
 
 # stain_normalization/factory.py
 
-from typing import Dict, Type
-
 from .base import StainNormalizer
 from .macenko import MacenkoStainNormalizer
 from .reinhard import ReinhardStainNormalizer
 from .vahadane import VahadaneStainNormalizer
 
 # Registry of available normalizers
-_REGISTRY: Dict[str, Type[StainNormalizer]] = {
+_REGISTRY: dict[str, type[StainNormalizer]] = {
     "macenko": MacenkoStainNormalizer,
     "vahadane": VahadaneStainNormalizer,
     "reinhard": ReinhardStainNormalizer,

@@ -1,7 +1,7 @@
 """LMDB I/O utilities for PySlyde."""
 
 import pickle
-from typing import Generator, List, Optional, Tuple
+from collections.abc import Generator
 
 import lmdb
 import numpy as np
@@ -72,7 +72,7 @@ class LMDBWrite:
         print(f"\r- Progress: {complete:.1%}", end="\r")
 
     def write(
-        self, parser: Generator[Tuple[Tuple[int, int], np.ndarray], None, None]
+        self, parser: Generator[tuple[tuple[int, int], np.ndarray], None, None]
     ) -> None:
         """
         Write tiles to LMDB database.
@@ -132,9 +132,7 @@ class LMDBRead:
     databases.
     """
 
-    def __init__(
-        self, db_path: str, image_size: Optional[Tuple[int, ...]] = None
-    ) -> None:
+    def __init__(self, db_path: str, image_size: tuple[int, ...] | None = None) -> None:
         """
         Initialize the LMDB reader.
 
@@ -157,7 +155,7 @@ class LMDBRead:
         """Return string representation of the object."""
         return f"LMDBRead(path: {self.db_path})"
 
-    def get_keys(self) -> List[bytes]:
+    def get_keys(self) -> list[bytes]:
         """
         Get all keys from the database.
 

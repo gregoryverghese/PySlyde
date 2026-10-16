@@ -4,9 +4,9 @@ slide_parser.py: Whole-slide image (WSI) parser and stitching utilities for PySl
 import os
 import random
 import warnings
-from collections.abc import Collection
+from collections.abc import Callable, Collection, Generator
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
+from typing import Any
 
 import cv2
 import numpy as np
@@ -106,10 +106,10 @@ class WSIParser:
         self,
         slide: Slide,
         tile_dim: int,
-        border: List[Tuple[int, int]],
-        level: Optional[int] = 0,
-        target_mpp: Optional[float] = None,
-        stain_normalizer: Optional[StainNormalizer] = None,
+        border: list[tuple[int, int]],
+        level: int | None = 0,
+        target_mpp: float | None = None,
+        stain_normalizer: StainNormalizer | None = None,
     ) -> None:
         """
         Initialize the WSI parser.
@@ -160,8 +160,8 @@ class WSIParser:
         self._validate_mode_args()
         self._configure_read_mode()
 
-        self._tiles: List[Tuple[int, int]] = []
-        self._features: List[np.ndarray] = []
+        self._tiles: list[tuple[int, int]] = []
+        self._features: list[np.ndarray] = []
 
     @property
     def number(self) -> int:
@@ -169,17 +169,17 @@ class WSIParser:
         return len(self._tiles)
 
     @property
-    def tiles(self) -> List[Tuple[int, int]]:
+    def tiles(self) -> list[tuple[int, int]]:
         """Return list of tuples with (x, y) coordinates."""
         return self._tiles
 
     @tiles.setter
-    def tiles(self, value: List[Tuple[int, int]]) -> None:
+    def tiles(self, value: list[tuple[int, int]]) -> None:
         """Set tiles with list of tuples (x, y) int coordinates."""
         self._tiles = value
 
     @property
-    def features(self) -> List[np.ndarray]:
+    def features(self) -> list[np.ndarray]:
         """Return list of numpy arrays."""
         return self._features
 
@@ -189,7 +189,7 @@ class WSIParser:
         return self._mode
 
     @property
-    def config(self) -> Dict[str, Any]:
+    def config(self) -> dict[str, Any]:
         """
         Return a dictionary describing the parser configuration and the
         effective tile extraction parameters.
@@ -308,7 +308,7 @@ class WSIParser:
                     f"level must be in range 0 - {len(self.slide.level_downsamples) - 1}"
                 )
 
-    def _get_base_mpp(self) -> Optional[float]:
+    def _get_base_mpp(self) -> float | None:
         """
         Get the level-0 microns-per-pixel for the slide.
 
@@ -323,7 +323,7 @@ class WSIParser:
         mpp_x = props.get("openslide.mpp-x")
         mpp_y = props.get("openslide.mpp-y")
 
-        vals: List[float] = []
+        vals: list[float] = []
         for v in (mpp_x, mpp_y):
             if v is not None:
                 try:
@@ -482,7 +482,7 @@ class WSIParser:
 
     def _normalize_labels(
         self,
-        labels: Union[int, Collection[int]],
+        labels: int | Collection[int],
     ) -> set[int]:
         """
         Normalize one or more labels into a set.
@@ -512,7 +512,7 @@ class WSIParser:
     def _retain_labels(
         self,
         label_mask: np.ndarray,
-        labels: Union[int, Collection[int]],
+        labels: int | Collection[int],
     ) -> np.ndarray:
         """
         Retain only the specified labels within a label mask.
@@ -541,7 +541,7 @@ class WSIParser:
             0,
         )
 
-    def tiler(self, stride: Optional[int] = None, edge_cases: bool = False) -> int:
+    def tiler(self, stride: int | None = None, edge_cases: bool = False) -> int:
         """
         Generate tile coordinates based on border, level, and stride.
 
@@ -570,13 +570,13 @@ class WSIParser:
     def extract_features(
         self,
         model_name: str,
-        model_path: Optional[str] = None,
+        model_path: str | None = None,
         normalize: bool = False,
-        mask: Optional[BaseMask] = None,
-        labels: Optional[Union[int, Collection[int]]] = None,
+        mask: BaseMask | None = None,
+        labels: int | Collection[int] | None = None,
         bg_value: int = 255,
         force_hf_login: bool = False,
-    ) -> Generator[Tuple[Tuple[int, int], np.ndarray], None, None]:
+    ) -> Generator[tuple[tuple[int, int], np.ndarray], None, None]:
         """
         Extract features from tiles using a specified model.
 
@@ -649,7 +649,7 @@ class WSIParser:
     def filter_by_mask(
         self,
         mask: BaseMask,
-        labels: Union[int, Collection[int]],
+        labels: int | Collection[int],
         threshold: float = 0.5,
     ) -> int:
         """
@@ -783,8 +783,8 @@ class WSIParser:
         x: int,
         y: int,
         normalize: bool = False,
-        mask: Optional[BaseMask] = None,
-        labels: Optional[Union[int, Collection[int]]] = None,
+        mask: BaseMask | None = None,
+        labels: int | Collection[int] | None = None,
         bg_value: int = 255,
     ) -> np.ndarray:
         """
@@ -868,10 +868,10 @@ class WSIParser:
     def extract_tiles(
         self,
         normalize: bool = False,
-        mask: Optional[BaseMask] = None,
-        labels: Optional[Union[int, Collection[int]]] = None,
+        mask: BaseMask | None = None,
+        labels: int | Collection[int] | None = None,
         bg_value: int = 255,
-    ) -> Generator[Tuple[Tuple[int, int], np.ndarray], None, None]:
+    ) -> Generator[tuple[tuple[int, int], np.ndarray], None, None]:
         """
         Generator that yields tiles for all tiles currently retained by the parser.
 
@@ -944,7 +944,7 @@ class WSIParser:
 
     def _save_tiles(
         self,
-        func: Generator[Tuple[Tuple[int, int], np.ndarray], None, None],
+        func: Generator[tuple[tuple[int, int], np.ndarray], None, None],
         tile_path: str,
         label_dir: bool = False,
         label_csv: bool = False,
@@ -996,8 +996,8 @@ class WSIParser:
         self,
         tile_path: str,
         normalize: bool = False,
-        mask: Optional[BaseMask] = None,
-        labels: Optional[Union[int, Collection[int]]] = None,
+        mask: BaseMask | None = None,
+        labels: int | Collection[int] | None = None,
         bg_value: int = 255,
         label_dir: bool = False,
         label_csv: bool = False,
@@ -1051,7 +1051,7 @@ class WSIParser:
 
     def to_lmdb(
         self,
-        func: Generator[Tuple[Tuple[int, int], np.ndarray], None, None],
+        func: Generator[tuple[tuple[int, int], np.ndarray], None, None],
         db_path: str,
         map_size: int,
         write_frequency: int = 10,
@@ -1078,7 +1078,7 @@ class WSIParser:
 
     def to_rocksdb(
         self,
-        func: Generator[Tuple[Tuple[int, int], np.ndarray], None, None],
+        func: Generator[tuple[tuple[int, int], np.ndarray], None, None],
         db_path: str,
         write_frequency: int = 10,
     ) -> None:
@@ -1109,7 +1109,7 @@ class WSIParser:
 
     def feat_to_disk(
         self,
-        func: Generator[Tuple[Tuple[int, int], np.ndarray], None, None],
+        func: Generator[tuple[tuple[int, int], np.ndarray], None, None],
         path: str,
         write_frequency: int = 10,
     ) -> None:
@@ -1207,19 +1207,19 @@ class Stitching:
 
     def __init__(
         self,
-        patch_path: Optional[str],
+        patch_path: str | None,
         *,
-        slide: Optional[OpenSlide] = None,
-        patching: Optional[Any] = None,
-        name: Optional[str] = None,
-        stride: Optional[int] = None,
-        border: Optional[List[Tuple[int, int]]] = None,
+        slide: OpenSlide | None = None,
+        patching: Any | None = None,
+        name: str | None = None,
+        stride: int | None = None,
+        border: list[tuple[int, int]] | None = None,
         level: int = 0,
         policy: str = "overwrite",
         content_type: str = "image",
-        resize_interpolation: Optional[int] = None,
+        resize_interpolation: int | None = None,
         strict_stride: bool = False,
-        image_extensions: Tuple[str, ...] = (".png", ".jpg", ".jpeg", ".tif", ".tiff"),
+        image_extensions: tuple[str, ...] = (".png", ".jpg", ".jpeg", ".tif", ".tiff"),
     ) -> None:
         """
         Initialize the Stitching object.
@@ -1296,7 +1296,7 @@ class Stitching:
             raise ValueError("Provide at least one of `patch_path` or `patching`.")
 
     @property
-    def config(self) -> Dict[str, Any]:
+    def config(self) -> dict[str, Any]:
         """Return configuration dictionary."""
         return {
             "name": self.name,
@@ -1315,7 +1315,7 @@ class Stitching:
         return str(self.config)
 
     @property
-    def stride(self) -> Optional[int]:
+    def stride(self) -> int | None:
         """
         Return user-provided or inferred patch stride.
 
@@ -1346,7 +1346,7 @@ class Stitching:
 
         return float(self.slide.level_downsamples[self.level])
 
-    def _patches(self) -> List[str]:
+    def _patches(self) -> list[str]:
         """
         Return image patch filenames from `patch_path`.
 
@@ -1372,7 +1372,7 @@ class Stitching:
             if Path(f).suffix.lower() in self.image_extensions
         ]
 
-    def _patch_records(self) -> List[Tuple[Tuple[int, int], str]]:
+    def _patch_records(self) -> list[tuple[tuple[int, int], str]]:
         """
         Return patch metadata records from the active source.
 
@@ -1390,7 +1390,7 @@ class Stitching:
                 "Current Stitching supports file-based patches only."
             )
 
-        records: List[Tuple[Tuple[int, int], str]] = []
+        records: list[tuple[tuple[int, int], str]] = []
         for fname in self._patches():
             try:
                 x, y = name_to_coord(fname)
@@ -1399,7 +1399,7 @@ class Stitching:
                 continue
         return records
 
-    def _get_coords(self) -> List[Tuple[int, int]]:
+    def _get_coords(self) -> list[tuple[int, int]]:
         """Return patch-origin coordinates from patch records."""
         return [coord for coord, _ in self._patch_records()]
 
@@ -1423,7 +1423,7 @@ class Stitching:
             raise ValueError(f"Failed to read patch image: {path}")
         return patch
 
-    def _get_first_patch_info(self) -> Tuple[int, int, Optional[int], np.dtype]:
+    def _get_first_patch_info(self) -> tuple[int, int, int | None, np.dtype]:
         """
         Inspect the first patch to determine shape metadata.
 
@@ -1447,7 +1447,7 @@ class Stitching:
         return patch_h, patch_w, channels, patch.dtype
 
     @property
-    def origin_border(self) -> List[Tuple[int, int]]:
+    def origin_border(self) -> list[tuple[int, int]]:
         """
         Return internal patch-origin border.
 
@@ -1470,7 +1470,7 @@ class Stitching:
         ]
 
     @property
-    def coverage_border(self) -> List[Tuple[int, int]]:
+    def coverage_border(self) -> list[tuple[int, int]]:
         """
         Return full stitched coverage border.
 
@@ -1498,7 +1498,7 @@ class Stitching:
             (y_min, y_max_origin + patch_h),
         ]
 
-    def _infer_stride(self) -> Optional[int]:
+    def _infer_stride(self) -> int | None:
         """
         Infer patch stride from observed coordinate differences.
 
@@ -1580,7 +1580,7 @@ class Stitching:
         self,
         canvas_h: int,
         canvas_w: int,
-        channels: Optional[int],
+        channels: int | None,
         dtype: np.dtype,
     ) -> np.ndarray:
         """Create an empty canvas of the requested shape."""
@@ -1630,7 +1630,7 @@ class Stitching:
     def _resize_output(
         self,
         canvas: np.ndarray,
-        size: Tuple[int, int],
+        size: tuple[int, int],
     ) -> np.ndarray:
         """
         Resize stitched output.
@@ -1650,7 +1650,7 @@ class Stitching:
             interpolation=self._get_resize_interpolation(),
         )
 
-    def stitch(self, size: Optional[Tuple[int, int]] = None) -> np.ndarray:
+    def stitch(self, size: tuple[int, int] | None = None) -> np.ndarray:
         """
         Stitch patch arrays back into a single canvas.
 

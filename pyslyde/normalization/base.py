@@ -8,7 +8,7 @@ date: 09/09/2025
 
 import json
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 
@@ -50,12 +50,12 @@ class StainNormalizer(ABC):
     # ----- Serialization hooks -----
 
     @abstractmethod
-    def get_profile(self) -> Dict[str, Any]:
+    def get_profile(self) -> dict[str, Any]:
         """Return a JSON-serializable dict of learned parameters."""
         raise NotImplementedError
 
     @abstractmethod
-    def set_profile(self, profile: Dict[str, Any]) -> None:
+    def set_profile(self, profile: dict[str, Any]) -> None:
         """Load learned parameters from a dict."""
         raise NotImplementedError
 

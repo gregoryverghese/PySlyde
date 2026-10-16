@@ -1,6 +1,6 @@
 """Image filtering and processing utilities for PySlyde."""
 
-from typing import Any, List, Optional
+from typing import Any
 
 import cv2
 import numpy as np
@@ -24,7 +24,7 @@ def image_entropy(patch: np.ndarray) -> float:
     return avg_entr
 
 
-def entropy(tile: np.ndarray, threshold: float) -> Optional[bool]:
+def entropy(tile: np.ndarray, threshold: float) -> bool | None:
     """
     Check if tile entropy is below threshold.
 
@@ -42,8 +42,8 @@ def entropy(tile: np.ndarray, threshold: float) -> Optional[bool]:
 
 
 def tile_intensity(
-    tile: np.ndarray, threshold: float, channel: Optional[int] = None
-) -> Optional[bool]:
+    tile: np.ndarray, threshold: float, channel: int | None = None
+) -> bool | None:
     """
     Check if tile intensity is above threshold.
 
@@ -106,8 +106,8 @@ def remove_black(
 def remove_blue(
     patch: Any,
     area_thresh: float = 0.2,
-    lower_blue: List[int] = [100, 150, 0],
-    upper_blue: List[int] = [130, 255, 255],
+    lower_blue: list[int] = [100, 150, 0],
+    upper_blue: list[int] = [130, 255, 255],
 ) -> Any:
     """
     Remove patches that are predominantly blue.

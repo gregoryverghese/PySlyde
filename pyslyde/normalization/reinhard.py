@@ -3,7 +3,7 @@
 # stain_normalization/reinhard.py
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 import numpy as np
 
@@ -47,8 +47,8 @@ class ReinhardStainNormalizer(StainNormalizer):
 
         self.clip_rgb = bool(clip_rgb)
         self.verbose = bool(verbose)
-        self.mu_lab: Optional[np.ndarray] = None  # (3,)
-        self.std_lab: Optional[np.ndarray] = None  # (3,)
+        self.mu_lab: np.ndarray | None = None  # (3,)
+        self.std_lab: np.ndarray | None = None  # (3,)
 
         if backend not in ("auto", "numpy", "opencv"):
             raise ValueError(
@@ -127,7 +127,7 @@ class ReinhardStainNormalizer(StainNormalizer):
 
     # ---------- Serialization ----------
 
-    def get_profile(self) -> Dict[str, Any]:
+    def get_profile(self) -> dict[str, Any]:
         return {
             "algo": "Reinhard",
             "eps": self.eps,
@@ -137,7 +137,7 @@ class ReinhardStainNormalizer(StainNormalizer):
             "std_lab": None if self.std_lab is None else self.std_lab.tolist(),
         }
 
-    def set_profile(self, profile: Dict[str, Any]) -> None:
+    def set_profile(self, profile: dict[str, Any]) -> None:
         eps_val = float(profile.get("eps", self.eps))
         if eps_val <= 0:
             raise ValueError(f"eps must be > 0. Got {eps_val}")

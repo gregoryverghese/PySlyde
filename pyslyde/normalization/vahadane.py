@@ -1,6 +1,6 @@
 """Vahadane stain normalisation (sparse non-negative matrix factorisation)."""
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 import numpy as np
 from scipy.optimize import nnls
@@ -62,7 +62,7 @@ class VahadaneStainNormalizer(StainNormalizer):
 
         self.verbose = bool(verbose)
 
-        self.W_target: Optional[np.ndarray] = None  # target stain basis (3xk)
+        self.W_target: np.ndarray | None = None  # target stain basis (3xk)
 
     # ---------- Base API ----------
 
@@ -104,7 +104,7 @@ class VahadaneStainNormalizer(StainNormalizer):
 
         return rgb
 
-    def get_profile(self) -> Dict[str, Any]:
+    def get_profile(self) -> dict[str, Any]:
         return {
             "algo": "Vahadane",
             "n_stains": self.n_stains,
@@ -114,7 +114,7 @@ class VahadaneStainNormalizer(StainNormalizer):
             "W_target": None if self.W_target is None else self.W_target.tolist(),
         }
 
-    def set_profile(self, profile: Dict[str, Any]) -> None:
+    def set_profile(self, profile: dict[str, Any]) -> None:
         self.n_stains = int(profile.get("n_stains", self.n_stains))
         self.alpha = float(profile.get("alpha", self.alpha))
         self.l1_ratio = float(profile.get("l1_ratio", self.l1_ratio))
