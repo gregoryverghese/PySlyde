@@ -95,16 +95,11 @@ class MappedMask(BaseMask):
             )
 
         if scale_x is not None:
-
             if scale_x <= 0:
-                raise ValueError(
-                    "scale_x must be positive."
-                )
+                raise ValueError("scale_x must be positive.")
 
             if scale_y <= 0:
-                raise ValueError(
-                    "scale_y must be positive."
-                )
+                raise ValueError("scale_y must be positive.")
 
             return float(scale_x), float(scale_y)
 
@@ -118,7 +113,7 @@ class MappedMask(BaseMask):
             float(derived_scale_x),
             float(derived_scale_y),
         )
-    
+
     def read_region_native(
         self,
         x: int,
@@ -161,7 +156,7 @@ class MappedMask(BaseMask):
             width=width,
             height=height,
         )
-   
+
         (x_min, x_max), (y_min, y_max) = self._mask_roi(
             x,
             y,
@@ -172,7 +167,7 @@ class MappedMask(BaseMask):
         return self.array[
             y_min:y_max,
             x_min:x_max,
-        ]    
+        ]
 
     def read_region(
         self,
@@ -201,7 +196,7 @@ class MappedMask(BaseMask):
                 If the requested region lies outside the slide.
 
         Notes:
-            Nearest-neighbour interpolation is used to preserve 
+            Nearest-neighbour interpolation is used to preserve
             discrete mask labels during resampling.
         """
 
@@ -260,7 +255,7 @@ class MappedMask(BaseMask):
 
         Returns:
             tuple[tuple[int, int], tuple[int, int]]:
-                Stored mask ROI as ``((x_min, x_max), (y_min, y_max))``.        
+                Stored mask ROI as ``((x_min, x_max), (y_min, y_max))``.
         """
 
         x0, y0 = self._level0_to_mask(x, y)

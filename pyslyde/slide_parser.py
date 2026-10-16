@@ -26,7 +26,6 @@ from pyslyde.util.utilities import (
 )
 
 
-
 class WSIParser:
     """
     Parse a whole-slide image into tiles, mask regions, and tile-level features.

@@ -593,9 +593,7 @@ def mask2rgb(mask: np.ndarray, n_classes: Optional[int] = None) -> np.ndarray:
     if n_classes is None:
         n_classes = max_label + 1
     if max_label >= n_classes:
-        raise ValueError(
-            f"mask contains label {max_label}, but n_classes={n_classes}."
-        )
+        raise ValueError(f"mask contains label {max_label}, but n_classes={n_classes}.")
     rgb_mask = np.zeros(mask.shape + (3,))
     if n_classes < 2:
         return rgb_mask

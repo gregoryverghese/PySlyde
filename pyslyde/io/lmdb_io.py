@@ -90,7 +90,7 @@ class LMDBWrite:
             key = coord_to_name(x, y)
             value = NpyObject(tile)
             txn.put(key.encode("ascii"), pickle.dumps(value))
-            
+
             n_items = i + 1
 
             if n_items % self.write_frequency == 0:

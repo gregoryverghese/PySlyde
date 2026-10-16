@@ -238,17 +238,16 @@ class TestDiskWrite(unittest.TestCase):
         dr = DiskRead(self.tmp)
         image = dr.read_image(coord_to_name(*coord))
 
-        expected = next(
-            _synthetic_parser([coord], shape=(8, 8, 3), dtype=np.uint8)
-        )[1]
+        expected = next(_synthetic_parser([coord], shape=(8, 8, 3), dtype=np.uint8))[1]
 
-        self.assertTrue(np.array_equal(image, expected))        
+        self.assertTrue(np.array_equal(image, expected))
 
     def test_read_missing_tile_raises_oserror(self):
         dr = DiskRead(self.tmp)
 
         with self.assertRaisesRegex(OSError, "Failed to read tile"):
             dr.read_image("missing_tile")
+
 
 ##################################################################
 # Tests for pyslyde/io/lmdb_io.py

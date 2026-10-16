@@ -17,6 +17,7 @@ from PIL import Image
 
 from pyslyde.util import utilities
 
+
 @pytest.fixture
 def sample_onehot():
     onehot = np.zeros((2, 2, 3))

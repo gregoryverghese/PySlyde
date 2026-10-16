@@ -116,7 +116,9 @@ def integration_data_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
                 pytrace=False,
             )
         try:
-            archive = download_verified(url, sha, cache_dir() / f"it-{sha[:16]}.archive")
+            archive = download_verified(
+                url, sha, cache_dir() / f"it-{sha[:16]}.archive"
+            )
         except Exception as e:  # network error or checksum mismatch
             _unavailable(f"Could not fetch integration data from {url}: {e}")
         extract_dir = tmp_path_factory.mktemp("pyslyde_it_url")

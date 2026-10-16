@@ -14,6 +14,7 @@ import numpy as np
 
 from pyslyde.masks.base import BaseMask
 
+
 class Level0Mask(BaseMask):
     """
     Whole-slide mask stored directly in level-0 slide coordinates.
@@ -78,14 +79,10 @@ class Level0Mask(BaseMask):
             )
 
         if scale_x is not None and not np.isclose(scale_x, 1.0):
-            raise ValueError(
-                "Level0Mask cannot be constructed with scale_x != 1.0."
-            )
+            raise ValueError("Level0Mask cannot be constructed with scale_x != 1.0.")
 
         if scale_y is not None and not np.isclose(scale_y, 1.0):
-            raise ValueError(
-                "Level0Mask cannot be constructed with scale_y != 1.0."
-            )
+            raise ValueError("Level0Mask cannot be constructed with scale_y != 1.0.")
 
         return 1.0, 1.0
 

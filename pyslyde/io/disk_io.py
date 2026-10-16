@@ -53,7 +53,7 @@ class DiskWrite:
             name = coord_to_name(x, y)
             tile_path = os.path.join(self.path, f"{name}.npy")
             tile_buffer.append((tile_path, tile))
-         
+
             n_items = i + 1
 
             if n_items % self.write_frequency == 0:
@@ -78,9 +78,9 @@ class DiskWrite:
         for tile_path, tile in tile_buffer:
             try:
                 np.save(tile_path, tile)
-                
+
             except OSError as e:
-                raise OSError(f"Failed to write tile: {tile_path}") from e            
+                raise OSError(f"Failed to write tile: {tile_path}") from e
 
 
 class DiskRead:
@@ -90,9 +90,7 @@ class DiskRead:
     This class provides functionality to read tiles and features from disk.
     """
 
-    def __init__(
-        self, path: str, image_size: Optional[Tuple[int, ...]] = None
-    ) -> None:
+    def __init__(self, path: str, image_size: Optional[Tuple[int, ...]] = None) -> None:
         """
         Initialize the disk reader.
 
@@ -144,5 +142,5 @@ class DiskRead:
             raise OSError(f"Failed to read tile: {tile_path}") from e
 
         except ValueError as e:
-            raise ValueError(f"Corrupted NumPy file: {tile_path}") from e           
+            raise ValueError(f"Corrupted NumPy file: {tile_path}") from e
         return image
