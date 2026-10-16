@@ -158,8 +158,10 @@ def _csv_has_pyslyde_schema(path: Path) -> tuple[bool, str]:
     if missing:
         return (
             False,
-            "CSV fixture is not in required CSV schema; expected columns "
-            f"{sorted(required)} but missing {sorted(missing)}. Found: {header}",
+            (
+                "CSV fixture is not in required CSV schema; expected columns "
+                f"{sorted(required)} but missing {sorted(missing)}. Found: {header}"
+            ),
         )
     return True, ""
 
@@ -201,8 +203,10 @@ def _geojson_root_is_supported(path: Path) -> tuple[bool, str]:
     if isinstance(data, list):
         return (
             False,
-            "GeoJSON fixture appears to be a bare list of Feature objects (often QuPath-style). "
-            "_geojson expects a FeatureCollection or Feature object at the JSON root.",
+            (
+                "GeoJSON fixture appears to be a bare list of Feature objects (often QuPath-style). "
+                "_geojson expects a FeatureCollection or Feature object at the JSON root."
+            ),
         )
 
     if not isinstance(data, dict):

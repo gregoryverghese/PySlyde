@@ -202,7 +202,7 @@ class TestAnnotationsLoaders:
         ann = Annotations(str(xml_path), source="imagej")
         d = ann.annotations
         assert isinstance(d, dict)
-        assert all(isinstance(k, str) for k in d.keys())
+        assert all(isinstance(k, str) for k in d)
         for polys in d.values():
             assert isinstance(polys, list)
             for poly in polys:
@@ -236,7 +236,7 @@ class TestAnnotationsLoaders:
         ann = Annotations(str(xml_path), source="asap")
         d = ann.annotations
         assert isinstance(d, dict)
-        assert all(isinstance(k, str) for k in d.keys())
+        assert all(isinstance(k, str) for k in d)
         for polys in d.values():
             for poly in polys:
                 assert len(poly) >= 3

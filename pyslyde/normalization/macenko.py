@@ -366,7 +366,7 @@ class MacenkoStainNormalizer(StainNormalizer):
         # P2 = Vt[:2, :].T                        # 3x2 plane basis
         # proj = OD @ P2                          # (N,2)
         #
-        U, S, Vt = np.linalg.svd(OD, full_matrices=False)
+        _U, _S, Vt = np.linalg.svd(OD, full_matrices=False)
         P2 = Vt[:2, :].T
         proj = OD @ P2
         phi = np.arctan2(proj[:, 1], proj[:, 0])

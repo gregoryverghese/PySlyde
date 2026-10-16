@@ -58,9 +58,8 @@ def tile_intensity(
     if channel is not None:
         if np.mean(tile[:, :, channel]) > threshold:
             return True
-    elif channel is None:
-        if np.mean(tile) > threshold:
-            return True
+    elif channel is None and np.mean(tile) > threshold:
+        return True
     return None
 
 
@@ -106,8 +105,8 @@ def remove_black(
 def remove_blue(
     patch: Any,
     area_thresh: float = 0.2,
-    lower_blue: list[int] = [100, 150, 0],
-    upper_blue: list[int] = [130, 255, 255],
+    lower_blue: list[int] | None = None,
+    upper_blue: list[int] | None = None,
 ) -> Any:
     """
     Remove patches that are predominantly blue.
@@ -121,6 +120,10 @@ def remove_blue(
     Returns:
         Patch object with blue patches removed.
     """
+    if upper_blue is None:
+        upper_blue = [130, 255, 255]
+    if lower_blue is None:
+        lower_blue = [100, 150, 0]
     n = len(patch._patches)
     patches = patch._patches.copy()
 

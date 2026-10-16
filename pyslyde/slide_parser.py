@@ -1510,8 +1510,8 @@ class Stitching:
         if len(coords) < 2:
             return None
 
-        x_coords = sorted(set(c[0] for c in coords))
-        y_coords = sorted(set(c[1] for c in coords))
+        x_coords = sorted({c[0] for c in coords})
+        y_coords = sorted({c[1] for c in coords})
 
         x_diffs = [x_coords[i + 1] - x_coords[i] for i in range(len(x_coords) - 1)]
         y_diffs = [y_coords[i + 1] - y_coords[i] for i in range(len(y_coords) - 1)]
@@ -1542,12 +1542,16 @@ class Stitching:
         if inferred is not None and inferred <= 0:
             raise ValueError(f"Inferred stride must be positive, got {inferred}")
 
-        if self._stride is not None and inferred is not None and self.strict_stride:
-            if inferred != self._stride:
-                raise ValueError(
-                    f"Provided stride ({self._stride}) does not match inferred "
-                    f"stride ({inferred})."
-                )
+        if (
+            self._stride is not None
+            and inferred is not None
+            and self.strict_stride
+            and inferred != self._stride
+        ):
+            raise ValueError(
+                f"Provided stride ({self._stride}) does not match inferred "
+                f"stride ({inferred})."
+            )
 
     def completeness(self) -> float:
         """

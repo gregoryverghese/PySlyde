@@ -173,7 +173,7 @@ class RocksDBRead:
         Returns:
             int: Number of stored entries.
         """
-        return sum(1 for _ in self.db.keys())  # len(self.db)
+        return sum(1 for _ in self.db.keys())  # noqa: SIM118 - raw-mode Rdict is not dict-iterable
 
     def __repr__(self) -> str:
         """Return string representation of the reader."""
@@ -186,7 +186,7 @@ class RocksDBRead:
         Returns:
             List[str]: Decoded key strings.
         """
-        return [key.decode("ascii") for key in self.db.keys()]
+        return [key.decode("ascii") for key in self.db.keys()]  # noqa: SIM118 - raw-mode Rdict is not dict-iterable
 
     def read_image(self, key: str) -> np.ndarray | None:
         """

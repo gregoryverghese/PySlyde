@@ -809,8 +809,8 @@ class Slide(OpenSlide):
         """
         x, y = self._infer_default_roi(x, y)
 
-        x_min, x_max, x_size = self._parse_axis(x, x_size, "x")
-        y_min, y_max, y_size = self._parse_axis(y, y_size, "y")
+        x_min, _x_max, x_size = self._parse_axis(x, x_size, "x")
+        y_min, _y_max, y_size = self._parse_axis(y, y_size, "y")
 
         if scale_border:
             x_size = Slide.resize_border(x_size, factor, threshold, operator)
@@ -1062,7 +1062,7 @@ class Slide(OpenSlide):
                 Rounded integer dimension.
         """
         if rounding == "round":
-            return int(round(value))
+            return round(value)
         if rounding == "floor":
             return int(np.floor(value))
         if rounding == "ceil":
@@ -1582,7 +1582,7 @@ class Annotations:
 
     @staticmethod
     def _to_pixel(v: float | str) -> int:
-        return int(round(float(v)))
+        return round(float(v))
 
     @staticmethod
     def _clean_id(value: str | int) -> str | int:

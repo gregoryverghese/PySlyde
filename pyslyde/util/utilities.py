@@ -41,7 +41,7 @@ def round_dim(value: float, rounding: str) -> int:
             Rounded integer dimension.
     """
     if rounding == "round":
-        return int(round(value))
+        return round(value)
     if rounding == "floor":
         return int(np.floor(value))
     if rounding == "ceil":
@@ -618,9 +618,7 @@ def draw_boundary(
     """
     annotations = list(chain(*[annotations[f] for f in annotations]))
     coords = list(chain(*annotations))
-    boundaries = list(
-        map(lambda x: (min(x) - offset, max(x) + offset), list(zip(*coords)))
-    )
+    boundaries = [(min(x) - offset, max(x) + offset) for x in list(zip(*coords))]
     return boundaries
 
 
@@ -741,7 +739,7 @@ def visualise_wsi_tiling(
     tiler,
     save_path,
     level=3,
-    plot_args={"color": "red", "size": (10, 10), "title": ""},
+    plot_args=None,
 ):
     """
     Visualise tile layout on a WSI thumbnail.
@@ -765,6 +763,8 @@ def visualise_wsi_tiling(
         - Tiles are drawn as rectangles on the thumbnail.
         - Coordinates are scaled according to level downsampling.
     """
+    if plot_args is None:
+        plot_args = {"color": "red", "size": (10, 10), "title": ""}
     mpl.use("Agg")
     wsi_thumb = wsi.get_thumbnail(wsi.level_dimensions[level])
     wsi_thumb = np.array(wsi_thumb.convert("RGB"))

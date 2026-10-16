@@ -191,15 +191,15 @@ def getFiles(imagePath, maskPath, outPath, config, shardSize=0.1):
     trainImgs = [
         img
         for img in imagePaths
-        if not any([v for v in validFiles + testFiles if v in img])
+        if not any(v for v in validFiles + testFiles if v in img)
     ]
     trainMasks = [
-        m for m in maskPaths if not any([v for v in validFiles + testFiles if v in m])
+        m for m in maskPaths if not any(v for v in validFiles + testFiles if v in m)
     ]
-    validImgs = [img for img in imagePaths if any([v for v in validFiles if v in img])]
-    validMasks = [m for m in maskPaths if any([v for v in validFiles if v in m])]
-    testImgs = [img for img in imagePaths if any([v for v in testFiles if v in img])]
-    testMasks = [m for m in maskPaths if any([v for v in testFiles if v in m])]
+    validImgs = [img for img in imagePaths if any(v for v in validFiles if v in img)]
+    validMasks = [m for m in maskPaths if any(v for v in validFiles if v in m)]
+    testImgs = [img for img in imagePaths if any(v for v in testFiles if v in img)]
+    testMasks = [m for m in maskPaths if any(v for v in testFiles if v in m)]
 
     """
     #datacheck
