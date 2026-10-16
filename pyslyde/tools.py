@@ -6,12 +6,8 @@ Anthony Baptista
 """
 
 import numpy as np
-import geopandas as gpd
-from shapely.geometry import Polygon, shape
 from skimage import measure
 from scipy.ndimage import binary_fill_holes
-import rasterio
-from rasterio.features import rasterize, shapes
 from scipy import ndimage as ndi
 from skimage.segmentation import watershed
 from skimage.feature import peak_local_max
@@ -39,6 +35,18 @@ def polygons_from_mask(mask):
           based on the distance transform.
         - CRS is set to EPSG:4326 by default.
     """
+
+    try:
+        import geopandas as gpd
+        import rasterio
+        from rasterio.features import rasterize, shapes
+        from shapely.geometry import Polygon, shape
+        from shapely.validation import make_valid
+    except ImportError as e:
+        raise ImportError(
+            "Geospatial tools require the 'geospatial' optional "
+            "dependency group. Install it with: pip install pyslyde[geospatial]"
+        ) from e
 
     # Extract polygons for each labeled region
     polygons = []

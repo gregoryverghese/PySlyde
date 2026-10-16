@@ -1,0 +1,16 @@
+/* Let table cells wrap instead of forcing horizontal scrolling
+   (the Read the Docs theme sets white-space: nowrap). */
+.wy-table-responsive table td,
+.wy-table-responsive table th {
+    white-space: normal;
+}
+
+/* Show code that links to the API reference in the link colour
+   (the theme renders it in dark text, so it does not look clickable). */
+.rst-content a code.xref {
+    color: #2980b9;
+}
+
+.rst-content a:hover code.xref {
+    color: #3091d1;
+}

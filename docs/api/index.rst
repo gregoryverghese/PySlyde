@@ -1,43 +1,75 @@
 API Reference
-============
+=============
 
-This section contains the complete API reference for PySlyde.
+The reference is generated from the docstrings in the source code, one page
+per module.
 
-Core Classes
------------
+Core
+----
 
-.. toctree::
-   :maxdepth: 2
+.. autosummary::
+   :toctree: generated
+   :template: autosummary/module.rst
 
-   slide
-   slide_parser
-   exceptions
+   pyslyde.slide
+   pyslyde.slide_parser
+   pyslyde.exceptions
+   pyslyde.datasets
 
-I/O Modules
------------
+Masks
+-----
 
-.. toctree::
-   :maxdepth: 2
+.. autosummary::
+   :toctree: generated
+   :template: autosummary/module.rst
 
-   io/disk_io
-   io/lmdb_io
-   io/rocksdb_io
-   io/tfrecords_io
+   pyslyde.masks.base
+   pyslyde.masks.level0
+   pyslyde.masks.mapped
 
-Utility Modules
+Stain normalisation
+-------------------
+
+.. autosummary::
+   :toctree: generated
+   :template: autosummary/module.rst
+
+   pyslyde.normalization.base
+   pyslyde.normalization.factory
+   pyslyde.normalization.macenko
+   pyslyde.normalization.reinhard
+   pyslyde.normalization.vahadane
+
+Feature extraction
+------------------
+
+.. autosummary::
+   :toctree: generated
+   :template: autosummary/module.rst
+
+   pyslyde.encoders.feature_extractor
+
+Input / output
 --------------
 
-.. toctree::
-   :maxdepth: 2
+.. autosummary::
+   :toctree: generated
+   :template: autosummary/module.rst
 
-   util/utilities
-   filters
+   pyslyde.io.disk_io
+   pyslyde.io.lmdb_io
+   pyslyde.io.rocksdb_io
+   pyslyde.io.tfrecords_io
+   pyslyde.io.tfrecord_write
 
-Encoder Modules
---------------
+Utilities
+---------
 
-.. toctree::
-   :maxdepth: 2
+.. autosummary::
+   :toctree: generated
+   :template: autosummary/module.rst
 
-   encoders/feature_extractor
-   encoders/ctran 
+   pyslyde.util.utilities
+   pyslyde.util.filters
+   pyslyde.util.pca
+   pyslyde.tools

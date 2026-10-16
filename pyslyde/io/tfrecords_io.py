@@ -1,8 +1,17 @@
+"""TFRecords I/O utilities for PySlyde (requires the ``tensorflow`` extra)."""
+
 import os
 import sys
 
 import numpy as np
-import tensorflow as tf
+
+try:
+    import tensorflow as tf
+except ImportError as e:
+    raise ImportError(
+        "TFRecords support requires the 'tensorflow' optional "
+        "dependency group. Install it with: pip install pyslyde[tensorflow]"
+    ) from e
 
 
 class TFRecordWrite:

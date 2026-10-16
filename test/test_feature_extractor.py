@@ -814,7 +814,7 @@ def test_pathfm_loader_returns_tfvisionwrapper_without_real_tf(monkeypatch):
 
 def test_pathfm_loader_raises_if_tensorflow_missing(monkeypatch):
     """
-    Ensures the pathfm loader fails fast with a clear RuntimeError when
+    Ensures the pathfm loader fails fast with a clear ImportError when
     TensorFlow is not installed.
 
     This test simulates an environment where importing `tensorflow` fails
@@ -833,15 +833,16 @@ def test_pathfm_loader_raises_if_tensorflow_missing(monkeypatch):
 
     monkeypatch.setattr(builtins, "__import__", fake_import)
 
-    with pytest.raises(RuntimeError) as e:
+    with pytest.raises(ImportError) as e:
         FeatureGenerator(model_name="pathfm")
 
-    assert "pathfm requires tensorflow" in str(e.value)
+    assert "pathfm requires the 'tensorflow'" in str(e.value)
+    assert "pyslyde[tensorflow]" in str(e.value)
 
 
 def test_pathfm_loader_raises_if_tf_keras_missing(monkeypatch):
     """
-    Ensures the pathfm loader fails fast with a clear RuntimeError when
+    Ensures the pathfm loader fails fast with a clear ImportError when
     tf_keras (legacy Keras 2) is not installed.
 
     This test simulates an environment where importing `tf_keras` fails
@@ -860,10 +861,11 @@ def test_pathfm_loader_raises_if_tf_keras_missing(monkeypatch):
 
     monkeypatch.setattr(builtins, "__import__", fake_import)
 
-    with pytest.raises(RuntimeError) as e:
+    with pytest.raises(ImportError) as e:
         FeatureGenerator(model_name="pathfm")
 
     assert "tf_keras" in str(e.value)
+    assert "pyslyde[tensorflow]" in str(e.value)
 
 
 @pytest.mark.parametrize(
@@ -974,7 +976,7 @@ def test_tfvisionwrapper_raises_if_tf_missing(monkeypatch):
     This test simulates a missing TensorFlow installation by intercepting
     Python's import mechanism and forcing an ImportError whenever
     `import tensorflow` is attempted. It then verifies that constructing
-    TFVisionWrapper raises a RuntimeError with an informative message.
+    TFVisionWrapper raises an ImportError with an informative message.
 
     The purpose is to enforce a strict dependency contract:
     - TFVisionWrapper must not silently degrade or partially initialize
@@ -993,6 +995,7 @@ def test_tfvisionwrapper_raises_if_tf_missing(monkeypatch):
 
     monkeypatch.setattr(builtins, "__import__", fake_import)
 
-    with pytest.raises(RuntimeError) as e:
+    with pytest.raises(ImportError) as e:
         TFVisionWrapper(infer_fn=mock.Mock())
-    assert "Tensorflow is required" in str(e.value)
+    assert "tensorflow' optional" in str(e.value)
+    assert "pyslyde[tensorflow]" in str(e.value)

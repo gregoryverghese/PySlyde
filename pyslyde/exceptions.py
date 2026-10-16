@@ -26,3 +26,19 @@ class StitchingMissingPatches(Exception):
         """Return string representation of the exception."""
         num_missing = len(self.patch_names)
         return f"{num_missing} -> {self.message}"
+
+
+class InvalidRoundingPolicyError(ValueError):
+    """
+    Raised when an invalid rounding policy is requested.
+
+    This is used by util.utilities.round_dim(...) and any API that accepts the
+    `rounding` argument.
+    """
+
+    def __init__(
+        self, rounding: str, *, allowed: tuple[str, ...] = ("round", "floor", "ceil")
+    ):
+        self.rounding = rounding
+        self.allowed = allowed
+        super().__init__(f"Invalid rounding policy: {rounding!r}. Allowed: {allowed}.")

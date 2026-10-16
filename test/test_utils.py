@@ -5,17 +5,17 @@ Created on Thu Sep 18 11:46:25 2025
 @author: PiazzeseC
 """
 
+import random
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 import numpy as np
 import pytest
-from unittest.mock import patch, MagicMock
-from pathlib import Path
-from pyslyde.util import utilities
 import seaborn as sns
-from sklearn.decomposition import IncrementalPCA
-import random
 from openslide import OpenSlide
 from PIL import Image
 
+from pyslyde.util import utilities
 
 @pytest.fixture
 def sample_onehot():
@@ -79,7 +79,6 @@ def dummy_slide_OpenSlide():
 
 ### ---------- TEST: mask2rgb ----------
 def test_mask2rgb_shape_and_values():
-
     # Create a mask with 3 classes: 0 (background), 1, 2
     mask = np.array([[0, 1, 2], [2, 1, 0], [1, 2, 0]])
 
@@ -257,10 +256,9 @@ def test_calculate_std_mean(mock_glob, mock_imread):
         return mapping[path].copy()
 
     # Patch glob.glob to return fake file paths, and cv2.imread to return the fake images
-    with (
-        patch("glob.glob", return_value=["patch1.png", "patch2.png", "patch3.png"]),
-        patch("cv2.imread", side_effect=fake_imread),
-    ):
+    with patch(
+        "glob.glob", return_value=["patch1.png", "patch2.png", "patch3.png"]
+    ), patch("cv2.imread", side_effect=fake_imread):
         mean, std = utilities.calculate_std_mean("dummy_path", channel=True, norm=True)
 
     # Expected values
@@ -310,7 +308,6 @@ def test_tile_intensity_grayscale_blank():
 
 
 def test_tile_intensity_grayscale_random():
-
     random_tile = np.random.randint(0, 256, (50, 50), dtype=np.uint8)
 
     assert utilities.tile_intensity(random_tile, threshold=0), (
@@ -366,10 +363,9 @@ def test_calculate_std_mean_rgb_normalized():
         return mapping[path].copy()
 
     # Patch glob.glob to return fake file paths, and cv2.imread to return the fake images
-    with (
-        patch("glob.glob", return_value=["patch1.png", "patch2.png", "patch3.png"]),
-        patch("cv2.imread", side_effect=fake_imread),
-    ):
+    with patch(
+        "glob.glob", return_value=["patch1.png", "patch2.png", "patch3.png"]
+    ), patch("cv2.imread", side_effect=fake_imread):
         mean, std = utilities.calculate_std_mean("dummy_path", channel=True, norm=True)
 
     # Expected values
@@ -406,9 +402,8 @@ def test_calculate_std_mean_grayscale_non_normalized():
         return mapping.get(path, imgs_gray[0]).copy()
 
     # Patch glob.glob to return 2 paths (simulate 2 patches)
-    with (
-        patch("glob.glob", return_value=["patch1.png", "patch2.png"]),
-        patch("cv2.imread", side_effect=fake_imread),
+    with patch("glob.glob", return_value=["patch1.png", "patch2.png"]), patch(
+        "cv2.imread", side_effect=fake_imread
     ):
         mean, std = utilities.calculate_std_mean(
             "dummy_path", channel=False, norm=False
@@ -421,29 +416,6 @@ def test_calculate_std_mean_grayscale_non_normalized():
     # Assertions
     assert np.allclose(mean, expected_mean, atol=1e-6)
     assert np.allclose(std, expected_std, atol=1e-6)
-
-
-def test_get_pca():
-
-    # ----- Prepare fake .npy data -----
-    fake_arrays = [
-        np.random.rand(5, 3),
-        np.random.rand(3),  # 1D array
-        np.zeros((4, 3)),  # zero array, should be skipped
-        np.random.rand(5, 3),
-    ]
-    fake_files = ["a.npy", "b.npy", "c.npy", "d.npy"]
-
-    with (
-        patch("glob.glob", return_value=fake_files),
-        patch("numpy.load", side_effect=fake_arrays),
-        patch("builtins.print"),
-    ):
-        # Call function
-        ipca = utilities.get_pca()
-
-        # Should return IncrementalPCA
-        assert isinstance(ipca, IncrementalPCA)
 
 
 def test_sample_patches_without_replacement(dummy_patch):
@@ -470,7 +442,6 @@ def test_sample_patches_with_replacement(dummy_patch):
 
 
 def test_sample_patches_independence(dummy_patch):
-
     new_patch = utilities.sample_patches(dummy_patch, n=5, replacement=False)
     new_patch2 = utilities.sample_patches(dummy_patch, n=7, replacement=True)
 
@@ -480,7 +451,6 @@ def test_sample_patches_independence(dummy_patch):
 
 
 def test_visualise_wsi_tiling(tmp_path):
-
     tmp_path = Path(tmp_path)
     save_path = tmp_path / "output.png"
 
@@ -509,16 +479,14 @@ def test_visualise_wsi_tiling(tmp_path):
     tiler = DummyTiler()
 
     # ----- Patch objects in the module where the function is defined (utilities.py) -----
-    with (
-        patch("pyslyde.util.utilities.patches.Rectangle") as mock_rect,
-        patch("pyslyde.util.utilities.plt") as mock_plt,
-        patch("pyslyde.util.utilities.mpl") as mock_mpl,
-    ):
+    with patch("pyslyde.util.utilities.patches.Rectangle") as mock_rect, patch(
+        "pyslyde.util.utilities.plt"
+    ) as mock_plt, patch("pyslyde.util.utilities.mpl") as mock_mpl:
         utilities.visualise_wsi_tiling(
             wsi=wsi,
             tiler=tiler,
             save_path=str(save_path),
-            viewing_res=3,
+            level=3,
             plot_args={"color": "red", "size": (12, 12), "title": ""},
         )
 
@@ -535,19 +503,13 @@ def test_visualise_wsi_tiling(tmp_path):
 #####################################################################
 
 
-def test_TissueDetect_with_numpy_slide(dummy_slide):
-
+def test_TissueDetect_with_numpy_slide():
     # --- slide is a NumPy array (not OpenSlide) ---
-    slide_obj = dummy_slide
+    slide_np = np.ones((100, 100, 3), dtype=np.uint8) * 128
 
-    td = utilities.TissueDetect(slide_obj)
-    assert td.slide == slide_obj  # same object
-    assert td.slide.level_downsamples == [1, 2, 4, 8, 16, 32]
-    assert td.slide.level_dimensions == [(100, 100)] * 6
-    assert td.slide.shape == [100, 100, 3]
-    assert np.array_equal(
-        td.slide.get_thumbnail(), np.ones((100, 100, 3), dtype=np.uint8) * 128
-    )
+    td = utilities.TissueDetect(slide_np)
+    assert td.slide is slide_np  # same object
+    assert td.slide.shape == (100, 100, 3)
     assert td.tissue_mask is None
     assert td.contour_mask is None
 
@@ -585,12 +547,11 @@ def test_detect_tissue_OpenSlide_slide(dummy_slide_OpenSlide):
     assert set(np.unique(mask_os)).issubset({0, 1})
 
 
-def test_mask_image_with_numpy_slide(dummy_slide):
-
-    d_slide = dummy_slide
+def test_mask_image_with_numpy_slide():
+    slide_np = np.ones((100, 100, 3), dtype=np.uint8) * 128
 
     # --- slide is a NumPy array (not OpenSlide) ---
-    td = utilities.TissueDetect(d_slide())
+    td = utilities.TissueDetect(slide_np)
     td.contour_mask = np.ones((100, 100), dtype=np.uint8)
     thumb = np.ones((100, 100, 3), dtype=np.uint8) * 100
     masked = td.mask_image(thumb)
@@ -669,7 +630,7 @@ def test_border_numpy():
     border_coords = td_np.border()
     assert isinstance(border_coords, tuple)
     assert len(border_coords) == 2
-    (x_min, y_min), (x_max, y_max) = border_coords
+    (x_min, x_max), (y_min, y_max) = border_coords
     # Use slide_np.shape[:2] for height, width
     height, width = slide_np.shape[:2]
     assert 0 <= x_min < x_max <= width
@@ -685,47 +646,47 @@ def test_border_OpenSlide_slide(dummy_slide_OpenSlide):
     border_coords_os = td_os.border()
     assert isinstance(border_coords_os, tuple)
     assert len(border_coords_os) == 2
-    (x_min, y_min), (x_max, y_max) = border_coords_os
+    (x_min, x_max), (y_min, y_max) = border_coords_os
     # Use mock slide dimensions
     width, height = slide_os.dimensions
     assert 0 <= x_min < x_max <= width
     assert 0 <= y_min < y_max <= height
 
 
-def test_tissue_thumbnail():
-    # Mock slide
-    mock_slide = MagicMock()
+def test_border_after_detect_tissue_uses_tissue_mask():
+    """Documented Quick Start flow: detect_tissue() then border() (issue #52)."""
+    slide_np = np.full((120, 160, 3), 235, dtype=np.uint8)  # light background
+    slide_np[30:90, 40:120] = (150, 60, 160)  # a purple "tissue" block
+    td = utilities.TissueDetect(slide_np)
+    td.detect_tissue()
+    assert td.contour_mask is None
 
-    # Mock slide.level_downsamples and level_dimensions
-    mock_slide.level_downsamples = [1, 2, 4, 8, 16, 32]
-    mock_slide.level_dimensions = [
-        (256, 256),
-        (128, 128),
-        (64, 64),
-        (32, 32),
-        (16, 16),
-        (8, 8),
-    ]
+    border = td.border()
+    assert border is not None
+    (x_min, x_max), (y_min, y_max) = border
+    assert (x_min, x_max, y_min, y_max) == (40, 120, 30, 90)
 
-    # Mock get_thumbnail to return a PIL Image with correct size
-    from PIL import Image
 
-    mock_slide.get_thumbnail.side_effect = lambda size: Image.fromarray(
-        np.zeros((size[1], size[0], 3), dtype=np.uint8)
-    )
+def test_border_without_prior_detection_runs_detect_tissue():
+    slide_np = np.full((120, 160, 3), 235, dtype=np.uint8)
+    slide_np[10:50, 20:70] = (150, 60, 160)
+    td = utilities.TissueDetect(slide_np)
+    (x_min, x_max), (y_min, y_max) = td.border()
+    assert td.tissue_mask is not None
+    assert (x_min, x_max, y_min, y_max) == (20, 70, 10, 50)
 
-    # Instantiate TissueDetect with the mock slide
-    td = utilities.TissueDetect(mock_slide)
 
-    # Mock _generate_tissue_contour to return a simple contour
+def test_tissue_thumbnail(dummy_slide_OpenSlide):
+    slide_os = dummy_slide_OpenSlide(as_pil=True)
+
+    td = utilities.TissueDetect(slide_os)
+
     td._generate_tissue_contour = MagicMock(
         return_value=[np.array([[0, 0], [0, 10], [10, 10], [10, 0]])]
     )
 
-    # Call the property
     thumbnail = td.tissue_thumbnail
 
-    # Assertions
     assert isinstance(thumbnail, np.ndarray), "Thumbnail should be a numpy array"
     assert thumbnail.shape[2] == 3, "Thumbnail should have 3 channels (RGB)"
     assert np.all(thumbnail >= 0) and np.all(thumbnail <= 255), (

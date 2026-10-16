@@ -1,10 +1,12 @@
 """LMDB I/O utilities for PySlyde."""
 
 import pickle
-from typing import Generator, Tuple, List, Optional
+from typing import Generator, List, Optional, Tuple
 
 import lmdb
 import numpy as np
+
+from pyslyde.util.utilities import coord_to_name
 
 
 class NpyObject:
@@ -23,7 +25,6 @@ class NpyObject:
             ndarray: Numpy array to wrap.
         """
         self.ndarray = ndarray.tobytes()
-        # self.label = label
         self.size = ndarray.shape
         self.dtype = ndarray.dtype
 
@@ -79,22 +80,38 @@ class LMDBWrite:
         Args:
             parser: Generator that yields (coordinates, tile) tuples.
         """
-        print("Beginning writing to db ...")
+        print("Beginning writing to lmdb ...")
         txn = self.env.begin(write=True)
+
+        n_items = 0
+
         for i, (p, tile) in enumerate(parser):
-            name = str(p[1]) + "_" + str(p[0])
-            key = f"{name}"
+            x, y = p
+            key = coord_to_name(x, y)
             value = NpyObject(tile)
             txn.put(key.encode("ascii"), pickle.dumps(value))
-            # self._print_progress(i,len(patch._patches))
-            if i % self.write_frequency == 0:
+            
+            n_items = i + 1
+
+            if n_items % self.write_frequency == 0:
                 txn.commit()
                 txn = self.env.begin(write=True)
+
         txn.commit()
         self.env.close()
-        print("Writing to db done")
+
+        print(f"Finished writing to lmdb ({n_items} items).")
 
     def write_image(self, image: np.ndarray, name: str) -> None:
+        """
+        Write a single array using a caller-provided key name.
+
+        Args:
+            image:
+                Array to store.
+            name:
+                Database key name.
+        """
         txn = self.env.begin(write=True)
         value = NpyObject(image)
         b = pickle.dumps(value)
@@ -149,7 +166,6 @@ class LMDBRead:
         """
         txn = self.env.begin()
         keys = [k for k, _ in txn.cursor()]
-        # self.env.close()
         return keys
 
     def read_image(self, key: bytes) -> np.ndarray:
@@ -166,6 +182,4 @@ class LMDBRead:
         data = txn.get(key)
         image = pickle.loads(data)
         image = image.get_ndarray()
-        # image = np.frombuffer(image, dtype=np.uint8)
-        # image = image.reshape(self.image_size)
         return image

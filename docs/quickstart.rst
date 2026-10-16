@@ -1,235 +1,76 @@
-Quick Start Guide
-================
+Quick Start
+===========
 
-This guide will help you get started with PySlyde quickly. We'll cover the basic usage patterns and common workflows.
+This page shows the shortest path from a whole-slide image to a set of tiles
+ready for model training, on the :doc:`example dataset <example_data>`. All
+code blocks on this page run in order, as written, in a fresh Python session
+(they are executed by the test suite, see :doc:`testing`). For a complete,
+explained walkthrough of everything else PySlyde can do, see the
+:doc:`tutorial notebook <examples/pyslyde_tutorial>`.
 
-Basic Usage
-----------
+Get the example data
+--------------------
 
-Loading a Slide
-^^^^^^^^^^^^^^
+.. code-block:: python
 
-The core of PySlyde is the `Slide` class, which wraps OpenSlide functionality:
+   from pyslyde.datasets import example_data_dir
+
+   data = example_data_dir()   # downloads the slide once (1.9 MB), then uses the cache
+   slide_path = str(data / "wsi" / "CMU-1-Small-Region.svs")
+   annotation_path = str(data / "annotations" / "example.geojson")
+
+To use your own data, replace ``slide_path`` and ``annotation_path`` with the
+paths to your files.
+
+Load a slide and its annotations
+--------------------------------
+
+:class:`~pyslyde.slide.Slide` is a subclass of :class:`openslide.OpenSlide`.
+Annotations can be read from QuPath, ImageJ, ASAP, GeoJSON, CSV or a custom
+JSON format, selected with ``source``:
 
 .. code-block:: python
 
    from pyslyde import Slide
 
-   # Load a whole slide image
-   slide = Slide("path/to/your/slide.svs")
-   
-   # Access basic properties
-   print(f"Slide dimensions: {slide.dims}")
-   print(f"Slide name: {slide.name}")
-   print(f"Number of levels: {slide.level_count}")
+   slide = Slide(slide_path, annotations_path=annotation_path, source="geojson")
+   print(slide.dims)                         # (2220, 2967) - level-0 (width, height)
+   print(slide.annotations.class_key)        # {'epithelium': 1, 'tissue': 2}
 
-Working with Annotations
-^^^^^^^^^^^^^^^^^^^^^^^
+Tile the annotated area
+-----------------------
 
-PySlyde supports multiple annotation formats:
-
-.. code-block:: python
-
-   from pyslyde import Annotations
-
-   # Load annotations from different sources
-   qupath_annotations = Annotations("path/to/qupath.json", source="qupath")
-   imagej_annotations = Annotations("path/to/imagej.xml", source="imagej")
-   asap_annotations = Annotations("path/to/asap.xml", source="asap")
-   json_annotations = Annotations("path/to/annotations.json", source="json")
-   csv_annotations = Annotations("path/to/annotations.csv", source="csv")
-
-   # Create slide with annotations
-   slide_with_annotations = Slide(
-       "path/to/slide.svs",
-       annotations=qupath_annotations
-   )
-
-Generating Masks
-^^^^^^^^^^^^^^^
-
-Create masks from annotations:
-
-.. code-block:: python
-
-   # Generate a mask with default size (2000x2000)
-   mask = slide_with_annotations.generate_mask()
-   
-   # Generate a mask with custom size
-   mask = slide_with_annotations.generate_mask(size=(1000, 1000))
-   
-   # Generate a mask for specific labels
-   mask = slide_with_annotations.generate_mask(labels=["tumor", "stroma"])
-
-Extracting Regions
-^^^^^^^^^^^^^^^^^
-
-Extract specific regions from the slide:
-
-.. code-block:: python
-
-   # Extract a region with specified coordinates and size
-   region, region_mask = slide_with_annotations.generate_region(
-       x=(1000, 2000),  # x range
-       y=(1500, 2500),  # y range
-       x_size=1000,     # width
-       y_size=1000      # height
-   )
-
-Tiling and Feature Extraction
-----------------------------
-
-Creating Tiles
-^^^^^^^^^^^^^
-
-Use the `WSIParser` for advanced tiling operations:
+:class:`~pyslyde.slide_parser.WSIParser` cuts the slide into tiles inside a
+border, here the bounding box of the annotations. Bright, mostly-background
+tiles are then dropped with :func:`pyslyde.util.filters.tile_intensity`:
 
 .. code-block:: python
 
    from pyslyde import WSIParser
+   from pyslyde.util import filters
 
-   # Create a parser
-   parser = WSIParser(
-       slide=slide_with_annotations,
-       tile_dim=256,  # tile size
-       border=slide_with_annotations.get_border(),
-       mag_level=0    # magnification level
-   )
+   parser = WSIParser(slide=slide, tile_dim=256, border=slide.get_border(), level=0)
+   print(parser.tiler(stride=256), "tiles")
 
-   # Generate tiles
-   num_tiles = parser.tiler(stride=128)
-   print(f"Generated {num_tiles} tiles")
+   parser.filter_by_func(filters.tile_intensity, threshold=220)
+   print(parser.number, "tiles after removing background")
 
-Extracting Features
-^^^^^^^^^^^^^^^^^^
+Save the results
+----------------
 
-Extract features from tiles using pre-trained models:
+Save the tiles as PNG files, named by their level-0 coordinates, and the
+annotation mask with its metadata:
 
 .. code-block:: python
 
-   # Extract features from all tiles
-   for coords, features in parser.extract_features(
-       model_name="resnet50",
-       model_path="path/to/model.pth"
-   ):
-       print(f"Tile {coords}: {features.shape}")
+   parser.save_tiles(tile_path="quickstart_output/tiles")
+   slide.save("quickstart_output/slide", size=(555, 742), overwrite=True)
 
-Saving Results
-^^^^^^^^^^^^^
-
-Save tiles and features in different formats:
-
-.. code-block:: python
-
-   # Save tiles to disk
-   parser.save(
-       parser.extract_tiles(),
-       tile_path="output/tiles/",
-       label_dir=True,
-       label_csv=True
-   )
-
-   # Save to LMDB database
-   parser.to_lmdb(
-       parser.extract_tiles(),
-       db_path="output/tiles.lmdb",
-       map_size=1024*1024*1024  # 1GB
-   )
-
-Tissue Detection
----------------
-
-Automatic tissue detection:
-
-.. code-block:: python
-
-   from pyslyde.util.utilities import TissueDetect
-
-   # Detect tissue regions
-   detector = TissueDetect("path/to/slide.svs")
-   tissue_mask = detector.detect_tissue()
-   
-   # Get tissue border
-   border = detector.border()
-   
-   # Visualize tissue regions
-   thumbnail = detector.tissue_thumbnail
-
-Image Filtering
---------------
-
-Apply filters to remove unwanted regions:
-
-.. code-block:: python
-
-   from pyslyde import filters
-
-   # Remove black patches
-   filtered_patches = filters.remove_black(
-       patches,
-       threshold=60,
-       area_thresh=0.2
-   )
-
-   # Remove blue patches (staining artifacts)
-   filtered_patches = filters.remove_blue(
-       patches,
-       area_thresh=0.2
-   )
-
-Complete Example
----------------
-
-Here's a complete example that demonstrates a typical workflow:
-
-.. code-block:: python
-
-   from pyslyde import Slide, Annotations, WSIParser
-   from pyslyde.util.utilities import TissueDetect
-
-   # 1. Load slide and annotations
-   slide = Slide("path/to/slide.svs")
-   annotations = Annotations("path/to/annotations.json", source="json")
-   slide_with_annotations = Slide("path/to/slide.svs", annotations=annotations)
-
-   # 2. Detect tissue regions
-   detector = TissueDetect("path/to/slide.svs")
-   tissue_mask = detector.detect_tissue()
-   border = detector.border()
-
-   # 3. Create parser for tiling
-   parser = WSIParser(
-       slide=slide_with_annotations,
-       tile_dim=256,
-       border=border,
-       mag_level=0
-   )
-
-   # 4. Generate tiles
-   num_tiles = parser.tiler(stride=128)
-   print(f"Generated {num_tiles} tiles")
-
-   # 5. Extract features
-   for coords, features in parser.extract_features(
-       model_name="resnet50",
-       model_path="path/to/model.pth"
-   ):
-       print(f"Processed tile {coords}")
-
-   # 6. Save results
-   parser.save(
-       parser.extract_tiles(),
-       tile_path="output/tiles/",
-       label_dir=True
-   )
-
-Next Steps
+Next steps
 ----------
 
-Now that you have the basics, you can explore:
-
-* :doc:`user_guide/index` - Detailed user guide
-* :doc:`api/index` - Complete API reference
-* :doc:`examples/index` - More examples and tutorials
-
-For more advanced usage patterns and best practices, see the :doc:`user_guide/index`. 
+* :doc:`examples/index` - tutorials covering tissue detection, masks and
+  regions, tile filtering, stain normalisation, feature extraction, other
+  output formats (LMDB, RocksDB) and stitching
+* :doc:`api/index` - full API reference
+* :doc:`example_data` - what the example dataset contains and how it is built

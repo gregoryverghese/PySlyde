@@ -1,3 +1,5 @@
+"""Reinhard colour normalisation (matching LAB colour statistics)."""
+
 # stain_normalization/reinhard.py
 from __future__ import annotations
 import numpy as np

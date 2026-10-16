@@ -8,7 +8,14 @@ import glob
 import argparse
 
 import numpy as np
-import tensorflow as tf
+
+try:
+    import tensorflow as tf
+except ImportError as e:
+    raise ImportError(
+        "TFRecords support requires the 'tensorflow' optional "
+        "dependency group. Install it with: pip install pyslyde[tensorflow]"
+    ) from e
 
 __author__ = "Gregory Verghese"
 __email__ = "gregory.verghese@gmail.com"

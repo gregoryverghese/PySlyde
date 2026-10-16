@@ -6,18 +6,25 @@ Extraction of slide-level embeddings is not yet supported.
 import os
 
 import numpy as np
-import timm
-import torch
-import torch.nn as nn
-import torchvision.models as models
-from huggingface_hub import hf_hub_download, login, snapshot_download
-from huggingface_hub.utils import LocalEntryNotFoundError
-from PIL import Image
-from timm.data import resolve_data_config
-from timm.data.transforms_factory import create_transform
-from timm.layers import SwiGLUPacked, to_2tuple
-from torchvision import transforms as T
-from transformers import AutoImageProcessor, AutoModel
+
+try:
+    import timm
+    import torch
+    import torch.nn as nn
+    import torchvision.models as models
+    from huggingface_hub import hf_hub_download, login, snapshot_download
+    from huggingface_hub.utils import LocalEntryNotFoundError
+    from PIL import Image
+    from timm.data import resolve_data_config
+    from timm.data.transforms_factory import create_transform
+    from timm.layers import SwiGLUPacked, to_2tuple
+    from torchvision import transforms as T
+    from transformers import AutoImageProcessor, AutoModel
+except ImportError as e:
+    raise ImportError(
+        "Feature extraction requires the 'feature-extractor' optional "
+        "dependency group. Install it with: pip install pyslyde[feature-extractor]"
+    ) from e
 
 GATED_HF_MODELS = {
     "uni",
@@ -155,7 +162,10 @@ class TFVisionWrapper:
         try:
             import tensorflow as tf
         except ImportError as e:
-            raise RuntimeError("Tensorflow is required but not found.") from e
+            raise ImportError(
+                "TensorFlow model support requires the 'tensorflow' optional "
+                "dependency group. Install it with: pip install pyslyde[tensorflow]"
+            ) from e
 
         self.tf = tf
 
@@ -267,6 +277,14 @@ class FeatureGenerator:
     different backends (PyTorch, Hugging Face, TensorFlow), and provides
     a unified forward_pass interface that returns validated, fixed-length
     embedding vectors.
+
+    Args:
+        model_name: Identifier of the feature extraction backbone to use,
+            e.g. ``"resnet18"`` or ``"uni"``.
+        model_path: Optional path to a user-provided checkpoint for models
+            that require external weights (reserved for future use).
+        force_hf_login: If True, always log in to Hugging Face before loading
+            a gated model, even if its weights are already cached.
     """
 
     def __init__(self, model_name, model_path=None, force_hf_login=False):
@@ -290,20 +308,22 @@ class FeatureGenerator:
 
     @property
     def model(self):
+        """The loaded model wrapper; set it with a model name to load a model."""
         return self._model
 
     @property
     def device(self):
+        """``"cuda"`` if a GPU is available, otherwise ``"cpu"``."""
         return "cuda" if torch.cuda.is_available() else "cpu"
 
     @property
     def hf_repo_id(self) -> str:
-        """canonical HF repo string: 'org/name'"""
+        """Canonical Hugging Face repository ID, ``"org/name"``."""
         return self._model_repo_id(self.model_name)
 
     @property
     def hf_hub_ref(self) -> str:
-        """timm-specific HF hub reference"""
+        """Hugging Face Hub reference in the form expected by timm, ``"hf-hub:org/name"``."""
         return f"hf-hub:{self.hf_repo_id}"
 
     @model.setter
@@ -671,13 +691,17 @@ class FeatureGenerator:
         try:
             import tensorflow as tf  # noqa: F401
         except ImportError as e:
-            raise RuntimeError("pathfm requires tensorflow to be installed.") from e
+            raise ImportError(
+                "pathfm requires the 'tensorflow' optional "
+                "dependency group. Install it with: pip install pyslyde[tensorflow]"
+            ) from e
 
         try:
             import tf_keras as tfk
         except ImportError as e:
-            raise RuntimeError(
-                "pathfm requires tf_keras (legacy Keras 2) to be installed."
+            raise ImportError(
+                "pathfm requires tf_keras (legacy Keras 2), part of the 'tensorflow' "
+                "optional dependency group. Install it with: pip install pyslyde[tensorflow]"
             ) from e
 
         repo_path = snapshot_download(repo_id=self.hf_repo_id)
@@ -686,6 +710,20 @@ class FeatureGenerator:
         return TFVisionWrapper(infer_fn, image_size=(224, 224))
 
     def forward_pass(self, image_in):
+        """
+        Compute the feature vector of one image.
+
+        Args:
+            image_in: RGB image, as a NumPy array of shape (H, W, 3) or a
+                ``PIL.Image.Image``.
+
+        Returns:
+            One-dimensional feature vector of the model's embedding size.
+
+        Raises:
+            RuntimeError: If the output size does not match the model's
+                expected embedding size.
+        """
         img = self.np_image_to_pil(image_in)
         feats = self.model.infer(img)
         feats = self._postprocess(feats)
@@ -702,20 +740,20 @@ class FeatureGenerator:
 
     def np_image_to_pil(self, image_in):
         """
-        Converts an input image to a PIL RGB Image.
+        Convert an input image to a PIL RGB image.
 
-        Accepts either:
-        - a NumPy array of shape (H, W, 3) in RGB order, or
-        - a PIL.Image.Image instance.
+        NumPy input is cast to ``uint8``, and the output is always in RGB mode.
 
-        Ensures:
-        - uint8 pixel dtype (if NumPy input),
-        - RGB color mode,
-        - consistent PIL.Image.Image output.
+        Args:
+            image_in: A NumPy array of shape (H, W, 3) in RGB order, or a
+                ``PIL.Image.Image``.
+
+        Returns:
+            The image as a ``PIL.Image.Image`` in RGB mode.
 
         Raises:
-        - TypeError for unsupported input types,
-        - ValueError for invalid NumPy array shape.
+            TypeError: For unsupported input types.
+            ValueError: For a NumPy array that is not of shape (H, W, 3).
         """
         if isinstance(image_in, np.ndarray):
             if image_in.ndim != 3 or image_in.shape[2] != 3:

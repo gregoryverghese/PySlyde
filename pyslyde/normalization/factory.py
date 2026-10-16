@@ -1,3 +1,5 @@
+"""Create stain normalisers by name (``"macenko"``, ``"reinhard"``, ``"vahadane"``)."""
+
 # stain_normalization/factory.py
 
 from typing import Dict, Type
