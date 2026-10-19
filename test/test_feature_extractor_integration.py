@@ -62,6 +62,7 @@ import torch
 from pyslyde.encoders.feature_extractor import (
     EXPECTED_DIMS,
     GATED_HF_MODELS,
+    MODEL_CONFIG,
     FeatureGenerator,
 )
 
@@ -108,11 +109,19 @@ def _skip_reason(model_name: str) -> Optional[str]:
         return "RUN_NETWORK_TESTS != 1; skipping tests that may download model weights."
 
     if model_name in GATED_HF_MODELS:
-        repo = FeatureGenerator.__new__(FeatureGenerator)._model_repo_id(model_name)
-        cached = FeatureGenerator.__new__(FeatureGenerator)._hf_cache_exists(repo)
-        if not cached and os.getenv("HUGGINGFACE_TOKEN") is None:
-            return f"{model_name} is gated on Hugging Face. Set HUGGINGFACE_TOKEN or cache the model first."
+        repo = MODEL_CONFIG[model_name]["hf_repo_id"]
 
+        fg = FeatureGenerator.__new__(FeatureGenerator)
+        fg.model_name = model_name
+
+        cached = fg._hf_cache_exists(repo)
+
+        if not cached and os.getenv("HUGGINGFACE_TOKEN") is None:
+            return (
+                f"{model_name} is gated on Hugging Face. "
+                "Set HUGGINGFACE_TOKEN or cache the model first."
+            )
+        
     if model_name == "pathfm":
         if not _has_tensorflow():
             return "pathfm requires tensorflow. Install tensorflow to run this test."

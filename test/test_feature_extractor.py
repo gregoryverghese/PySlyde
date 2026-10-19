@@ -28,6 +28,7 @@ from PIL import Image
 
 import pyslyde.encoders.feature_extractor as fe
 from pyslyde.encoders.feature_extractor import (
+    MODEL_CONFIG,
     EXPECTED_DIMS,
     GATED_HF_MODELS,
     VIRCHOW_POSTPROCESS,
@@ -35,6 +36,18 @@ from pyslyde.encoders.feature_extractor import (
     TFVisionWrapper,
     TorchWrapper,
 )
+
+TIMM_MODELS = {
+    name for name, cfg in MODEL_CONFIG.items() if cfg.get("backend") == "timm"
+}
+
+TORCHVISION_MODELS = {
+    name for name, cfg in MODEL_CONFIG.items() if cfg.get("backend") == "torchvision"
+}
+
+TRANSFORMERS_MODELS = {
+    name for name, cfg in MODEL_CONFIG.items() if cfg.get("backend") == "transformers"
+}
 
 # ------------------------------------------------
 # Fixtures
@@ -81,7 +94,7 @@ def fg_resnet18_mocked(monkeypatch):
     - torch.cuda.is_available to force CPU execution
 
     Purpose:
-    - Verify FeatureGenerator wiring, preprocessing, and forward-pass logic
+    - Verify FeatureGenerator implementation, preprocessing, and forward-pass logic
       without testing torchvision's ResNet implementation or requiring
       external resources.
     - Ensure unit tests remain fast, deterministic, and CI-safe.
@@ -232,72 +245,45 @@ def test_gated_hf_model_force_login_even_if_cached(monkeypatch):
     login_spy.assert_called_once()
 
 
-def test_model_repo_id_keyerror_for_unknown_mapping():
-    """
-    Ensures that requesting a repository ID for an unknown model name
-    raises a KeyError, enforcing strict validation of supported models.
-    """
-    fg = object.__new__(FeatureGenerator)
-    with pytest.raises(KeyError):
-        FeatureGenerator._model_repo_id(fg, "nope")
-
-
 # ------------------------------------------------
 # Checkpoint handling tests
 # ------------------------------------------------
 
 
-def test_checkpoint_dict_requires_model_path():
+def test_load_weights_requires_model_path():
     """
-    Ensures that accessing checkpoint_dict without a configured model_path
-    fails fast with a clear RuntimeError.
-
-    This test enforces the contract that checkpoint-based models must define
-    a valid model_path before checkpoint loading is attempted.
-
-    Note:
-    - Manual use of checkpoint_dict is not currently exercised by the
-      supported model loaders, but this behavior is retained to guard
-      against silent misconfiguration and future regressions.
+    Ensures that _load_weights fails when model_path is not provided.
     """
     fg = object.__new__(FeatureGenerator)
-    fg.model_name = "anything"
+    fg.model_name = "resnet18"
     fg.model_path = None
-    with pytest.raises(RuntimeError) as e:
-        _ = FeatureGenerator.checkpoint_dict.fget(fg)
-    assert "no model_path" in str(e.value)
+
+    with pytest.raises(ValueError, match="no model_path"):
+        fg._load_weights()
 
 
-def test_checkpoint_dict_missing_file(tmp_path):
+def test_load_weights_missing_file(tmp_path):
     """
-    Ensures that accessing checkpoint_dict fails with a clear RuntimeError
-    when the configured checkpoint file does not exist.
-
-    This test enforces early validation of checkpoint paths and prevents
-    obscure downstream errors caused by attempting to load a missing file.
+    Ensures that _load_weights fails when model_path does not point
+    to an existing file.
     """
     fg = object.__new__(FeatureGenerator)
-    fg.model_name = "anything"
+    fg.model_name = "resnet18"
     fg.model_path = str(tmp_path / "missing.pt")
-    with pytest.raises(RuntimeError) as e:
-        _ = FeatureGenerator.checkpoint_dict.fget(fg)
-    assert "Checkpoint file not found" in str(e.value)
 
+    with pytest.raises(FileNotFoundError, match="no file was found"):
+        fg._load_weights()
 
-def test_checkpoint_dict_load_failure(tmp_path, monkeypatch):
+def test_load_weights_load_failure(tmp_path, monkeypatch):
     """
-    Ensures that checkpoint_dict raises a clear RuntimeError when loading
-    the checkpoint file fails for any reason.
-
-    This test simulates a low-level torch.load failure and verifies that
-    the error is caught and re-raised with a descriptive, user-facing
-    message instead of leaking internal exceptions.
+    Ensures that _load_weights wraps failures from torch.load with a
+    descriptive RuntimeError.
     """
     p = tmp_path / "x.pt"
     p.write_bytes(b"not-a-real-torch-file")
 
     fg = object.__new__(FeatureGenerator)
-    fg.model_name = "anything"
+    fg.model_name = "resnet18"
     fg.model_path = str(p)
 
     monkeypatch.setattr(
@@ -305,8 +291,226 @@ def test_checkpoint_dict_load_failure(tmp_path, monkeypatch):
         mock.Mock(side_effect=Exception("boom")),
     )
     with pytest.raises(RuntimeError) as e:
-        _ = FeatureGenerator.checkpoint_dict.fget(fg)
+        fg._load_weights()
     assert "Failed to load checkpoint" in str(e.value)
+
+def test_load_weights_extracts_ctranspath_model_state_dict(tmp_path, monkeypatch):
+    """
+    Ensures that the CTransPath checkpoint's nested 'model' state_dict
+    is returned by _load_weights().
+    """
+    fg = object.__new__(FeatureGenerator)
+    fg.model_name = "ctranspath"
+
+    path = tmp_path / "ctranspath.pth"
+    path.touch()
+    fg.model_path = str(path)
+
+    state_dict = {
+        "layer.weight": torch.randn(2, 2),
+    }
+
+    monkeypatch.setattr(
+        "pyslyde.encoders.feature_extractor.torch.load",
+        mock.Mock(return_value={"model": state_dict}),
+    )
+
+    assert fg._load_weights() is state_dict
+
+def test_load_weights_rejects_invalid_ctranspath_checkpoint(tmp_path, monkeypatch):
+    """
+    Ensures that _load_weights rejects a CTransPath checkpoint that does not
+    contain the expected 'model' state_dict entry.
+    """
+    fg = object.__new__(FeatureGenerator)
+    fg.model_name = "ctranspath"
+
+    path = tmp_path / "ctranspath.pth"
+    path.touch()
+    fg.model_path = str(path)
+
+    monkeypatch.setattr(
+        "pyslyde.encoders.feature_extractor.torch.load",
+        mock.Mock(return_value={"not_model": {}}),
+    )
+
+    with pytest.raises(RuntimeError, match="expected a 'model' key"):
+        fg._load_weights()
+
+@pytest.mark.parametrize("model_name", sorted(TORCHVISION_MODELS))
+def test_torchvision_models_load_local_weights(monkeypatch, model_name):
+    """
+    Ensures that each torchvision-backed model, including ResNet-18, ResNet-50,
+    and VGG16, bypasses its default pretrained weights when a local model_path
+    is provided.
+
+    Verifies that the model is constructed with ``weights=None`` and that the
+    user-provided local state_dict is loaded into the model with strict matching.
+    """    
+    fg = object.__new__(FeatureGenerator)
+    fg.model_name = model_name
+    fg.model_path = "local.pt"
+
+    state_dict = {"weight": torch.ones(2, 2)}
+
+    fake_model = mock.Mock()
+    fake_model.fc = torch.nn.Identity()
+    fake_model.classifier = torch.nn.Identity()
+
+    constructor = mock.Mock(return_value=fake_model)
+
+    monkeypatch.setattr(fe.models, model_name, constructor)
+
+    monkeypatch.setattr(
+        fg,
+        "_load_weights",
+        mock.Mock(return_value=state_dict),
+    )
+
+    getattr(fg, f"_{model_name}")()
+
+    constructor.assert_called_once_with(weights=None)
+    fake_model.load_state_dict.assert_called_once_with(
+        state_dict,
+        strict=True,
+    )
+
+@pytest.mark.parametrize("model_name", sorted(TIMM_MODELS))
+def test_load_local_timm_model_loads_local_weights(monkeypatch, model_name):
+    """
+    Ensures that each timm-backed model can be constructed without
+    pretrained weights and populated with user-provided local weights.
+
+    Verifies the common local-loading contract across all supported
+    timm models: pretrained weights are disabled and the supplied state
+    dictionary is loaded into the constructed model with strict matching.
+    """
+    fg = object.__new__(FeatureGenerator)
+    fg.model_name = model_name
+
+    state_dict = {
+        "weight": torch.ones(2, 2),
+    }
+
+    fake_model = mock.Mock()
+    create_model = mock.Mock(return_value=fake_model)
+
+    monkeypatch.setattr(fe.timm, "create_model", create_model)
+    monkeypatch.setattr(
+        fg,
+        "_load_weights",
+        mock.Mock(return_value=state_dict),
+    )
+
+    result = fg._load_local_timm_model()
+
+    assert result is fake_model
+    create_model.assert_called_once()
+
+    _, kwargs = create_model.call_args
+    assert kwargs["pretrained"] is False
+
+    fake_model.load_state_dict.assert_called_once_with(
+        state_dict,
+        strict=True,
+    )
+
+@pytest.mark.parametrize("model_name", sorted(TRANSFORMERS_MODELS))
+def test_transformer_models_load_local_model_directory(
+    tmp_path,
+    monkeypatch,
+    model_name,
+):
+    """
+    Ensures that each Transformers-backed model (e.g. Phikon and Phikon2)
+    uses the user-provided local Hugging Face model directory rather than
+    the remote repository.
+
+    Verifies that both the image processor and model are loaded with
+    ``local_files_only=True``.
+    """
+    model_dir = tmp_path / "local_model"
+    model_dir.mkdir()
+
+    fg = object.__new__(FeatureGenerator)
+    fg.model_name = model_name
+    fg.model_path = str(model_dir)
+
+    processor = mock.Mock()
+    model = mock.Mock()
+
+    processor_loader = mock.Mock(return_value=processor)
+    model_loader = mock.Mock(return_value=model)
+
+    monkeypatch.setattr(
+        fe.AutoImageProcessor,
+        "from_pretrained",
+        processor_loader,
+    )
+    monkeypatch.setattr(
+        fe.AutoModel,
+        "from_pretrained",
+        model_loader,
+    )
+
+    fg._hf_image_transform = mock.Mock(return_value=mock.Mock())
+
+    getattr(fg, f"_{model_name}")()
+
+    processor_loader.assert_called_once_with(
+        str(model_dir),
+        local_files_only=True,
+    )
+    model_loader.assert_called_once_with(
+        str(model_dir),
+        local_files_only=True,
+    )
+
+def test_pathfm_loads_local_model_directory(tmp_path, monkeypatch):
+    """
+    Ensures that the Path Foundation model uses the user-provided local
+    TensorFlow/Keras model directory instead of downloading the model from
+    Hugging Face.
+
+    Verifies that:
+    - the local model directory is accepted;
+    - ``snapshot_download`` is not called;
+    - ``tf_keras.models.load_model`` loads the supplied local directory; and
+    - the resulting model is exposed through the expected TFVisionWrapper.
+    """
+    model_dir = tmp_path / "pathfm"
+    model_dir.mkdir()
+
+    fg = object.__new__(FeatureGenerator)
+    fg.model_name = "pathfm"
+    fg.model_path = str(model_dir)
+
+    infer_fn = mock.Mock()
+
+    keras_model = mock.Mock()
+    keras_model.signatures = {
+        "serving_default": infer_fn,
+    }
+
+    fake_tf = types.ModuleType("tensorflow")
+    fake_tf.constant = lambda x: x
+    monkeypatch.setitem(sys.modules, "tensorflow", fake_tf)
+
+    fake_load_model = mock.Mock(return_value=keras_model)
+    fake_tfk = types.ModuleType("tf_keras")
+    fake_tfk.models = types.SimpleNamespace(
+        load_model=fake_load_model,
+    )
+    monkeypatch.setitem(sys.modules, "tf_keras", fake_tfk)
+
+    snapshot_spy = mock.Mock()
+    monkeypatch.setattr(fe, "snapshot_download", snapshot_spy)
+
+    result = fg._pathfm()
+
+    snapshot_spy.assert_not_called()
+    fake_load_model.assert_called_once_with(str(model_dir))
+    assert isinstance(result, TFVisionWrapper)
 
 
 # ------------------------------------------------
@@ -693,7 +897,7 @@ def test_forward_pass_raises_on_nonfinite(dummy_rgb_np):
 
 def test_transpath_loader_uses_timm_and_returns_torchwrapper(monkeypatch):
     """
-    Verifies that the TransPath model loader uses the timm backend and exposes
+    Verifies that the CTransPath model loader uses the timm backend and exposes
     a TorchWrapper interface without performing real weight downloads.
     """
     fake_model = torch.nn.Sequential(torch.nn.Identity())
@@ -713,7 +917,7 @@ def test_transpath_loader_uses_timm_and_returns_torchwrapper(monkeypatch):
         mock.Mock(return_value=lambda pil: torch.zeros(3, 224, 224)),
     )
 
-    fg = FeatureGenerator(model_name="transpath")
+    fg = FeatureGenerator(model_name="ctranspath")
     assert isinstance(fg.model, TorchWrapper)
     fe.timm.create_model.assert_called_once()
 
@@ -759,7 +963,7 @@ def test_pathfm_loader_returns_tfvisionwrapper_without_real_tf(monkeypatch):
     while avoiding heavyweight TensorFlow/tf_keras imports and any real Hugging Face
     network activity.
 
-    This test validates FeatureGenerator's pathfm loader wiring and contracts by:
+    This test validates FeatureGenerator's pathfm loader implementation and contracts by:
     - Forcing the "cache hit" branch so HF login is not required
     - Stubbing `tensorflow` and `tf_keras` as lightweight modules so importing them
       inside `_pathfm()` succeeds without pulling in the real TensorFlow stack
@@ -878,7 +1082,7 @@ def test_all_torch_models_return_torchwrapper_smoke(monkeypatch, model_name):
     without downloading weights or executing heavy model code.
 
     This test patches each model loader to return a minimal TorchWrapper
-    backed by a tiny fake torch.nn.Module, verifying loader wiring only.
+    backed by a tiny fake torch.nn.Module, verifying loader implementation only.
     """
     monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
 
