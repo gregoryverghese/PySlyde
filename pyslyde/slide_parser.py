@@ -4,9 +4,9 @@ slide_parser.py: Whole-slide image (WSI) parser and stitching utilities for PySl
 import os
 import random
 import warnings
+from collections.abc import Collection
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
-from collections.abc import Collection
 
 import cv2
 import numpy as np
@@ -15,6 +15,7 @@ from openslide import OpenSlide
 
 from pyslyde.io.disk_io import DiskWrite
 from pyslyde.io.lmdb_io import LMDBWrite
+from pyslyde.masks.base import BaseMask
 from pyslyde.normalization import StainNormalizer
 from pyslyde.slide import Slide
 from pyslyde.util.utilities import (
@@ -23,7 +24,6 @@ from pyslyde.util.utilities import (
     name_to_coord,
     round_dim,
 )
-from pyslyde.masks.base import BaseMask
 
 
 class WSIParser:
@@ -51,7 +51,7 @@ class WSIParser:
     ---------------------
     Tile origins are stored as ``(x, y)`` coordinates in level-0 slide space.
     All internally generated tile coordinates (``self._tiles``) and all
-    operations involving ``BaseMask``implementations use level-0 coordinates.
+    operations involving ``BaseMask`` implementations use level-0 coordinates.
 
     Mask handling
     -------------
@@ -60,18 +60,20 @@ class WSIParser:
     Methods requiring a mask accept any implementation of ``BaseMask``.
     The parser interacts with masks exclusively through the ``BaseMask``
     interface, allowing masks to be stored at arbitrary resolutions while
-    keeping all parser operations in level-0 slide coordinates.    
+    keeping all parser operations in level-0 slide coordinates.
 
     Processing modes
     ----------------
     This class supports two mutually exclusive extraction modes:
 
     1. Level-based mode
+
        - user specifies ``level``
        - tiles are read directly from that slide pyramid level
        - behaviour is backward compatible with the legacy implementation
 
     2. Target-MPP mode
+
        - user specifies ``target_mpp``
        - the parser computes the required level-0 downsample relative to the
          slide base MPP
@@ -97,7 +99,7 @@ class WSIParser:
     - Tile coordinates remain in level-0 space in both modes, even when tiles
       are read from a lower-resolution pyramid level.
     - Coordinate transformations required by a mask are handled by the
-      supplied ``BaseMask`` implementation rather than by ``WSIParser``.      
+      supplied ``BaseMask`` implementation rather than by ``WSIParser``.
     """
 
     def __init__(
@@ -125,10 +127,10 @@ class WSIParser:
 
             level:
                 Slide pyramid (resolution) level to extract tile in level-based mode.
-            
+
             stain_normalizer:
                 Optional stain normalizer object  (must subclass StainNormalizer).
-            
+
             target_mpp:
                 Optional target microns-per-pixel. If provided, tiles are
                 extracted at a consistent physical resolution across slides.
@@ -346,7 +348,7 @@ class WSIParser:
         the closest finer-or-equal match to the target.
 
         Args:
-            target_downsample: 
+            target_downsample:
                 Desired downsample factor relative to level 0.
 
         Returns:
@@ -462,10 +464,10 @@ class WSIParser:
         Remove edge cases based on dimensions of patch.
 
         Args:
-            x: 
+            x:
                 Level-0 x-coordinate of the tile origin.
 
-            y: 
+            y:
                 Level-0 y-coordinate of the tile origin.
 
         Returns:
@@ -477,7 +479,7 @@ class WSIParser:
         if y + self._y_dim > self._y_max:
             remove = True
         return remove
-    
+
     def _normalize_labels(
         self,
         labels: Union[int, Collection[int]],
@@ -503,9 +505,7 @@ class WSIParser:
             labels = set(labels)
 
         if not labels:
-            raise ValueError(
-                "At least one label must be specified."
-            )
+            raise ValueError("At least one label must be specified.")
 
         return labels
 
@@ -541,19 +541,15 @@ class WSIParser:
             0,
         )
 
-    def tiler(
-            self, 
-            stride: Optional[int] = None, 
-            edge_cases: bool = False
-    ) -> int:
+    def tiler(self, stride: Optional[int] = None, edge_cases: bool = False) -> int:
         """
         Generate tile coordinates based on border, level, and stride.
 
         Args:
-            stride: 
+            stride:
                 Step size for tiling.
 
-            edge_cases: 
+            edge_cases:
                 Whether to handle edge cases.
 
         Returns:
@@ -578,7 +574,7 @@ class WSIParser:
         normalize: bool = False,
         mask: Optional[BaseMask] = None,
         labels: Optional[Union[int, Collection[int]]] = None,
-        bg_value: int = 255,        
+        bg_value: int = 255,
         force_hf_login: bool = False,
     ) -> Generator[Tuple[Tuple[int, int], np.ndarray], None, None]:
         """
@@ -618,8 +614,8 @@ class WSIParser:
 
             bg_value:
                 Pixel value assigned to pixels excluded by the mask, if masking
-                is applied. Default is 255 (white).                
-                
+                is applied. Default is 255 (white).
+
             force_hf_login:
                 Whether to force Hugging Face authentication before loading a model.
 
@@ -633,20 +629,17 @@ class WSIParser:
 
         from pyslyde.encoders.feature_extractor import FeatureGenerator
 
-        encode = FeatureGenerator(
-            model_name=model_name, 
-            force_hf_login=force_hf_login
-        )
+        encode = FeatureGenerator(model_name=model_name, force_hf_login=force_hf_login)
 
         count = 0
         for x, y in self._tiles:
             tile = self.extract_tile(
-                x=x, 
-                y=y, 
+                x=x,
+                y=y,
                 normalize=normalize,
                 mask=mask,
                 labels=labels,
-                bg_value=bg_value,            
+                bg_value=bg_value,
             )
             feature_vec = encode.forward_pass(tile)
             feature_vec = feature_vec.detach().cpu().numpy()
@@ -660,18 +653,18 @@ class WSIParser:
         threshold: float = 0.5,
     ) -> int:
         """
-        Filter retained tiles according to the proportion of a label 
+        Filter retained tiles according to the proportion of a label
         within each tile's corresponding mask region.
 
         Args:
-            mask: 
+            mask:
                 Whole-slide mask used for filtering.
 
-            labels: 
+            labels:
                 Label or collection of labels to filter tiles by.
 
-            threshold: 
-                Minimum proportion of the specified label required 
+            threshold:
+                Minimum proportion of the specified label required
                 for a tile to be retained.
 
         Returns:
@@ -679,13 +672,12 @@ class WSIParser:
         """
         if not 0.0 <= threshold <= 1.0:
             raise ValueError("threshold must be between 0 and 1.")
-        
+
         labels = self._normalize_labels(labels)
 
         retained_tiles = []
 
         for x, y in self._tiles:
-
             roi = mask.read_region_native(
                 x=x,
                 y=y,
@@ -777,7 +769,6 @@ class WSIParser:
         """
 
         for x, y in self._tiles:
-
             yield (
                 (x, y),
                 self.extract_mask(
@@ -799,7 +790,7 @@ class WSIParser:
         """
         Extract a single tile from the slide.
 
-        The tile is read according to the active parser mode using ``(x, y)`` 
+        The tile is read according to the active parser mode using ``(x, y)``
         as the level-0 coordinates of the tile's top-left corner.
 
         - In level-based mode, tiles are read directly from `self.level`.
@@ -835,7 +826,6 @@ class WSIParser:
         tile = self._read_tile_by_mode(x, y)
 
         if mask is not None:
-
             label_mask = self.extract_mask(
                 x=x,
                 y=y,
@@ -850,7 +840,14 @@ class WSIParser:
 
             binary_mask = (label_mask > 0).astype(np.uint8)
 
-            tile = tile.copy()            
+            if binary_mask.shape != tile.shape[:2]:
+                binary_mask = cv2.resize(
+                    binary_mask,
+                    (tile.shape[1], tile.shape[0]),
+                    interpolation=cv2.INTER_NEAREST,
+                )
+
+            tile = tile.copy()
             tile[binary_mask == 0] = bg_value
 
         if normalize:
@@ -911,26 +908,26 @@ class WSIParser:
 
     @staticmethod
     def _save_to_disk(
-        image: np.ndarray, 
-        path: str, 
-        x: int, 
+        image: np.ndarray,
+        path: str,
+        x: int,
         y: int,
     ) -> bool:
         """
         Save tile to disk.
 
         Args:
-            image: 
+            image:
                 Tile image as numpy array.
 
-            path: 
+            path:
                 Path to save the image.
 
-            x: 
+            x:
                 Level-0 x-coordinate of the tile origin used when
                 constructing the filename.
 
-            y: 
+            y:
                 Level-0 y-coordinate of the tile origin used when
                 constructing the filename.
 
@@ -997,13 +994,13 @@ class WSIParser:
 
     def save_tiles(
         self,
-        tile_path: str,        
+        tile_path: str,
         normalize: bool = False,
         mask: Optional[BaseMask] = None,
         labels: Optional[Union[int, Collection[int]]] = None,
-        bg_value: int = 255,   
+        bg_value: int = 255,
         label_dir: bool = False,
-        label_csv: bool = False,             
+        label_csv: bool = False,
     ) -> None:
         """
         Wrapper to extract tiles and save them to disk.
@@ -1019,10 +1016,10 @@ class WSIParser:
 
             normalize:
                 Whether to stain-normalize tiles during extraction.
-            
+
             mask:
                 Optional whole-slide mask used to mask the extracted tile.
-            
+
             labels:
                 Optional label or collection of labels to retain before
                 applying the mask. If None, all non-zero labels are retained.
@@ -1033,9 +1030,9 @@ class WSIParser:
 
             label_dir:
                 If True, saves tiles in a (single) subdirectory named after tile_path basename.
-            
+
             label_csv:
-                If True, writes a CSV with tile metadata (x, y, path).                
+                If True, writes a CSV with tile metadata (x, y, path).
         """
 
         func = self.extract_tiles(
@@ -1063,16 +1060,16 @@ class WSIParser:
         Save to LMDB database.
 
         Args:
-            func: 
+            func:
                 Generator function that yields (coordinates, tile) tuples.
 
-            db_path: 
+            db_path:
                 Base directory where tiles or features will be saved.
 
-            map_size: 
+            map_size:
                 Map size for LMDB.
 
-            write_frequency: 
+            write_frequency:
                 Controls batch commit of a transaction.
         """
         os.makedirs(db_path, exist_ok=True)
@@ -1089,13 +1086,13 @@ class WSIParser:
         Save to RocksDB database.
 
         Args:
-            func: 
+            func:
                 Generator function that yields (coordinates, tile) tuples.
-            
-            db_path: 
+
+            db_path:
                 Base directory where tiles or features will be saved.
-            
-            write_frequency: 
+
+            write_frequency:
                 Controls batch commit of a transaction.
         """
         try:
@@ -1120,13 +1117,13 @@ class WSIParser:
         Save features to disk.
 
         Args:
-            func: 
+            func:
                 Generator function that yields (coordinates, feature) tuples.
-            
-            path: 
+
+            path:
                 Path to save the features.
 
-            write_frequency: 
+            write_frequency:
                 Controls batch commit of a transaction.
         """
         os.makedirs(path, exist_ok=True)

@@ -96,3 +96,17 @@ save.py
 hormad1_patching.py
 
 *.docx
+
+# Documentation build output
+docs/_build/
+docs/api/generated/
+
+# Files written when running the tutorial notebooks / Quick Start
+docs/examples/*_output/
+quickstart_output/
+
+# Tracked on purpose despite the generic patterns above (*.json, *.xml, *csv,
+# *.ipynb): the example annotations shipped with pyslyde.datasets and the
+# tutorial notebooks rendered in the documentation.
+!pyslyde/datasets/annotations/*
+!docs/examples/*.ipynb

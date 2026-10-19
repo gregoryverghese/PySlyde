@@ -46,13 +46,12 @@ dev = [
     "ruff",
     "mypy",
     "pre-commit",
-    "gdown"
+    "nbmake",
 ]
 docs = [
-    "sphinx>=4.0.0",
-    "sphinx-rtd-theme>=1.0.0",
-    "myst-parser>=0.18.0",
-    "sphinx-autodoc-typehints>=1.12.0"
+    "sphinx>=7.2",
+    "sphinx-rtd-theme>=2.0",
+    "myst-nb>=1.0",
 ]
 rocksdb =  ["rocksdict>=0.3.24"]
 feature-extractor = [
@@ -82,18 +81,25 @@ Documentation = "https://pyslyde.readthedocs.io/en/latest/"
 [tool.setuptools.packages.find]
 include = ["pyslyde*"]
 
+# Example annotations used by pyslyde.datasets (docs, tutorials, integration tests).
+[tool.setuptools.package-data]
+"pyslyde.datasets" = ["annotations/*"]
+
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra"
-testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+testpaths = ["test"]
 markers = [
   "disk: tests for disk-backed IO",
   "lmdb: tests that require LMDB for pyslyde.io.lmdb_io",
   "rocksdb: tests that require RocksDB for pyslyde.io.rocksdb_io",
   "tfrecords: tests for TFRecords IO",
   "tfrecord_write: tests for tfrecord_write helpers",
-  "integration: slow tests that load real feature extractor models and run real forward passes",
-  "network: tests that may access the internet (downloads, HF hub, etc.)",  
+  "integration: end-to-end tests on the example dataset (real WSI + annotations in all formats); must run with 0 skips",
+  "models: tests that load real feature-extractor weights and run real forward passes (opt-in, RUN_NETWORK_TESTS=1)",
+  "gated: real-model tests for gated Hugging Face models (need HUGGINGFACE_TOKEN or a local cache)",
+  "bigmem: real-model tests for very large models (need >= 24 GB RAM/VRAM by default)",
+  "network: tests that may access the internet (downloads, HF hub, etc.)",
   "pca: tests for PCA utility functions",
   "slide_parser: tests for pyslyde.slide_parser",
 ]

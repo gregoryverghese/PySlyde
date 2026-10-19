@@ -1,4 +1,19 @@
-sphinx>=4.0.0
-sphinx-rtd-theme>=1.0.0
-myst-parser>=0.18.0
-sphinx-autodoc-typehints>=1.12.0 
+# Documentation build requirements (used by Read the Docs and the docs CI job).
+# The package itself is imported from the source tree; heavy optional
+# dependencies (torch, tensorflow, ...) are mocked in conf.py.
+sphinx>=7.2
+sphinx-rtd-theme>=2.0
+myst-nb>=1.0
+
+# Light runtime dependencies needed to import pyslyde for autodoc
+numpy
+pandas
+scipy
+scikit-image
+matplotlib
+seaborn
+opencv-python-headless
+openslide-python
+openslide-bin
+lmdb
+h5py
